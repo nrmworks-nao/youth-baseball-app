@@ -8,13 +8,35 @@ const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID || "";
 let isInitialized = false;
 
 /**
+ * LIFF IDを取得（デバッグ用）
+ */
+export function getLiffId(): string {
+  return LIFF_ID;
+}
+
+/**
+ * LIFF初期化済みかどうか
+ */
+export function isLiffInitialized(): boolean {
+  return isInitialized;
+}
+
+/**
  * LIFF SDK初期化
  */
 export async function initializeLiff(): Promise<void> {
   if (isInitialized) return;
+
+  if (!LIFF_ID) {
+    const err = new Error("NEXT_PUBLIC_LIFF_ID が設定されていません");
+    console.error("LIFF初期化に失敗しました:", err.message);
+    throw err;
+  }
+
   try {
     await liff.init({ liffId: LIFF_ID });
     isInitialized = true;
+    console.log("LIFF初期化成功");
   } catch (error) {
     console.error("LIFF初期化に失敗しました:", error);
     throw error;

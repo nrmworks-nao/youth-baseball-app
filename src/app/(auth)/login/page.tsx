@@ -3,20 +3,43 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
-import { initializeLiff, loginWithLine } from "@/lib/line/liff";
+import {
+  initializeLiff,
+  loginWithLine,
+  getLiffId,
+  isLoggedIn as isLiffLoggedIn,
+} from "@/lib/line/liff";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [liffStatus, setLiffStatus] = useState<string>("初期化中");
 
   useEffect(() => {
-    initializeLiff()
-      .then(() => setIsLoading(false))
-      .catch(() => {
+    const init = async () => {
+      try {
+        await initializeLiff();
+        setLiffStatus("初期化成功");
+
+        // LINEログイン後のコールバック処理
+        if (isLiffLoggedIn()) {
+          setIsLoggingIn(true);
+          await loginWithLine();
+          window.location.href = "/home";
+          return;
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "不明なエラー";
+        console.error("LIFF初期化エラー:", err);
+        setLiffStatus(`初期化失敗: ${message}`);
         setError("アプリの初期化に失敗しました");
+      } finally {
         setIsLoading(false);
-      });
+      }
+    };
+    init();
   }, []);
 
   const handleLogin = async () => {
@@ -26,7 +49,8 @@ export default function LoginPage() {
       await loginWithLine();
       // ログイン成功後はリダイレクト
       window.location.href = "/home";
-    } catch {
+    } catch (err) {
+      console.error("ログインエラー:", err);
       setError("ログインに失敗しました。もう一度お試しください。");
       setIsLoggingIn(false);
     }
@@ -95,6 +119,21 @@ export default function LoginPage() {
           <p className="text-center text-xs text-gray-400">
             ログインすることで利用規約・プライバシーポリシーに同意したものとみなします
           </p>
+        </div>
+
+        {/* デバッグ情報（環境変数確認用） */}
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-xs text-gray-500 space-y-1">
+          <p className="font-semibold text-gray-700">デバッグ情報</p>
+          <p>
+            LIFF ID:{" "}
+            {(() => {
+              const id = getLiffId();
+              if (!id) return "未設定";
+              return `${id.substring(0, 4)}****`;
+            })()}
+          </p>
+          <p>LIFF状態: {liffStatus}</p>
+          {error && <p className="text-red-500">エラー: {error}</p>}
         </div>
       </div>
     </div>
