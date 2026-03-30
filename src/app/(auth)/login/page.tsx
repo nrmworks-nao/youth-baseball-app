@@ -64,45 +64,51 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         {/* ロゴ・タイトル */}
         <div className="text-center">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-green-100">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center">
             <svg
-              className="h-10 w-10"
-              viewBox="0 0 24 24"
-              fill="none"
+              className="h-20 w-20"
+              viewBox="0 0 100 100"
               xmlns="http://www.w3.org/2000/svg"
             >
+              <defs>
+                <radialGradient id="ball-grad" cx="40%" cy="40%" r="50%" fx="40%" fy="40%">
+                  <stop offset="0%" stopColor="#fff"/>
+                  <stop offset="100%" stopColor="#f0f0f0"/>
+                </radialGradient>
+                <filter id="shadow">
+                  <feDropShadow dx="-2" dy="2" stdDeviation="2" floodColor="rgba(0,0,0,0.3)"/>
+                </filter>
+              </defs>
+              {/* 緑の背景円 */}
+              <circle cx="50" cy="50" r="48" fill="#4CAF50" filter="url(#shadow)"/>
               {/* 野球ボール本体 */}
-              <circle cx="12" cy="12" r="10" fill="white" stroke="#16a34a" strokeWidth="1.5" />
-              {/* 左側の縫い目 */}
-              <path
-                d="M6.5 3.5C7.5 6 7.5 9 6.5 12C5.5 15 5.5 18 6.5 20.5"
-                stroke="#dc2626"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                fill="none"
-              />
-              {/* 左側の縫い目ステッチ */}
-              <path
-                d="M5.2 5.5L7.8 4.5M5 8L7.5 7M5 10L7.5 9.5M5 12.5L7.5 12M5 15L7.5 14.5M5 17L7.5 16.5M5.2 19L7.8 18"
-                stroke="#dc2626"
-                strokeWidth="0.8"
-                strokeLinecap="round"
-              />
-              {/* 右側の縫い目 */}
-              <path
-                d="M17.5 3.5C16.5 6 16.5 9 17.5 12C18.5 15 18.5 18 17.5 20.5"
-                stroke="#dc2626"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                fill="none"
-              />
-              {/* 右側の縫い目ステッチ */}
-              <path
-                d="M18.8 5.5L16.2 4.5M19 8L16.5 7M19 10L16.5 9.5M19 12.5L16.5 12M19 15L16.5 14.5M19 17L16.5 16.5M18.8 19L16.2 18"
-                stroke="#dc2626"
-                strokeWidth="0.8"
-                strokeLinecap="round"
-              />
+              <circle cx="50" cy="50" r="32" fill="url(#ball-grad)"/>
+              {/* 上側の縫い目 */}
+              <path d="M30 40 C 35 30, 65 30, 70 40" fill="none" stroke="#D32F2F" strokeWidth="2.5"/>
+              {/* 下側の縫い目 */}
+              <path d="M30 60 C 35 70, 65 70, 70 60" fill="none" stroke="#D32F2F" strokeWidth="2.5"/>
+              {/* 上側のステッチ */}
+              <g stroke="#D32F2F" strokeWidth="1.5">
+                <line x1="28" y1="42" x2="28" y2="46"/>
+                <line x1="33" y1="39" x2="33" y2="43"/>
+                <line x1="39" y1="37" x2="39" y2="41"/>
+                <line x1="45" y1="35" x2="45" y2="39"/>
+                <line x1="55" y1="35" x2="55" y2="39"/>
+                <line x1="61" y1="37" x2="61" y2="41"/>
+                <line x1="67" y1="39" x2="67" y2="43"/>
+                <line x1="72" y1="42" x2="72" y2="46"/>
+              </g>
+              {/* 下側のステッチ */}
+              <g stroke="#D32F2F" strokeWidth="1.5">
+                <line x1="28" y1="58" x2="28" y2="54"/>
+                <line x1="33" y1="61" x2="33" y2="57"/>
+                <line x1="39" y1="63" x2="39" y2="59"/>
+                <line x1="45" y1="65" x2="45" y2="61"/>
+                <line x1="55" y1="65" x2="55" y2="61"/>
+                <line x1="61" y1="63" x2="61" y2="59"/>
+                <line x1="67" y1="61" x2="67" y2="57"/>
+                <line x1="72" y1="58" x2="72" y2="54"/>
+              </g>
             </svg>
           </div>
           <h1 className="mt-4 text-2xl font-bold text-gray-900">
