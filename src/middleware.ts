@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // 認証不要のパス
-const PUBLIC_PATHS = ["/login", "/invite", "/offline.html"];
+const PUBLIC_PATHS = ["/login", "/invite", "/onboarding", "/offline.html"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
