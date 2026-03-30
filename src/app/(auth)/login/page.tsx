@@ -66,16 +66,42 @@ export default function LoginPage() {
         <div className="text-center">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-green-100">
             <svg
-              className="h-10 w-10 text-green-600"
-              fill="none"
+              className="h-10 w-10"
               viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
             >
+              {/* 野球ボール本体 */}
+              <circle cx="12" cy="12" r="10" fill="white" stroke="#16a34a" strokeWidth="1.5" />
+              {/* 左側の縫い目 */}
               <path
+                d="M6.5 3.5C7.5 6 7.5 9 6.5 12C5.5 15 5.5 18 6.5 20.5"
+                stroke="#dc2626"
+                strokeWidth="1.5"
                 strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5a17.92 17.92 0 0 1-8.716-2.247m0 0A8.966 8.966 0 0 1 3 12c0-1.264.26-2.466.732-3.558"
+                fill="none"
+              />
+              {/* 左側の縫い目ステッチ */}
+              <path
+                d="M5.2 5.5L7.8 4.5M5 8L7.5 7M5 10L7.5 9.5M5 12.5L7.5 12M5 15L7.5 14.5M5 17L7.5 16.5M5.2 19L7.8 18"
+                stroke="#dc2626"
+                strokeWidth="0.8"
+                strokeLinecap="round"
+              />
+              {/* 右側の縫い目 */}
+              <path
+                d="M17.5 3.5C16.5 6 16.5 9 17.5 12C18.5 15 18.5 18 17.5 20.5"
+                stroke="#dc2626"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                fill="none"
+              />
+              {/* 右側の縫い目ステッチ */}
+              <path
+                d="M18.8 5.5L16.2 4.5M19 8L16.5 7M19 10L16.5 9.5M19 12.5L16.5 12M19 15L16.5 14.5M19 17L16.5 16.5M18.8 19L16.2 18"
+                stroke="#dc2626"
+                strokeWidth="0.8"
+                strokeLinecap="round"
               />
             </svg>
           </div>
