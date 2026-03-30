@@ -184,3 +184,194 @@ export interface Notification {
   is_read: boolean;
   created_at: string;
 }
+
+// 試合種別
+export type GameType = "practice" | "tournament" | "league";
+
+// 試合結果
+export type GameResult = "win" | "lose" | "draw";
+
+// 試合
+export interface Game {
+  id: string;
+  team_id: string;
+  event_id?: string;
+  opponent_name: string;
+  game_date: string;
+  venue?: string;
+  game_type: GameType;
+  result?: GameResult;
+  score_team?: number;
+  score_opponent?: number;
+  notes?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  // イニングスコア（JSON or 別テーブル）
+  inning_scores?: InningScore[];
+}
+
+// イニングごとの得点
+export interface InningScore {
+  inning: number;
+  score_team: number;
+  score_opponent: number;
+}
+
+// スコアブック画像
+export interface ScorebookImage {
+  id: string;
+  game_id: string;
+  team_id: string;
+  image_url: string;
+  sort_order: number;
+  uploaded_by: string;
+  created_at: string;
+}
+
+// 打順・守備位置
+export interface GameLineup {
+  id: string;
+  game_id: string;
+  team_id: string;
+  player_id: string;
+  batting_order?: number;
+  position?: string;
+  is_starter: boolean;
+  created_at: string;
+  // 結合データ
+  player?: Player;
+}
+
+// 選手試合成績
+export interface PlayerGameStats {
+  id: string;
+  game_id: string;
+  team_id: string;
+  player_id: string;
+  // 打撃
+  at_bats: number;
+  hits: number;
+  doubles: number;
+  triples: number;
+  home_runs: number;
+  rbis: number;
+  walks: number;
+  strikeouts: number;
+  stolen_bases: number;
+  sacrifice_hits: number;
+  // 守備
+  putouts: number;
+  assists: number;
+  errors: number;
+  // 投手
+  innings_pitched: number;
+  pitches_thrown: number;
+  earned_runs: number;
+  hits_allowed: number;
+  walks_allowed: number;
+  strikeouts_pitched: number;
+  is_winning_pitcher: boolean;
+  is_losing_pitcher: boolean;
+  created_at: string;
+  updated_at: string;
+  // 結合データ
+  player?: Player;
+}
+
+// 身体測定
+export interface PlayerMeasurement {
+  id: string;
+  team_id: string;
+  player_id: string;
+  measured_at: string;
+  height_cm?: number;
+  weight_kg?: number;
+  notes?: string;
+  recorded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 体力測定
+export interface PlayerFitnessRecord {
+  id: string;
+  team_id: string;
+  player_id: string;
+  measured_at: string;
+  sprint_50m?: number;
+  throw_distance?: number;
+  standing_jump?: number;
+  sit_ups?: number;
+  shuttle_run?: number;
+  flexibility?: number;
+  grip_strength?: number;
+  notes?: string;
+  recorded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 打撃集計
+export interface BattingAggregation {
+  player_id: string;
+  player_name: string;
+  player_number?: number;
+  games: number;
+  at_bats: number;
+  hits: number;
+  doubles: number;
+  triples: number;
+  home_runs: number;
+  rbis: number;
+  walks: number;
+  strikeouts: number;
+  stolen_bases: number;
+  sacrifice_hits: number;
+  hit_by_pitch: number;
+  sacrifice_flies: number;
+  // 計算値
+  batting_avg: number;
+  obp: number; // 出塁率
+  slg: number; // 長打率
+  ops: number;
+  total_bases: number;
+}
+
+// 投手集計
+export interface PitchingAggregation {
+  player_id: string;
+  player_name: string;
+  innings_pitched: number;
+  earned_runs: number;
+  hits_allowed: number;
+  walks_allowed: number;
+  strikeouts_pitched: number;
+  wins: number;
+  losses: number;
+  era: number; // 防御率
+  whip: number;
+}
+
+// 守備集計
+export interface FieldingAggregation {
+  player_id: string;
+  player_name: string;
+  putouts: number;
+  assists: number;
+  errors: number;
+  fielding_pct: number; // 守備率
+}
+
+// ランキング項目
+export type RankingMetric =
+  | "batting_avg"
+  | "home_runs"
+  | "rbis"
+  | "stolen_bases"
+  | "ops"
+  | "throw_distance"
+  | "sprint_50m";
+
+// ランキング期間
+export type RankingPeriod = "all" | "month" | "season";
