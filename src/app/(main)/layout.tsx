@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
+import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const TAB_ITEMS = [
   {
@@ -10,7 +12,7 @@ const TAB_ITEMS = [
     label: "ホーム",
     icon: (active: boolean) => (
       <svg
-        className={cn("h-6 w-6", active ? "text-green-600" : "text-gray-400")}
+        className={cn("h-6 w-6", active ? "text-primary" : "text-muted-foreground")}
         fill="none"
         viewBox="0 0 24 24"
         strokeWidth={1.5}
@@ -29,7 +31,7 @@ const TAB_ITEMS = [
     label: "カレンダー",
     icon: (active: boolean) => (
       <svg
-        className={cn("h-6 w-6", active ? "text-green-600" : "text-gray-400")}
+        className={cn("h-6 w-6", active ? "text-primary" : "text-muted-foreground")}
         fill="none"
         viewBox="0 0 24 24"
         strokeWidth={1.5}
@@ -48,7 +50,7 @@ const TAB_ITEMS = [
     label: "連絡",
     icon: (active: boolean) => (
       <svg
-        className={cn("h-6 w-6", active ? "text-green-600" : "text-gray-400")}
+        className={cn("h-6 w-6", active ? "text-primary" : "text-muted-foreground")}
         fill="none"
         viewBox="0 0 24 24"
         strokeWidth={1.5}
@@ -67,7 +69,7 @@ const TAB_ITEMS = [
     label: "メニュー",
     icon: (active: boolean) => (
       <svg
-        className={cn("h-6 w-6", active ? "text-green-600" : "text-gray-400")}
+        className={cn("h-6 w-6", active ? "text-primary" : "text-muted-foreground")}
         fill="none"
         viewBox="0 0 24 24"
         strokeWidth={1.5}
@@ -83,6 +85,22 @@ const TAB_ITEMS = [
   },
 ];
 
+const SIDEBAR_ITEMS = [
+  { href: "/home", label: "ホーム" },
+  { href: "/calendar", label: "カレンダー" },
+  { href: "/posts", label: "連絡" },
+  { href: "/players", label: "選手一覧" },
+  { href: "/games", label: "試合" },
+  { href: "/kids", label: "キッズ" },
+  { href: "/albums", label: "アルバム" },
+  { href: "/ranking", label: "ランキング" },
+  { href: "/accounting", label: "会計" },
+  { href: "/shop", label: "ショップ" },
+  { href: "/teams/search", label: "チーム検索" },
+  { href: "/settings", label: "設定" },
+  { href: "/mypage", label: "マイページ" },
+];
+
 export default function MainLayout({
   children,
 }: {
@@ -91,64 +109,116 @@ export default function MainLayout({
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      {/* ヘッダー */}
-      <header className="sticky top-0 z-30 border-b border-gray-200 bg-white">
-        <div className="flex h-14 items-center justify-between px-4">
-          <h1 className="text-base font-bold text-gray-900">
-            Youth Baseball Team Hub
-          </h1>
-          <Link href="/notifications" className="relative p-2">
-            <svg
-              className="h-6 w-6 text-gray-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
-              />
-            </svg>
-            {/* 通知バッジ */}
-            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-              3
-            </span>
-          </Link>
-        </div>
-      </header>
+    <ThemeProvider>
+      <div className="flex min-h-screen bg-background">
+        {/* PC用サイドバー */}
+        <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 lg:border-r lg:border-border lg:bg-card">
+          <div className="flex h-14 items-center px-4 border-b border-border">
+            <h1 className="text-base font-bold text-foreground">
+              Youth Baseball Team Hub
+            </h1>
+          </div>
+          <nav className="flex-1 overflow-y-auto px-3 py-4">
+            <ul className="space-y-1">
+              {SIDEBAR_ITEMS.map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+          <div className="border-t border-border p-3">
+            <ThemeToggle />
+          </div>
+        </aside>
 
-      {/* メインコンテンツ */}
-      <main className="flex-1 pb-20">{children}</main>
-
-      {/* 下部タブナビゲーション */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200 bg-white">
-        <div className="flex h-16 items-center justify-around">
-          {TAB_ITEMS.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex flex-col items-center gap-0.5"
-              >
-                {item.icon(isActive)}
-                <span
-                  className={cn(
-                    "text-[10px] font-medium",
-                    isActive ? "text-green-600" : "text-gray-400"
-                  )}
+        {/* メインコンテンツエリア */}
+        <div className="flex flex-1 flex-col lg:pl-64">
+          {/* ヘッダー */}
+          <header className="sticky top-0 z-30 border-b border-border bg-card">
+            <div className="flex h-14 items-center justify-between px-4 lg:px-6">
+              <h1 className="text-base font-bold text-foreground lg:hidden">
+                Youth Baseball Team Hub
+              </h1>
+              <div className="hidden lg:block" />
+              <div className="flex items-center gap-2">
+                <div className="hidden lg:block">
+                  <ThemeToggle />
+                </div>
+                <Link
+                  href="/notifications"
+                  className="relative flex h-11 w-11 items-center justify-center rounded-lg hover:bg-muted"
                 >
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
+                  <svg
+                    className="h-6 w-6 text-muted-foreground"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
+                    />
+                  </svg>
+                  <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                    3
+                  </span>
+                </Link>
+              </div>
+            </div>
+          </header>
+
+          {/* メインコンテンツ */}
+          <main className="flex-1 pb-20 lg:pb-6">
+            <div className="app-container">{children}</div>
+          </main>
+
+          {/* モバイル用下部タブナビゲーション */}
+          <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-card lg:hidden">
+            <div className="flex h-16 items-center justify-around" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+              {TAB_ITEMS.map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex min-h-[44px] min-w-[44px] flex-col items-center justify-center gap-0.5"
+                  >
+                    {item.icon(isActive)}
+                    <span
+                      className={cn(
+                        "text-[10px] font-medium",
+                        isActive ? "text-primary" : "text-muted-foreground"
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
         </div>
-      </nav>
-    </div>
+      </div>
+    </ThemeProvider>
   );
 }
