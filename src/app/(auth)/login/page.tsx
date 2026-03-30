@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
+import liff from "@line/liff";
 import {
   initializeLiff,
   loginWithLine,
@@ -13,6 +14,7 @@ import {
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isLiffReady, setIsLiffReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [liffStatus, setLiffStatus] = useState<string>("初期化中");
 
@@ -20,6 +22,7 @@ export default function LoginPage() {
     const init = async () => {
       try {
         await initializeLiff();
+        setIsLiffReady(true);
         setLiffStatus("初期化成功");
 
         // LINEログイン後のコールバック処理
@@ -42,17 +45,9 @@ export default function LoginPage() {
     init();
   }, []);
 
-  const handleLogin = async () => {
-    setIsLoggingIn(true);
-    setError(null);
-    try {
-      await loginWithLine();
-      // ログイン成功後はリダイレクト
-      window.location.href = "/home";
-    } catch (err) {
-      console.error("ログインエラー:", err);
-      setError("ログインに失敗しました。もう一度お試しください。");
-      setIsLoggingIn(false);
+  const handleLogin = () => {
+    if (!liff.isLoggedIn()) {
+      liff.login({ redirectUri: window.location.origin + "/home" });
     }
   };
 
@@ -100,7 +95,7 @@ export default function LoginPage() {
             size="lg"
             className="w-full"
             onClick={handleLogin}
-            disabled={isLoggingIn}
+            disabled={!isLiffReady || isLoggingIn}
           >
             {isLoggingIn ? (
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -133,6 +128,9 @@ export default function LoginPage() {
             })()}
           </p>
           <p>LIFF状態: {liffStatus}</p>
+          <p>ボタン状態: {!isLiffReady || isLoggingIn ? "disabled" : "enabled"}</p>
+          <p>ログイン済み: {isLiffReady ? String(liff.isLoggedIn()) : "N/A"}</p>
+          <p>LINEアプリ内: {isLiffReady ? String(liff.isInClient()) : "N/A"}</p>
           {error && <p className="text-red-500">エラー: {error}</p>}
         </div>
       </div>
