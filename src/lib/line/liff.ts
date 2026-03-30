@@ -44,46 +44,71 @@ export async function initializeLiff(): Promise<void> {
 }
 
 /**
- * LINEログイン実行
- * LIFF内ブラウザまたは外部ブラウザに応じてログイン処理を分岐
+ * ログイン結果の型定義
  */
-export async function loginWithLine(): Promise<void> {
-  await initializeLiff();
-
-  if (!liff.isLoggedIn()) {
-    liff.login({ redirectUri: window.location.origin + "/home" });
-    return;
-  }
-
-  await syncWithSupabaseAuth();
+export interface LoginResult {
+  success: boolean;
+  redirectTo: string;
+  userId?: string;
+  error?: string;
+  userSaveResult?: string;
 }
 
 /**
- * LINEプロフィール取得 → Supabase Authとセッション連携
+ * LINEログイン実行 → Supabase Auth連携 → 遷移先判定
  */
-async function syncWithSupabaseAuth(): Promise<void> {
-  const supabase = getSupabase();
-  const profile = await liff.getProfile();
-  const idToken = liff.getIDToken();
+export async function loginWithLine(): Promise<LoginResult> {
+  await initializeLiff();
 
-  if (!idToken) {
-    throw new Error("LINE IDトークンを取得できませんでした");
+  if (!liff.isLoggedIn()) {
+    // LINEログイン画面へ（認証後 /login に戻ってくる）
+    liff.login({ redirectUri: window.location.origin + "/login" });
+    return { success: false, redirectTo: "/login" };
   }
 
-  // Supabase AuthにLINE IDトークンで認証
-  // カスタム認証: Edge FunctionでLINE IDトークンを検証してSupabase JWTを発行する想定
-  const { error } = await supabase.auth.signInWithIdToken({
-    provider: "google", // カスタムプロバイダーとして設定（Supabase側で設定変更が必要）
-    token: idToken,
+  // LINEプロフィール取得
+  const profile = await liff.getProfile();
+  console.log("LINEプロフィール取得:", profile.displayName);
+
+  // API経由でSupabase Auth連携 + ユーザー登録
+  const response = await fetch("/api/auth/line", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      lineUserId: profile.userId,
+      displayName: profile.displayName,
+      pictureUrl: profile.pictureUrl,
+    }),
   });
 
-  if (error) {
-    // フォールバック: メールレス認証
-    console.warn("IDトークン認証に失敗、代替認証を試行:", error.message);
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("LINE認証APIエラー:", data.error);
+    return {
+      success: false,
+      redirectTo: "/login",
+      error: data.error || "認証に失敗しました",
+      userSaveResult: data.details,
+    };
   }
 
-  // プロフィール情報を保存
-  console.log("LINEプロフィール:", profile.displayName);
+  // Supabaseクライアント側にもセッションを設定
+  if (data.session) {
+    const supabase = getSupabase();
+    await supabase.auth.setSession({
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+    });
+    console.log("Supabaseセッション設定完了");
+  }
+
+  return {
+    success: true,
+    redirectTo: data.redirectTo || "/home",
+    userId: data.userId,
+    userSaveResult: "保存成功",
+  };
 }
 
 /**
@@ -99,8 +124,16 @@ export async function getLineProfile() {
  * ログアウト
  */
 export async function logout(): Promise<void> {
+  // Supabase サインアウト
   const supabase = getSupabase();
   await supabase.auth.signOut();
+
+  // 認証Cookieを削除
+  document.cookie =
+    "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  document.cookie =
+    "sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
   if (liff.isLoggedIn()) {
     liff.logout();
   }

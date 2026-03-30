@@ -10,33 +10,57 @@ import {
   getLiffId,
   isLoggedIn as isLiffLoggedIn,
 } from "@/lib/line/liff";
+import type { LoginResult } from "@/lib/line/liff";
+
+interface DebugInfo {
+  liffStatus: string;
+  supabaseSession: string;
+  userSaveResult: string;
+  redirectTo: string;
+  error: string;
+}
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isLiffReady, setIsLiffReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [liffStatus, setLiffStatus] = useState<string>("初期化中");
+  const [debug, setDebug] = useState<DebugInfo>({
+    liffStatus: "初期化中",
+    supabaseSession: "未確認",
+    userSaveResult: "未実行",
+    redirectTo: "未決定",
+    error: "",
+  });
 
   useEffect(() => {
     const init = async () => {
       try {
         await initializeLiff();
         setIsLiffReady(true);
-        setLiffStatus("初期化成功");
+        setDebug((prev) => ({ ...prev, liffStatus: "初期化成功" }));
 
         // LINEログイン後のコールバック処理
         if (isLiffLoggedIn()) {
           setIsLoggingIn(true);
-          await loginWithLine();
-          window.location.href = "/home";
+          setDebug((prev) => ({
+            ...prev,
+            liffStatus: "ログイン済み - 認証処理中...",
+          }));
+
+          const result = await loginWithLine();
+          handleLoginResult(result);
           return;
         }
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "不明なエラー";
         console.error("LIFF初期化エラー:", err);
-        setLiffStatus(`初期化失敗: ${message}`);
+        setDebug((prev) => ({
+          ...prev,
+          liffStatus: `初期化失敗: ${message}`,
+          error: message,
+        }));
         setError("アプリの初期化に失敗しました");
       } finally {
         setIsLoading(false);
@@ -45,9 +69,57 @@ export default function LoginPage() {
     init();
   }, []);
 
-  const handleLogin = () => {
-    if (!liff.isLoggedIn()) {
-      liff.login({ redirectUri: window.location.origin + "/home" });
+  const handleLoginResult = (result: LoginResult) => {
+    if (result.success) {
+      setDebug((prev) => ({
+        ...prev,
+        supabaseSession: "セッション作成済み",
+        userSaveResult: result.userSaveResult || "成功",
+        redirectTo: result.redirectTo,
+        error: "",
+      }));
+
+      // 画面遷移（cookieを反映するためfull reload）
+      window.location.href = result.redirectTo;
+    } else {
+      setIsLoggingIn(false);
+      setIsLoading(false);
+      const errorMsg = result.error || "ログインに失敗しました";
+      setError(errorMsg);
+      setDebug((prev) => ({
+        ...prev,
+        supabaseSession: "セッション未作成",
+        userSaveResult: result.userSaveResult || "未実行",
+        redirectTo: "遷移中止",
+        error: errorMsg,
+      }));
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!isLiffReady) return;
+
+    if (liff.isLoggedIn()) {
+      // 既にLINEログイン済みの場合、直接認証処理
+      setIsLoggingIn(true);
+      setDebug((prev) => ({
+        ...prev,
+        liffStatus: "ログイン済み - 認証処理中...",
+      }));
+
+      try {
+        const result = await loginWithLine();
+        handleLoginResult(result);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "不明なエラー";
+        setIsLoggingIn(false);
+        setError(message);
+        setDebug((prev) => ({ ...prev, error: message }));
+      }
+    } else {
+      // LINEログイン画面へリダイレクト（認証後 /login に戻る）
+      liff.login({ redirectUri: window.location.origin + "/login" });
     }
   };
 
@@ -148,7 +220,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* デバッグ情報（環境変数確認用） */}
+        {/* デバッグ情報 */}
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-xs text-gray-500 space-y-1">
           <p className="font-semibold text-gray-700">デバッグ情報</p>
           <p>
@@ -159,11 +231,17 @@ export default function LoginPage() {
               return `${id.substring(0, 4)}****`;
             })()}
           </p>
-          <p>LIFF状態: {liffStatus}</p>
+          <p>LIFF状態: {debug.liffStatus}</p>
           <p>ボタン状態: {!isLiffReady || isLoggingIn ? "disabled" : "enabled"}</p>
           <p>ログイン済み: {isLiffReady ? String(liff.isLoggedIn()) : "N/A"}</p>
           <p>LINEアプリ内: {isLiffReady ? String(liff.isInClient()) : "N/A"}</p>
-          {error && <p className="text-red-500">エラー: {error}</p>}
+          <hr className="my-1 border-gray-200" />
+          <p>Supabaseセッション: {debug.supabaseSession}</p>
+          <p>usersテーブル保存: {debug.userSaveResult}</p>
+          <p>遷移先: {debug.redirectTo}</p>
+          {debug.error && (
+            <p className="text-red-500">エラー: {debug.error}</p>
+          )}
         </div>
       </div>
     </div>
