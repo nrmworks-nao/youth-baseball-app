@@ -554,3 +554,319 @@ export interface BestPlay {
   player?: Player;
   game?: Game;
 }
+
+// === アルバム ===
+
+export interface Album {
+  id: string;
+  team_id: string;
+  title: string;
+  description?: string;
+  cover_photo_url?: string;
+  event_id?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  // 結合データ
+  event?: Event;
+  photo_count?: number;
+}
+
+export interface AlbumPhoto {
+  id: string;
+  album_id: string;
+  team_id: string;
+  photo_url: string;
+  thumbnail_url?: string;
+  caption?: string;
+  taken_at?: string;
+  uploaded_by: string;
+  created_at: string;
+  // 結合データ
+  like_count?: number;
+  is_liked?: boolean;
+  uploader?: User;
+}
+
+export interface PhotoLike {
+  id: string;
+  photo_id: string;
+  team_id: string;
+  user_id: string;
+  created_at: string;
+}
+
+// === 会計 ===
+
+export type FeeFrequency = "monthly" | "yearly" | "one_time";
+
+export interface FeeSetting {
+  id: string;
+  team_id: string;
+  name: string;
+  amount: number;
+  frequency: FeeFrequency;
+  is_active: boolean;
+  description?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type InvoiceStatus = "pending" | "paid" | "partial" | "overdue" | "cancelled";
+
+export interface Invoice {
+  id: string;
+  team_id: string;
+  target_user_id: string;
+  title: string;
+  total_amount: number;
+  status: InvoiceStatus;
+  due_date?: string;
+  issued_at: string;
+  paid_at?: string;
+  notes?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  // 結合データ
+  target_user?: User;
+  items?: InvoiceItem[];
+  payments?: Payment[];
+}
+
+export interface InvoiceItem {
+  id: string;
+  invoice_id: string;
+  team_id: string;
+  fee_setting_id?: string;
+  description: string;
+  amount: number;
+  quantity: number;
+  created_at: string;
+}
+
+export type PaymentMethod = "cash" | "bank_transfer" | "other";
+
+export interface Payment {
+  id: string;
+  team_id: string;
+  invoice_id?: string;
+  payer_user_id: string;
+  amount: number;
+  payment_method?: PaymentMethod;
+  paid_at: string;
+  confirmed_by?: string;
+  confirmed_at?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  // 結合データ
+  payer?: User;
+  invoice?: Invoice;
+}
+
+export type LedgerEntryType = "income" | "expense";
+
+export interface LedgerEntry {
+  id: string;
+  team_id: string;
+  entry_type: LedgerEntryType;
+  category: string;
+  description: string;
+  amount: number;
+  entry_date: string;
+  payment_id?: string;
+  receipt_url?: string;
+  recorded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// === ショップ ===
+
+export interface ShopCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  icon_url?: string;
+  sort_order: number;
+  parent_id?: string;
+  created_at: string;
+}
+
+export interface ShopProduct {
+  id: string;
+  category_id?: string;
+  name: string;
+  description?: string;
+  brand?: string;
+  price_min?: number;
+  price_max?: number;
+  age_group?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  // 結合データ
+  category?: ShopCategory;
+  images?: ShopProductImage[];
+  links?: ShopProductLink[];
+  pinned?: TeamPinnedProduct;
+}
+
+export interface ShopProductImage {
+  id: string;
+  product_id: string;
+  image_url: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface ShopProductLink {
+  id: string;
+  product_id: string;
+  store_name: string;
+  url: string;
+  price?: number;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeamPinnedProduct {
+  id: string;
+  team_id: string;
+  product_id: string;
+  comment?: string;
+  pinned_by: string;
+  sort_order: number;
+  created_at: string;
+  // 結合データ
+  product?: ShopProduct;
+  pinner?: User;
+}
+
+// === チーム間連携 ===
+
+export interface TeamProfile {
+  id: string;
+  team_id: string;
+  introduction?: string;
+  home_ground?: string;
+  practice_schedule?: string;
+  member_count?: number;
+  founded_year?: number;
+  contact_email?: string;
+  website_url?: string;
+  photo_urls?: string[];
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+  // 結合データ
+  team?: Team;
+}
+
+export interface InterTeamMessage {
+  id: string;
+  from_team_id: string;
+  to_team_id: string;
+  sender_id: string;
+  subject: string;
+  body: string;
+  is_read: boolean;
+  read_at?: string;
+  parent_message_id?: string;
+  created_at: string;
+  // 結合データ
+  from_team?: Team;
+  to_team?: Team;
+  sender?: User;
+}
+
+export type MatchRequestStatus = "pending" | "accepted" | "declined" | "cancelled";
+
+export interface MatchRequest {
+  id: string;
+  from_team_id: string;
+  to_team_id: string;
+  requested_by: string;
+  message?: string;
+  preferred_venue?: string;
+  status: MatchRequestStatus;
+  responded_by?: string;
+  responded_at?: string;
+  confirmed_date?: string;
+  created_at: string;
+  updated_at: string;
+  // 結合データ
+  from_team?: Team;
+  to_team?: Team;
+  dates?: MatchRequestDate[];
+}
+
+export interface MatchRequestDate {
+  id: string;
+  match_request_id: string;
+  proposed_date: string;
+  start_time?: string;
+  end_time?: string;
+  is_selected: boolean;
+  created_at: string;
+}
+
+export interface HeadToHeadRecord {
+  id: string;
+  team_id: string;
+  opponent_team_id?: string;
+  opponent_name: string;
+  game_id?: string;
+  game_date: string;
+  result: "win" | "lose" | "draw";
+  score_team?: number;
+  score_opponent?: number;
+  notes?: string;
+  created_at: string;
+}
+
+// === 通知 ===
+
+export type NotificationType =
+  | "event"
+  | "post"
+  | "attendance"
+  | "payment"
+  | "match_request"
+  | "album"
+  | "shop"
+  | "general";
+
+export interface AppNotification {
+  id: string;
+  team_id?: string;
+  user_id: string;
+  title: string;
+  body?: string;
+  notification_type: NotificationType;
+  reference_type?: string;
+  reference_id?: string;
+  is_read: boolean;
+  read_at?: string;
+  is_sent_line: boolean;
+  created_at: string;
+}
+
+// === LINE連携設定 ===
+
+export interface TeamLineConfig {
+  id: string;
+  team_id: string;
+  line_channel_id?: string;
+  line_channel_secret?: string;
+  line_channel_access_token?: string;
+  line_group_id?: string;
+  liff_id?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}

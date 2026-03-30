@@ -4,12 +4,13 @@ import { cn } from "@/lib/utils/cn";
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
-  options: { value: string; label: string }[];
+  options?: { value: string; label: string }[];
   placeholder?: string;
+  children?: React.ReactNode;
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, error, id, options, placeholder, ...props }, ref) => {
+  ({ className, label, error, id, options, placeholder, children, ...props }, ref) => {
     return (
       <div className="w-full">
         {label && (
@@ -35,11 +36,13 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
               {placeholder}
             </option>
           )}
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
+          {children
+            ? children
+            : options?.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
         </select>
         {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
       </div>

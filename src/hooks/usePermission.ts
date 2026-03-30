@@ -56,6 +56,61 @@ export function usePermission(currentPermission: PermissionGroup | null) {
     return index === -1 ? PERMISSION_HIERARCHY.length : index;
   }, [currentPermission]);
 
+  // 会計管理権限（会費設定・請求作成）
+  const canManageAccounting = useCallback((): boolean => {
+    return hasPermission(["team_admin", "vice_president", "treasurer"]);
+  }, [hasPermission]);
+
+  // 入金記録権限
+  const canRecordPayment = useCallback((): boolean => {
+    return hasPermission(["vice_president", "treasurer"]);
+  }, [hasPermission]);
+
+  // 収支台帳閲覧権限
+  const canViewLedger = useCallback((): boolean => {
+    return hasPermission(["team_admin", "vice_president", "treasurer"]);
+  }, [hasPermission]);
+
+  // アルバム管理権限（写真削除・報告対応）
+  const canManagePhotos = useCallback((): boolean => {
+    return hasPermission([
+      "team_admin",
+      "vice_president",
+      "manager",
+      "publicity",
+    ]);
+  }, [hasPermission]);
+
+  // 写真アップロード権限
+  const canUploadPhotos = useCallback((): boolean => {
+    return hasPermission([
+      "team_admin",
+      "publicity",
+      "parent",
+    ]);
+  }, [hasPermission]);
+
+  // ショップ管理権限（system_adminのみ）
+  const canManageShop = useCallback((): boolean => {
+    return hasPermission([]);
+    // system_admin はhasPermission内で常にtrueなので、空配列でsystem_adminのみに制限
+  }, [hasPermission]);
+
+  // おすすめピン留め権限
+  const canPinProduct = useCallback((): boolean => {
+    return hasPermission(["team_admin", "vice_president"]);
+  }, [hasPermission]);
+
+  // チーム間メッセージ送受信権限
+  const canSendInterTeamMessage = useCallback((): boolean => {
+    return hasPermission(["team_admin", "vice_president"]);
+  }, [hasPermission]);
+
+  // 練習試合申込権限
+  const canRequestMatch = useCallback((): boolean => {
+    return hasPermission(["team_admin", "vice_president", "manager"]);
+  }, [hasPermission]);
+
   return {
     currentPermission,
     hasPermission,
@@ -63,5 +118,14 @@ export function usePermission(currentPermission: PermissionGroup | null) {
     canPost,
     canCreateEvent,
     getPermissionLevel,
+    canManageAccounting,
+    canRecordPayment,
+    canViewLedger,
+    canManagePhotos,
+    canUploadPhotos,
+    canManageShop,
+    canPinProduct,
+    canSendInterTeamMessage,
+    canRequestMatch,
   };
 }
