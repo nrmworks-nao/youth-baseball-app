@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // 認証不要のパス
-const PUBLIC_PATHS = ["/login", "/invite"];
+const PUBLIC_PATHS = ["/login", "/invite", "/offline.html"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -12,19 +12,25 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 静的ファイル・APIはスキップ
+  // 静的ファイル・API・Service Workerはスキップ
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
+    pathname === "/sw.js" ||
+    pathname === "/manifest.json" ||
+    pathname.startsWith("/icons/") ||
     pathname.includes(".")
   ) {
     return NextResponse.next();
   }
 
   // Supabase Authのセッションクッキーをチェック
+  // sb-<project-ref>-auth-token 形式のクッキーを検索
+  const cookies = request.cookies.getAll();
   const supabaseAuth =
     request.cookies.get("sb-access-token") ||
-    request.cookies.get("sb-refresh-token");
+    request.cookies.get("sb-refresh-token") ||
+    cookies.some((c) => c.name.includes("-auth-token"));
 
   // 未認証ユーザーはログインページへリダイレクト
   if (!supabaseAuth) {
