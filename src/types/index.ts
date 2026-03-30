@@ -375,3 +375,182 @@ export type RankingMetric =
 
 // ランキング期間
 export type RankingPeriod = "all" | "month" | "season";
+
+// === キッズ機能 ===
+
+// カードランク
+export type CardRank = "bronze" | "silver" | "gold" | "platinum";
+
+// 選手カード
+export interface PlayerCard {
+  id: string;
+  player_id: string;
+  team_id: string;
+  card_rank: CardRank;
+  photo_url?: string;
+  batting_throw?: string; // 例: "右投右打"
+  favorite_pro_player?: string;
+  best_play?: string;
+  future_dream?: string;
+  selected_badge_ids?: string[];
+  created_at: string;
+  updated_at: string;
+  // 結合データ
+  player?: Player;
+}
+
+// バッジカテゴリ
+export type BadgeCategory =
+  | "batting"
+  | "pitching"
+  | "fielding"
+  | "running"
+  | "effort"
+  | "special"
+  | "custom";
+
+// バッジ
+export interface KidsBadge {
+  id: string;
+  team_id?: string;
+  name: string;
+  description: string;
+  category: BadgeCategory;
+  icon_color: string;
+  is_preset: boolean;
+  condition_key?: string;
+  created_at: string;
+}
+
+// 選手バッジ
+export interface PlayerBadge {
+  id: string;
+  player_id: string;
+  badge_id: string;
+  earned_at: string;
+  // 結合データ
+  badge?: KidsBadge;
+}
+
+// 表彰カテゴリ
+export type AwardCategory = "mvp" | "effort" | "nice_play";
+
+// 表彰
+export interface Award {
+  id: string;
+  team_id: string;
+  player_id: string;
+  category: AwardCategory;
+  comment?: string;
+  awarded_at: string;
+  created_by: string;
+  created_at: string;
+  // 結合データ
+  player?: Player;
+}
+
+// マイルストーン種別
+export type MilestoneType =
+  | "first_hit"
+  | "first_rbi"
+  | "first_homerun"
+  | "first_strikeout_pitched"
+  | "first_complete_game"
+  | "first_win"
+  | "first_steal"
+  | "personal_best"
+  | "height_milestone"
+  | "anniversary"
+  | "badge_earned"
+  | "award_received"
+  | "manual";
+
+// マイルストーン
+export interface Milestone {
+  id: string;
+  player_id: string;
+  team_id: string;
+  milestone_type: MilestoneType;
+  title: string;
+  description?: string;
+  milestone_date: string;
+  is_auto: boolean;
+  created_at: string;
+}
+
+// マイルストーンコメント
+export interface MilestoneComment {
+  id: string;
+  milestone_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  // 結合データ
+  user?: User;
+}
+
+// 月間ふりかえり
+export interface MonthlyReview {
+  id: string;
+  player_id: string;
+  team_id: string;
+  year: number;
+  month: number;
+  practice_attendance_rate?: number;
+  games_played?: number;
+  batting_avg?: number;
+  batting_avg_change?: number;
+  height_cm?: number;
+  height_change?: number;
+  weight_kg?: number;
+  weight_change?: number;
+  badges_earned?: string[];
+  best_play_summary?: string;
+  positive_message: string;
+  created_at: string;
+}
+
+// マイ目標
+export type GoalStatus = "active" | "achieved" | "expired";
+
+export interface PlayerGoal {
+  id: string;
+  player_id: string;
+  team_id: string;
+  title: string;
+  target_metric?: string;
+  target_value: number;
+  current_value: number;
+  deadline?: string;
+  status: GoalStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+// 目標への応援コメント
+export interface GoalComment {
+  id: string;
+  goal_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  user?: User;
+}
+
+// ベストプレー
+export interface BestPlay {
+  id: string;
+  team_id: string;
+  game_id?: string;
+  player_id: string;
+  title: string;
+  description?: string;
+  photo_url?: string;
+  is_auto: boolean;
+  play_date: string;
+  created_by?: string;
+  created_at: string;
+  // 結合データ
+  player?: Player;
+  game?: Game;
+}
