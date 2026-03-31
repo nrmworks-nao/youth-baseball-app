@@ -1,10 +1,12 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 
 const TAB_ITEMS = [
   {
@@ -101,6 +103,84 @@ const SIDEBAR_ITEMS = [
   { href: "/mypage", label: "マイページ" },
 ];
 
+function TeamSwitcher() {
+  const { currentTeam, teams, switchTeam, isLoading } = useCurrentTeam();
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  if (isLoading || !currentTeam || teams.length <= 1) {
+    return currentTeam ? (
+      <span className="text-sm font-medium text-foreground truncate max-w-[160px]">
+        {currentTeam.name}
+      </span>
+    ) : null;
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+      >
+        <span className="truncate max-w-[160px]">{currentTeam.name}</span>
+        <svg
+          className={cn("h-4 w-4 text-muted-foreground transition-transform", isOpen && "rotate-180")}
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-border bg-card shadow-lg">
+          <div className="p-1">
+            {teams.map((t) => (
+              <button
+                key={t.team.id}
+                onClick={() => {
+                  if (t.team.id !== currentTeam.id) {
+                    switchTeam(t.team.id);
+                  }
+                  setIsOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors",
+                  t.team.id === currentTeam.id
+                    ? "bg-primary/10 text-primary"
+                    : "text-foreground hover:bg-muted"
+                )}
+              >
+                <div>
+                  <p className="font-medium">{t.team.name}</p>
+                  <p className="text-xs text-muted-foreground">{t.display_title}</p>
+                </div>
+                {t.team.id === currentTeam.id && (
+                  <svg className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MainLayout({
   children,
 }: {
@@ -117,6 +197,9 @@ export default function MainLayout({
             <h1 className="text-base font-bold text-foreground">
               Youth Baseball Team Hub
             </h1>
+          </div>
+          <div className="border-b border-border px-3 py-2">
+            <TeamSwitcher />
           </div>
           <nav className="flex-1 overflow-y-auto px-3 py-4">
             <ul className="space-y-1">
@@ -152,9 +235,9 @@ export default function MainLayout({
           {/* ヘッダー */}
           <header className="sticky top-0 z-30 border-b border-border bg-card">
             <div className="flex h-14 items-center justify-between px-4 lg:px-6">
-              <h1 className="text-base font-bold text-foreground lg:hidden">
-                Youth Baseball Team Hub
-              </h1>
+              <div className="lg:hidden">
+                <TeamSwitcher />
+              </div>
               <div className="hidden lg:block" />
               <div className="flex items-center gap-2">
                 <div className="hidden lg:block">

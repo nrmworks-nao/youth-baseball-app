@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { supabase } from "@/lib/supabase/client";
 
 type Step = "team" | "role";
 
@@ -16,6 +17,8 @@ const DISPLAY_TITLE_OPTIONS = [
 export default function OnboardingPage() {
   const [step, setStep] = useState<Step>("team");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [teamData, setTeamData] = useState({
     name: "",
     region: "",
@@ -23,18 +26,51 @@ export default function OnboardingPage() {
   });
   const [displayTitle, setDisplayTitle] = useState("監督");
 
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserId(user.id);
+      } else {
+        window.location.href = "/login";
+      }
+    });
+  }, []);
+
   const handleCreateTeam = async () => {
     if (!teamData.name.trim()) return;
+    if (!userId) {
+      setErrorMessage("ログインが必要です。再度ログインしてください。");
+      return;
+    }
 
     setIsSubmitting(true);
+    setErrorMessage(null);
     try {
-      // TODO: Supabaseにチーム作成 + team_admin権限のメンバー登録
-      // const team = await createTeam(teamData);
-      // await addTeamMember({ team_id: team.id, user_id: currentUser.id, permission_group: 'team_admin', display_title: displayTitle });
-      console.log("チーム作成:", teamData, "表示呼称:", displayTitle);
+      const res = await fetch("/api/teams/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: teamData.name,
+          region: teamData.region,
+          league: teamData.league,
+          userId,
+          displayTitle,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMessage(data.error || "チームの作成に失敗しました");
+        return;
+      }
+
       window.location.href = "/home";
     } catch (error) {
       console.error("チーム作成エラー:", error);
+      setErrorMessage(
+        "ネットワークエラーが発生しました。接続を確認してもう一度お試しください。"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -51,6 +87,12 @@ export default function OnboardingPage() {
       </header>
 
       <div className="flex-1 px-4 py-6">
+        {errorMessage && (
+          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
+
         {step === "team" && (
           <div className="space-y-5">
             <Input

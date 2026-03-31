@@ -13,9 +13,35 @@ export interface User {
   id: string;
   line_id: string;
   display_name: string;
+  avatar_url?: string;
   picture_url?: string;
   phone?: string;
+  notification_settings?: NotificationSettings;
   created_at: string;
+}
+
+// 通知設定
+export interface NotificationSettings {
+  schedule: boolean;
+  post: boolean;
+  accounting: boolean;
+}
+
+// チームとロール情報の複合型
+export interface TeamWithRole {
+  team: Team;
+  permission_group: PermissionGroup;
+  display_title: string;
+  member_id: string;
+}
+
+// 子供（選手）情報＋チーム名
+export interface ChildWithTeam {
+  player: Player;
+  team_name: string;
+  team_id: string;
+  relationship?: string;
+  user_child_id: string;
 }
 
 // チーム
