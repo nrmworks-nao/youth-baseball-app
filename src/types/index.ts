@@ -50,6 +50,8 @@ export interface Team {
   name: string;
   region?: string;
   league?: string;
+  logo_url?: string;
+  banner_url?: string;
   invite_code?: string;
   invite_expires_at?: string;
   require_approval: boolean;
