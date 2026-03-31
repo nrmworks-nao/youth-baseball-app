@@ -1,6 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+interface ChildEntry {
+  existingPlayerId?: string;
+  newPlayer?: {
+    name: string;
+    number?: number;
+    grade?: number;
+    position?: string;
+    throwing_hand?: string;
+    batting_hand?: string;
+  };
+  relationship: string;
+}
+
 /**
  * チーム参加API（トランザクション処理）
  * - team_members追加
@@ -27,18 +40,7 @@ export async function POST(req: Request) {
       userId: string;
       displayName: string;
       phone?: string;
-      children?: {
-        existingPlayerId?: string;
-        newPlayer?: {
-          name: string;
-          number?: number;
-          grade?: number;
-          position?: string;
-          throwing_hand?: string;
-          batting_hand?: string;
-        };
-        relationship: string;
-      }[];
+      children?: ChildEntry[];
       // 後方互換
       relationship?: string;
       players?: {
@@ -52,7 +54,7 @@ export async function POST(req: Request) {
     };
 
     // 新形式と旧形式を統合
-    const childEntries = children ?? legacyPlayers?.map((p) => ({
+    const childEntries: ChildEntry[] | undefined = children ?? legacyPlayers?.map((p): ChildEntry => ({
       newPlayer: p,
       relationship: legacyRelationship || "父",
     }));
