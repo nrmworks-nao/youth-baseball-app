@@ -1,76 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
 import { getMonthlyReviews } from "@/lib/supabase/queries/kids";
 import type { MonthlyReview } from "@/types";
 
-// デモデータ
-const DEMO_REVIEWS: MonthlyReview[] = [
-  {
-    id: "r1",
-    player_id: "p1",
-    team_id: "t1",
-    year: 2026,
-    month: 2,
-    practice_attendance_rate: 0.875,
-    games_played: 3,
-    batting_avg: 0.345,
-    batting_avg_change: 0.05,
-    height_cm: 142.5,
-    height_change: 0.8,
-    weight_kg: 35.2,
-    weight_change: 0.3,
-    badges_earned: ["皆勤賞"],
-    best_play_summary: "2/15の練習試合でライト前ヒットを2本打ちました！",
-    positive_message: "先月より打率が5分上がったよ！この調子でがんばろう！",
-    created_at: "2026-03-01",
-  },
-  {
-    id: "r2",
-    player_id: "p1",
-    team_id: "t1",
-    year: 2026,
-    month: 1,
-    practice_attendance_rate: 1.0,
-    games_played: 2,
-    batting_avg: 0.295,
-    batting_avg_change: -0.02,
-    height_cm: 141.7,
-    height_change: 0.5,
-    weight_kg: 34.9,
-    weight_change: 0.2,
-    badges_earned: [],
-    best_play_summary: "1/20の大会でファインプレーを見せました！",
-    positive_message: "練習皆勤賞だね！すごい！毎日の努力が実を結ぶよ！",
-    created_at: "2026-02-01",
-  },
-  {
-    id: "r3",
-    player_id: "p1",
-    team_id: "t1",
-    year: 2025,
-    month: 12,
-    practice_attendance_rate: 0.75,
-    games_played: 4,
-    batting_avg: 0.315,
-    batting_avg_change: 0.03,
-    height_cm: 141.2,
-    height_change: 1.0,
-    weight_kg: 34.7,
-    weight_change: 0.4,
-    badges_earned: ["連続出塁"],
-    best_play_summary: "12月の大会で3試合連続ヒットを記録！",
-    positive_message: "3試合連続でヒットを打てたね！来月も楽しんでいこう！",
-    created_at: "2026-01-01",
-  },
-];
-
-function ChangeIndicator({ value, unit = "", invert = false }: { value?: number; unit?: string; invert?: boolean }) {
+function ChangeIndicator({ value, unit = "" }: { value?: number; unit?: string; invert?: boolean }) {
   if (value === undefined || value === null) return null;
-  const isPositive = invert ? value < 0 : value > 0;
+  const isPositive = value > 0;
   const isZero = value === 0;
   return (
     <span
@@ -90,31 +30,43 @@ export default function ReviewPage() {
   const [reviews, setReviews] = useState<MonthlyReview[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getMonthlyReviews(playerId);
-        setReviews(data.length > 0 ? data : DEMO_REVIEWS);
-      } catch {
-        setReviews(DEMO_REVIEWS);
-      } finally {
-        setLoading(false);
-      }
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getMonthlyReviews(playerId);
+      setReviews(data);
+    } catch {
+      setError("ふりかえりデータの取得に失敗しました");
+    } finally {
+      setLoading(false);
     }
-    load();
   }, [playerId]);
 
-  if (loading) return <Loading />;
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const currentReview = reviews[selectedIndex];
-  if (!currentReview) {
+  if (loading) return <Loading />;
+  if (error) return <ErrorDisplay message={error} onRetry={loadData} />;
+
+  if (reviews.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-        <p className="text-sm">まだふりかえりデータがありません</p>
+      <div className="flex flex-col">
+        <div className="border-b border-gray-200 bg-white px-4 py-3">
+          <h2 className="text-base font-bold text-gray-900">今月のふりかえり</h2>
+        </div>
+        <EmptyState
+          title="まだふりかえりデータがありません"
+          description="月末に自動生成されます"
+        />
       </div>
     );
   }
+
+  const currentReview = reviews[selectedIndex];
 
   return (
     <div className="flex flex-col">
@@ -142,14 +94,16 @@ export default function ReviewPage() {
 
       <div className="space-y-3 p-4">
         {/* ポジティブメッセージ */}
-        <div className="rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 p-4">
-          <div className="flex items-start gap-2">
-            <span className="text-2xl">🌟</span>
-            <p className="text-sm font-medium text-green-800 leading-relaxed">
-              {currentReview.positive_message}
-            </p>
+        {currentReview.positive_message && (
+          <div className="rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 p-4">
+            <div className="flex items-start gap-2">
+              <span className="text-2xl">🌟</span>
+              <p className="text-sm font-medium text-green-800 leading-relaxed">
+                {currentReview.positive_message}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* 練習・試合 */}
         <div className="grid grid-cols-2 gap-3">

@@ -39,7 +39,7 @@ export async function getAllPlayerCards(teamId: string) {
 
 export async function getBadges(teamId: string) {
   const { data, error } = await supabase
-    .from("kids_badges")
+    .from("badge_definitions")
     .select("*")
     .or(`team_id.eq.${teamId},is_preset.eq.true`)
     .order("category", { ascending: true });
@@ -50,12 +50,12 @@ export async function getBadges(teamId: string) {
 export async function getPlayerBadges(playerId: string) {
   const { data, error } = await supabase
     .from("player_badges")
-    .select("*, kids_badges!badge_id(*)")
+    .select("*, badge_definitions!badge_id(*)")
     .eq("player_id", playerId)
     .order("earned_at", { ascending: false });
   if (error) throw error;
-  return (data as unknown as (PlayerBadge & { kids_badges: KidsBadge })[]).map(
-    (d) => ({ ...d, badge: d.kids_badges })
+  return (data as unknown as (PlayerBadge & { badge_definitions: KidsBadge })[]).map(
+    (d) => ({ ...d, badge: d.badge_definitions })
   );
 }
 
@@ -67,7 +67,7 @@ export async function createCustomBadge(data: {
   icon_color: string;
 }) {
   const { data: badge, error } = await supabase
-    .from("kids_badges")
+    .from("badge_definitions")
     .insert({ ...data, is_preset: false })
     .select()
     .single();
@@ -75,11 +75,41 @@ export async function createCustomBadge(data: {
   return badge as KidsBadge;
 }
 
+export async function updateBadge(
+  badgeId: string,
+  updates: Partial<KidsBadge>
+) {
+  const { data, error } = await supabase
+    .from("badge_definitions")
+    .update(updates)
+    .eq("id", badgeId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as KidsBadge;
+}
+
+export async function awardBadge(data: {
+  team_id: string;
+  player_id: string;
+  badge_id: string;
+  awarded_by?: string;
+  reason?: string;
+}) {
+  const { data: pb, error } = await supabase
+    .from("player_badges")
+    .insert({ ...data, awarded_at: new Date().toISOString() })
+    .select()
+    .single();
+  if (error) throw error;
+  return pb as PlayerBadge;
+}
+
 // === 表彰 ===
 
 export async function getAwards(teamId: string) {
   const { data, error } = await supabase
-    .from("awards")
+    .from("weekly_awards")
     .select("*, players!player_id(id, name, number)")
     .eq("team_id", teamId)
     .order("awarded_at", { ascending: false });
@@ -96,7 +126,7 @@ export async function createAward(data: {
   created_by: string;
 }) {
   const { data: award, error } = await supabase
-    .from("awards")
+    .from("weekly_awards")
     .insert(data)
     .select("*, players!player_id(id, name, number)")
     .single();
@@ -108,7 +138,7 @@ export async function createAward(data: {
 
 export async function getMilestones(playerId: string) {
   const { data, error } = await supabase
-    .from("milestones")
+    .from("player_milestones")
     .select("*")
     .eq("player_id", playerId)
     .order("milestone_date", { ascending: false });
@@ -126,7 +156,7 @@ export async function createMilestone(data: {
   is_auto: boolean;
 }) {
   const { data: milestone, error } = await supabase
-    .from("milestones")
+    .from("player_milestones")
     .insert(data)
     .select()
     .single();

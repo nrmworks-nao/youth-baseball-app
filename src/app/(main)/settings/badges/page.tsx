@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { createCustomBadge } from "@/lib/supabase/queries/kids";
-import { PRESET_BADGES, getBadgeIcon } from "@/lib/supabase/badges";
-import type { BadgeCategory } from "@/types";
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
+import { getBadges, createCustomBadge, updateBadge, awardBadge } from "@/lib/supabase/queries/kids";
+import { getPlayers } from "@/lib/supabase/queries/players";
+import { getBadgeIcon } from "@/lib/supabase/badges";
+import type { BadgeCategory, KidsBadge, Player } from "@/types";
 
 const ICON_COLORS = [
   { label: "赤", value: "#ef4444" },
@@ -28,6 +33,15 @@ const CATEGORIES: { key: BadgeCategory; label: string }[] = [
 ];
 
 export default function BadgeManagementPage() {
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { isAdmin } = usePermission(currentMembership?.permission_group ?? null);
+
+  const [badges, setBadges] = useState<KidsBadge[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // カスタムバッジ作成フォーム
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<BadgeCategory>("custom");
@@ -35,27 +49,88 @@ export default function BadgeManagementPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // バッジ付与
+  const [awardingBadgeId, setAwardingBadgeId] = useState<string | null>(null);
+  const [awardPlayerId, setAwardPlayerId] = useState<string | null>(null);
+  const [awarding, setAwarding] = useState(false);
+
+  const loadData = useCallback(async () => {
+    if (!currentTeam) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [badgesData, playersData] = await Promise.all([
+        getBadges(currentTeam.id),
+        getPlayers(currentTeam.id),
+      ]);
+      setBadges(badgesData);
+      setPlayers(playersData.filter((p) => p.is_active));
+    } catch {
+      setError("バッジデータの取得に失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentTeam]);
+
+  useEffect(() => {
+    if (teamLoading || !currentTeam) return;
+    loadData();
+  }, [currentTeam, teamLoading, loadData]);
+
   const handleCreate = async () => {
-    if (!name || !description) return;
+    if (!name || !description || !currentTeam) return;
     setSubmitting(true);
     try {
-      await createCustomBadge({
-        team_id: "t1",
+      const newBadge = await createCustomBadge({
+        team_id: currentTeam.id,
         name,
         description,
         category,
         icon_color: iconColor,
       });
+      setBadges((prev) => [...prev, newBadge]);
       setSuccess(true);
+      setName("");
+      setDescription("");
+      setTimeout(() => setSuccess(false), 3000);
     } catch {
-      // デモモード
-      setSuccess(true);
+      setError("バッジの作成に失敗しました");
     }
     setSubmitting(false);
-    setName("");
-    setDescription("");
-    setTimeout(() => setSuccess(false), 3000);
   };
+
+  const handleToggleActive = async (badge: KidsBadge) => {
+    try {
+      const updated = await updateBadge(badge.id, { is_active: !badge.is_active } as Partial<KidsBadge>);
+      setBadges((prev) => prev.map((b) => (b.id === badge.id ? updated : b)));
+    } catch {
+      setError("バッジの更新に失敗しました");
+    }
+  };
+
+  const handleAwardBadge = async () => {
+    if (!awardingBadgeId || !awardPlayerId || !currentTeam) return;
+    setAwarding(true);
+    try {
+      await awardBadge({
+        team_id: currentTeam.id,
+        player_id: awardPlayerId,
+        badge_id: awardingBadgeId,
+      });
+      setAwardingBadgeId(null);
+      setAwardPlayerId(null);
+      // TODO: LINE通知
+    } catch {
+      setError("バッジの付与に失敗しました");
+    }
+    setAwarding(false);
+  };
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (error && badges.length === 0) return <ErrorDisplay message={error} onRetry={loadData} />;
+
+  const presetBadges = badges.filter((b) => b.is_preset);
+  const customBadges = badges.filter((b) => !b.is_preset);
 
   return (
     <div className="flex flex-col">
@@ -66,6 +141,12 @@ export default function BadgeManagementPage() {
       </div>
 
       <div className="space-y-4 p-4">
+        {error && (
+          <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-center text-xs text-red-700">
+            {error}
+          </div>
+        )}
+
         {/* カスタムバッジ作成 */}
         <Card>
           <CardContent className="p-4 space-y-3">
@@ -176,37 +257,167 @@ export default function BadgeManagementPage() {
           </CardContent>
         </Card>
 
+        {/* バッジ付与モーダル */}
+        {awardingBadgeId && (
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <h3 className="text-sm font-bold text-gray-900">バッジを付与する</h3>
+              <p className="text-xs text-gray-500">
+                {badges.find((b) => b.id === awardingBadgeId)?.name} を付与する選手を選択
+              </p>
+              {players.length === 0 ? (
+                <EmptyState title="選手が登録されていません" />
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {players.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setAwardPlayerId(p.id)}
+                      className={`rounded-lg border-2 p-2 text-center transition-all ${
+                        awardPlayerId === p.id
+                          ? "border-green-500 bg-green-50"
+                          : "border-gray-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex h-8 w-8 mx-auto items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700">
+                        {p.number ?? "?"}
+                      </div>
+                      <div className="mt-1 text-xs font-medium text-gray-900 truncate">
+                        {p.name}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setAwardingBadgeId(null);
+                    setAwardPlayerId(null);
+                  }}
+                  className="flex-1"
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  onClick={handleAwardBadge}
+                  disabled={!awardPlayerId || awarding}
+                  className="flex-1"
+                >
+                  {awarding ? "付与中..." : "付与する"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* プリセットバッジ一覧 */}
         <div>
           <h3 className="mb-2 text-sm font-bold text-gray-900">
             プリセットバッジ一覧
           </h3>
-          <div className="space-y-2">
-            {PRESET_BADGES.map((badge) => (
-              <Card key={badge.condition_key}>
-                <CardContent className="flex items-center gap-3 p-3">
-                  <div
-                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white text-xl shadow-sm"
-                    style={{ boxShadow: `0 0 8px ${badge.icon_color}40` }}
-                  >
-                    {getBadgeIcon(badge.category)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-gray-900">
-                      {badge.name}
+          {presetBadges.length === 0 ? (
+            <EmptyState
+              title="プリセットバッジがありません"
+              description="システムバッジがまだ登録されていません"
+            />
+          ) : (
+            <div className="space-y-2">
+              {presetBadges.map((badge) => (
+                <Card key={badge.id}>
+                  <CardContent className="flex items-center gap-3 p-3">
+                    <div
+                      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white text-xl shadow-sm ${
+                        badge.is_active ? "" : "opacity-40"
+                      }`}
+                      style={{ boxShadow: `0 0 8px ${badge.icon_color}40` }}
+                    >
+                      {getBadgeIcon(badge.category)}
                     </div>
-                    <div className="text-[10px] text-gray-500">
-                      {badge.description}
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-xs font-bold ${badge.is_active ? "text-gray-900" : "text-gray-400"}`}>
+                        {badge.name}
+                      </div>
+                      <div className="text-[10px] text-gray-500">
+                        {badge.description}
+                      </div>
                     </div>
-                  </div>
-                  <span className="flex-shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500">
-                    自動判定
-                  </span>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <div className="flex flex-shrink-0 items-center gap-1.5">
+                      <button
+                        onClick={() => setAwardingBadgeId(badge.id)}
+                        className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 hover:bg-green-200"
+                      >
+                        付与
+                      </button>
+                      <button
+                        onClick={() => handleToggleActive(badge)}
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          badge.is_active
+                            ? "bg-gray-100 text-gray-500"
+                            : "bg-red-100 text-red-600"
+                        }`}
+                      >
+                        {badge.is_active ? "有効" : "無効"}
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* カスタムバッジ一覧 */}
+        {customBadges.length > 0 && (
+          <div>
+            <h3 className="mb-2 text-sm font-bold text-gray-900">
+              カスタムバッジ一覧
+            </h3>
+            <div className="space-y-2">
+              {customBadges.map((badge) => (
+                <Card key={badge.id}>
+                  <CardContent className="flex items-center gap-3 p-3">
+                    <div
+                      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white text-xl shadow-sm ${
+                        badge.is_active ? "" : "opacity-40"
+                      }`}
+                      style={{ boxShadow: `0 0 8px ${badge.icon_color}40` }}
+                    >
+                      {getBadgeIcon(badge.category)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-xs font-bold ${badge.is_active ? "text-gray-900" : "text-gray-400"}`}>
+                        {badge.name}
+                      </div>
+                      <div className="text-[10px] text-gray-500">
+                        {badge.description}
+                      </div>
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-1.5">
+                      <button
+                        onClick={() => setAwardingBadgeId(badge.id)}
+                        className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 hover:bg-green-200"
+                      >
+                        付与
+                      </button>
+                      <button
+                        onClick={() => handleToggleActive(badge)}
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          badge.is_active
+                            ? "bg-gray-100 text-gray-500"
+                            : "bg-red-100 text-red-600"
+                        }`}
+                      >
+                        {badge.is_active ? "有効" : "無効"}
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

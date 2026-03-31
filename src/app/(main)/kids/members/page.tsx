@@ -1,22 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PlayerCard } from "@/components/features/kids/PlayerCard";
-import type { CardRank } from "@/types";
-
-// デモデータ
-const DEMO_MEMBERS = [
-  { id: "p1", name: "田中太郎", number: 8, position: "中堅手", grade: 6, cardRank: "gold" as CardRank, battingAvg: 0.345, favoritePlayer: "大谷翔平", bestPlay: "ダイビングキャッチ", dream: "プロ野球選手" },
-  { id: "p2", name: "佐藤次郎", number: 4, position: "二塁手", grade: 6, cardRank: "silver" as CardRank, battingAvg: 0.289, favoritePlayer: "山本由伸", bestPlay: "ダブルプレー", dream: "野球選手" },
-  { id: "p3", name: "鈴木健", number: 6, position: "遊撃手", grade: 6, cardRank: "platinum" as CardRank, battingAvg: 0.412, favoritePlayer: "鈴木誠也", bestPlay: "バックハンドスロー", dream: "メジャーリーガー" },
-  { id: "p4", name: "高橋大輝", number: 3, position: "一塁手", grade: 5, cardRank: "gold" as CardRank, battingAvg: 0.325, favoritePlayer: "村上宗隆", bestPlay: "ファーストストレッチ", dream: "プロ野球選手" },
-  { id: "p5", name: "渡辺翔", number: 5, position: "三塁手", grade: 5, cardRank: "silver" as CardRank, battingAvg: 0.278, favoritePlayer: "岡本和真", bestPlay: "強肩", dream: "消防士" },
-  { id: "p6", name: "伊藤誠", number: 7, position: "左翼手", grade: 5, cardRank: "bronze" as CardRank, battingAvg: 0.256, favoritePlayer: "柳田悠岐", bestPlay: "好走塁", dream: "教師" },
-  { id: "p7", name: "山田拓", number: 9, position: "右翼手", grade: 4, cardRank: "bronze" as CardRank, battingAvg: 0.198, favoritePlayer: "近藤健介", bestPlay: "レーザービーム", dream: "野球選手" },
-  { id: "p8", name: "中村雄太", number: 2, position: "捕手", grade: 6, cardRank: "gold" as CardRank, battingAvg: 0.301, favoritePlayer: "甲斐拓也", bestPlay: "盗塁阻止", dream: "スポーツトレーナー" },
-  { id: "p9", name: "小林直人", number: 1, position: "投手", grade: 6, cardRank: "platinum" as CardRank, battingAvg: 0.215, favoritePlayer: "佐々木朗希", bestPlay: "ストレート", dream: "プロ野球選手" },
-];
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { getPlayers } from "@/lib/supabase/queries/players";
+import type { Player, CardRank } from "@/types";
 
 type SortKey = "number" | "grade" | "name";
 type FilterPosition = "all" | string;
@@ -25,19 +16,42 @@ export default function MembersPage() {
   const [sortKey, setSortKey] = useState<SortKey>("number");
   const [filterPosition, setFilterPosition] = useState<FilterPosition>("all");
   const [filterGrade, setFilterGrade] = useState<number | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
+
+  const loadData = useCallback(async () => {
+    if (!currentTeam) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await getPlayers(currentTeam.id);
+      setPlayers(data.filter((p) => p.is_active));
+    } catch {
+      setError("メンバーデータの取得に失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentTeam]);
+
+  useEffect(() => {
+    if (teamLoading || !currentTeam) return;
+    loadData();
+  }, [currentTeam, teamLoading, loadData]);
 
   const positions = useMemo(() => {
-    const set = new Set(DEMO_MEMBERS.map((m) => m.position));
-    return Array.from(set);
-  }, []);
+    const set = new Set(players.map((m) => m.position).filter(Boolean));
+    return Array.from(set) as string[];
+  }, [players]);
 
   const grades = useMemo(() => {
-    const set = new Set(DEMO_MEMBERS.map((m) => m.grade));
-    return Array.from(set).sort((a, b) => b - a);
-  }, []);
+    const set = new Set(players.map((m) => m.grade).filter(Boolean));
+    return (Array.from(set) as number[]).sort((a, b) => b - a);
+  }, [players]);
 
   const filteredMembers = useMemo(() => {
-    let members = [...DEMO_MEMBERS];
+    let members = [...players];
 
     if (filterPosition !== "all") {
       members = members.filter((m) => m.position === filterPosition);
@@ -48,12 +62,15 @@ export default function MembersPage() {
 
     members.sort((a, b) => {
       if (sortKey === "number") return (a.number ?? 0) - (b.number ?? 0);
-      if (sortKey === "grade") return b.grade - a.grade;
+      if (sortKey === "grade") return (b.grade ?? 0) - (a.grade ?? 0);
       return a.name.localeCompare(b.name, "ja");
     });
 
     return members;
-  }, [sortKey, filterPosition, filterGrade]);
+  }, [players, sortKey, filterPosition, filterGrade]);
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (error) return <ErrorDisplay message={error} onRetry={loadData} />;
 
   return (
     <div className="flex flex-col">
@@ -94,89 +111,93 @@ export default function MembersPage() {
         </div>
 
         {/* ポジションフィルター */}
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <span className="flex-shrink-0 text-xs text-gray-500">ポジション:</span>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setFilterPosition("all")}
-              className={`flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                filterPosition === "all"
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              全て
-            </button>
-            {positions.map((pos) => (
+        {positions.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto">
+            <span className="flex-shrink-0 text-xs text-gray-500">ポジション:</span>
+            <div className="flex gap-1">
               <button
-                key={pos}
-                onClick={() => setFilterPosition(pos)}
+                onClick={() => setFilterPosition("all")}
                 className={`flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                  filterPosition === pos
+                  filterPosition === "all"
                     ? "bg-green-600 text-white"
                     : "bg-gray-100 text-gray-600"
                 }`}
               >
-                {pos}
+                全て
               </button>
-            ))}
+              {positions.map((pos) => (
+                <button
+                  key={pos}
+                  onClick={() => setFilterPosition(pos)}
+                  className={`flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    filterPosition === pos
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {pos}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* 学年フィルター */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">学年:</span>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setFilterGrade(null)}
-              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                filterGrade === null
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              全て
-            </button>
-            {grades.map((g) => (
+        {grades.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">学年:</span>
+            <div className="flex gap-1">
               <button
-                key={g}
-                onClick={() => setFilterGrade(g)}
+                onClick={() => setFilterGrade(null)}
                 className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                  filterGrade === g
+                  filterGrade === null
                     ? "bg-green-600 text-white"
                     : "bg-gray-100 text-gray-600"
                 }`}
               >
-                {g}年
+                全て
               </button>
-            ))}
+              {grades.map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setFilterGrade(g)}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    filterGrade === g
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {g}年
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* メンバーグリッド */}
-      <div className="grid grid-cols-1 gap-3 p-4">
-        {filteredMembers.map((member) => (
-          <Link key={member.id} href={`/kids/card/${member.id}`}>
-            <PlayerCard
-              name={member.name}
-              number={member.number}
-              position={member.position}
-              grade={member.grade}
-              cardRank={member.cardRank}
-              stats={{
-                battingAvg: member.battingAvg,
-                obp: 0,
-                stolenBases: 0,
-                throwDistance: 0,
-                baseRun: 0,
-              }}
-              compact
-              className="transition-transform active:scale-[0.98]"
-            />
-          </Link>
-        ))}
-      </div>
+      {filteredMembers.length === 0 ? (
+        <EmptyState
+          title="まだメンバーが登録されていません"
+          description="選手を登録するとここに表示されます"
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 p-4">
+          {filteredMembers.map((member) => (
+            <Link key={member.id} href={`/kids/card/${member.id}`}>
+              <PlayerCard
+                name={member.name}
+                number={member.number}
+                position={member.position}
+                grade={member.grade}
+                cardRank={"bronze" as CardRank}
+                compact
+                className="transition-transform active:scale-[0.98]"
+              />
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

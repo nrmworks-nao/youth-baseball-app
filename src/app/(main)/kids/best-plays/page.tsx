@@ -1,99 +1,54 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { getBestPlays } from "@/lib/supabase/queries/kids";
 import type { BestPlay } from "@/types";
 
-// デモデータ
-const DEMO_BEST_PLAYS: BestPlay[] = [
-  {
-    id: "bp1",
-    team_id: "t1",
-    game_id: "g1",
-    player_id: "p3",
-    title: "猛打賞！3打数3安打",
-    description: "全打席でヒットを放ち、チームの勝利に貢献しました",
-    is_auto: true,
-    play_date: "2026-03-23",
-    created_at: "2026-03-23",
-    player: { id: "p3", team_id: "t1", name: "鈴木健", number: 6, position: "遊撃手", grade: 6, is_active: true, created_at: "" },
-    game: { id: "g1", team_id: "t1", opponent_name: "レッドスターズ", game_date: "2026-03-23", venue: "", game_type: "tournament", created_by: "", created_at: "", updated_at: "" } as BestPlay["game"],
-  },
-  {
-    id: "bp2",
-    team_id: "t1",
-    game_id: "g1",
-    player_id: "p1",
-    title: "決勝タイムリーヒット！",
-    description: "7回裏2アウトから逆転のタイムリーを放ちました",
-    is_auto: true,
-    play_date: "2026-03-23",
-    created_at: "2026-03-23",
-    player: { id: "p1", team_id: "t1", name: "田中太郎", number: 8, position: "中堅手", grade: 6, is_active: true, created_at: "" },
-    game: { id: "g1", team_id: "t1", opponent_name: "レッドスターズ", game_date: "2026-03-23", venue: "", game_type: "tournament", created_by: "", created_at: "", updated_at: "" } as BestPlay["game"],
-  },
-  {
-    id: "bp3",
-    team_id: "t1",
-    game_id: "g2",
-    player_id: "p9",
-    title: "5回無失点の好投！",
-    description: "立ち上がりから制球が安定し、相手打線を封じました",
-    is_auto: true,
-    play_date: "2026-03-16",
-    created_at: "2026-03-16",
-    player: { id: "p9", team_id: "t1", name: "小林直人", number: 1, position: "投手", grade: 6, is_active: true, created_at: "" },
-    game: { id: "g2", team_id: "t1", opponent_name: "ブルーウェーブ", game_date: "2026-03-16", venue: "", game_type: "league", created_by: "", created_at: "", updated_at: "" } as BestPlay["game"],
-  },
-  {
-    id: "bp4",
-    team_id: "t1",
-    player_id: "p8",
-    title: "盗塁阻止2回！鉄壁の守備",
-    description: "正確なスローイングで2つの盗塁を刺しました",
-    is_auto: false,
-    play_date: "2026-03-16",
-    created_by: "u1",
-    created_at: "2026-03-16",
-    player: { id: "p8", team_id: "t1", name: "中村雄太", number: 2, position: "捕手", grade: 6, is_active: true, created_at: "" },
-  },
-  {
-    id: "bp5",
-    team_id: "t1",
-    game_id: "g3",
-    player_id: "p5",
-    title: "ファインプレー！ダイビングキャッチ",
-    description: "三塁線の強い打球をダイビングキャッチで好捕！",
-    is_auto: false,
-    play_date: "2026-03-09",
-    created_by: "u1",
-    created_at: "2026-03-09",
-    player: { id: "p5", team_id: "t1", name: "渡辺翔", number: 5, position: "三塁手", grade: 5, is_active: true, created_at: "" },
-    game: { id: "g3", team_id: "t1", opponent_name: "グリーンファイターズ", game_date: "2026-03-09", venue: "", game_type: "practice", created_by: "", created_at: "", updated_at: "" } as BestPlay["game"],
-  },
-];
-
 export default function BestPlaysPage() {
+  const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
   const [plays, setPlays] = useState<BestPlay[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    if (!currentTeam) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getBestPlays(currentTeam.id);
+      setPlays(data);
+    } catch {
+      setError("ベストプレーの取得に失敗しました");
+    } finally {
+      setLoading(false);
+    }
+  }, [currentTeam]);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const data = await getBestPlays("t1");
-        setPlays(data.length > 0 ? data : DEMO_BEST_PLAYS);
-      } catch {
-        setPlays(DEMO_BEST_PLAYS);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+    if (teamLoading || !currentTeam) return;
+    loadData();
+  }, [currentTeam, teamLoading, loadData]);
 
-  if (loading) return <Loading />;
+  if (teamLoading || loading) return <Loading />;
+  if (error) return <ErrorDisplay message={error} onRetry={loadData} />;
+
+  if (plays.length === 0) {
+    return (
+      <div className="flex flex-col">
+        <div className="border-b border-gray-200 bg-white px-4 py-3">
+          <h2 className="text-base font-bold text-gray-900">ベストプレー集</h2>
+        </div>
+        <EmptyState
+          title="まだベストプレーがありません"
+          description="試合後に自動登録されるか、手動で追加できます"
+        />
+      </div>
+    );
+  }
 
   // 日付でグループ化
   const grouped = plays.reduce<Record<string, BestPlay[]>>((acc, play) => {
