@@ -1,39 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-
-const DEMO_FEES = [
-  {
-    id: "1",
-    name: "月会費",
-    amount: 5000,
-    frequency: "monthly",
-    is_active: true,
-    description: "毎月の基本会費",
-  },
-  {
-    id: "2",
-    name: "入会金",
-    amount: 10000,
-    frequency: "one_time",
-    is_active: true,
-    description: "入会時のみ",
-  },
-  {
-    id: "3",
-    name: "年間保険料",
-    amount: 3000,
-    frequency: "yearly",
-    is_active: true,
-    description: "スポーツ保険",
-  },
-];
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
+import { supabase } from "@/lib/supabase/client";
+import { getFeeSettings, createFeeSetting, updateFeeSetting } from "@/lib/supabase/queries/accounting";
+import type { FeeSetting } from "@/types";
 
 const FREQ_LABELS: Record<string, string> = {
   monthly: "月額",
@@ -42,11 +23,107 @@ const FREQ_LABELS: Record<string, string> = {
 };
 
 export default function FeesPage() {
+  const router = useRouter();
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+
+  const [fees, setFees] = useState<FeeSetting[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState("monthly");
   const [description, setDescription] = useState("");
+
+  const canManage = hasPermission(["team_admin", "treasurer"]);
+
+  const loadFees = useCallback(async () => {
+    if (!currentTeam) return;
+    try {
+      const data = await getFeeSettings(currentTeam.id);
+      setFees(data);
+    } catch {
+      setError("会費設定の取得に失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentTeam]);
+
+  useEffect(() => {
+    if (teamLoading) return;
+    if (!currentMembership || !canManage) {
+      router.replace("/");
+      return;
+    }
+    if (!currentTeam) return;
+    loadFees();
+  }, [currentTeam, currentMembership, teamLoading, canManage, router, loadFees]);
+
+  const resetForm = () => {
+    setName("");
+    setAmount("");
+    setFrequency("monthly");
+    setDescription("");
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const handleSave = async () => {
+    if (!currentTeam || !name || !amount) return;
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      if (editingId) {
+        await updateFeeSetting(editingId, {
+          name,
+          amount: parseInt(amount),
+          description: description || undefined,
+        });
+      } else {
+        await createFeeSetting({
+          team_id: currentTeam.id,
+          name,
+          amount: parseInt(amount),
+          frequency,
+          description: description || undefined,
+          created_by: user.id,
+        });
+      }
+      resetForm();
+      await loadFees();
+    } catch {
+      setError(editingId ? "会費設定の更新に失敗しました" : "会費設定の作成に失敗しました");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = (fee: FeeSetting) => {
+    setEditingId(fee.id);
+    setName(fee.name);
+    setAmount(String(fee.amount));
+    setFrequency(fee.frequency);
+    setDescription(fee.description ?? "");
+    setShowForm(true);
+  };
+
+  const handleToggleActive = async (fee: FeeSetting) => {
+    try {
+      await updateFeeSetting(fee.id, { is_active: !fee.is_active });
+      await loadFees();
+    } catch {
+      setError("有効/無効の切替に失敗しました");
+    }
+  };
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (error) return <ErrorDisplay message={error} />;
 
   return (
     <div className="flex flex-col">
@@ -59,32 +136,40 @@ export default function FeesPage() {
           </Link>
           <h2 className="text-base font-bold text-gray-900">会費設定</h2>
         </div>
-        <Button size="sm" onClick={() => setShowForm(!showForm)}>
+        <Button size="sm" onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}>
           {showForm ? "閉じる" : "+ 追加"}
         </Button>
       </div>
 
       <div className="space-y-4 p-4">
-        {/* 新規作成フォーム */}
         {showForm && (
           <Card className="p-4">
-            <h3 className="mb-3 text-sm font-medium text-gray-900">新しい会費設定</h3>
+            <h3 className="mb-3 text-sm font-medium text-gray-900">
+              {editingId ? "会費設定を編集" : "新しい会費設定"}
+            </h3>
             <div className="space-y-3">
               <Input label="名称" value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 月会費" />
               <Input label="金額（円）" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="5000" />
-              <Select label="頻度" value={frequency} onChange={(e) => setFrequency(e.target.value)}>
-                <option value="monthly">月額</option>
-                <option value="yearly">年額</option>
-                <option value="one_time">一回のみ</option>
-              </Select>
+              {!editingId && (
+                <Select label="頻度" value={frequency} onChange={(e) => setFrequency(e.target.value)}>
+                  <option value="monthly">月額</option>
+                  <option value="yearly">年額</option>
+                  <option value="one_time">一回のみ</option>
+                </Select>
+              )}
               <Input label="説明（任意）" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="備考" />
-              <Button className="w-full">保存</Button>
+              <Button className="w-full" onClick={handleSave} disabled={saving || !name || !amount}>
+                {saving ? "保存中..." : "保存"}
+              </Button>
             </div>
           </Card>
         )}
 
-        {/* 既存の会費設定 */}
-        {DEMO_FEES.map((fee) => (
+        {fees.length === 0 && !showForm && (
+          <p className="py-8 text-center text-sm text-gray-400">会費設定がありません</p>
+        )}
+
+        {fees.map((fee) => (
           <Card key={fee.id} className="p-4">
             <div className="flex items-start justify-between">
               <div>
@@ -104,9 +189,14 @@ export default function FeesPage() {
                   <p className="mt-1 text-xs text-gray-500">{fee.description}</p>
                 )}
               </div>
-              <Button size="sm" variant="outline">
-                編集
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => handleToggleActive(fee)}>
+                  {fee.is_active ? "無効化" : "有効化"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleEdit(fee)}>
+                  編集
+                </Button>
+              </div>
             </div>
           </Card>
         ))}

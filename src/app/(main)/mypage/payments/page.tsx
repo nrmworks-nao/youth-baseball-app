@@ -1,30 +1,68 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const DEMO_MY_INVOICES = [
-  { id: "1", title: "3月会費", amount: 5000, status: "paid", due_date: "2026-03-31", paid_at: "2026-03-15" },
-  { id: "2", title: "春季大会参加費", amount: 3000, status: "pending", due_date: "2026-04-10", paid_at: null },
-  { id: "3", title: "2月会費", amount: 5000, status: "paid", due_date: "2026-02-28", paid_at: "2026-02-10" },
-  { id: "4", title: "1月会費", amount: 5000, status: "paid", due_date: "2026-01-31", paid_at: "2026-01-08" },
-];
-
-const DEMO_MY_PAYMENTS = [
-  { id: "p1", amount: 5000, method: "現金", paid_at: "2026-03-15", invoice_title: "3月会費" },
-  { id: "p2", amount: 5000, method: "銀行振込", paid_at: "2026-02-10", invoice_title: "2月会費" },
-  { id: "p3", amount: 5000, method: "現金", paid_at: "2026-01-08", invoice_title: "1月会費" },
-];
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { supabase } from "@/lib/supabase/client";
+import { getMyInvoices, getMyPayments } from "@/lib/supabase/queries/accounting";
+import type { Invoice, Payment } from "@/types";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "primary" | "warning" | "danger" | "default" }> = {
   paid: { label: "支払済", variant: "primary" },
   pending: { label: "未払い", variant: "warning" },
+  partial: { label: "一部支払", variant: "warning" },
   overdue: { label: "未納", variant: "danger" },
   cancelled: { label: "キャンセル", variant: "default" },
 };
 
+const METHOD_LABELS: Record<string, string> = {
+  cash: "現金",
+  bank_transfer: "銀行振込",
+  other: "その他",
+};
+
 export default function MyPaymentsPage() {
+  const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
+
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (teamLoading) return;
+
+    const load = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsLoading(false);
+          return;
+        }
+
+        const [invoiceData, paymentData] = await Promise.all([
+          getMyInvoices(user.id),
+          getMyPayments(user.id),
+        ]);
+
+        setInvoices(invoiceData);
+        setPayments(paymentData);
+      } catch {
+        setError("支払いデータの取得に失敗しました");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [teamLoading]);
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (error) return <ErrorDisplay message={error} />;
+
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3">
@@ -43,26 +81,30 @@ export default function MyPaymentsPage() {
             <CardTitle>請求</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {DEMO_MY_INVOICES.map((inv) => {
-                const cfg = STATUS_CONFIG[inv.status] ?? STATUS_CONFIG.pending;
-                return (
-                  <div key={inv.id} className="flex items-center justify-between rounded-lg p-2 hover:bg-gray-50">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-gray-900">{inv.title}</p>
-                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
+            {invoices.length === 0 ? (
+              <p className="text-sm text-gray-400">請求はありません</p>
+            ) : (
+              <div className="space-y-2">
+                {invoices.map((inv) => {
+                  const cfg = STATUS_CONFIG[inv.status] ?? STATUS_CONFIG.pending;
+                  return (
+                    <div key={inv.id} className="flex items-center justify-between rounded-lg p-2 hover:bg-gray-50">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-900">{inv.title}</p>
+                          <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                        </div>
+                        <p className="text-xs text-gray-400">
+                          {inv.due_date ? `期限: ${inv.due_date}` : ""}
+                          {inv.paid_at ? ` · 支払日: ${inv.paid_at}` : ""}
+                        </p>
                       </div>
-                      <p className="text-xs text-gray-400">
-                        期限: {inv.due_date}
-                        {inv.paid_at && ` · 支払日: ${inv.paid_at}`}
-                      </p>
+                      <p className="text-sm font-bold text-gray-900">¥{inv.total_amount.toLocaleString()}</p>
                     </div>
-                    <p className="text-sm font-bold text-gray-900">¥{inv.amount.toLocaleString()}</p>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -72,21 +114,30 @@ export default function MyPaymentsPage() {
             <CardTitle>支払い履歴</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {DEMO_MY_PAYMENTS.map((payment) => (
-                <div key={payment.id} className="flex items-center justify-between rounded-lg p-2">
-                  <div>
-                    <p className="text-sm text-gray-900">{payment.invoice_title}</p>
-                    <p className="text-xs text-gray-400">
-                      {payment.paid_at} · {payment.method}
-                    </p>
-                  </div>
-                  <p className="text-sm font-medium text-green-600">
-                    ¥{payment.amount.toLocaleString()}
-                  </p>
-                </div>
-              ))}
-            </div>
+            {payments.length === 0 ? (
+              <p className="text-sm text-gray-400">支払い記録がありません</p>
+            ) : (
+              <div className="space-y-2">
+                {payments.map((payment) => {
+                  const invoiceTitle = (payment as Record<string, unknown>).invoices
+                    ? ((payment as Record<string, unknown>).invoices as { title: string }).title
+                    : "";
+                  return (
+                    <div key={payment.id} className="flex items-center justify-between rounded-lg p-2">
+                      <div>
+                        <p className="text-sm text-gray-900">{invoiceTitle || "直接入金"}</p>
+                        <p className="text-xs text-gray-400">
+                          {payment.paid_at} · {payment.payment_method ? METHOD_LABELS[payment.payment_method] ?? payment.payment_method : ""}
+                        </p>
+                      </div>
+                      <p className="text-sm font-medium text-green-600">
+                        ¥{payment.amount.toLocaleString()}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
