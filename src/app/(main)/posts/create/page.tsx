@@ -13,6 +13,7 @@ import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { usePermission } from "@/hooks/usePermission";
 import { createPost } from "@/lib/supabase/queries/posts";
 import { supabase } from "@/lib/supabase/client";
+import { sendNotification } from "@/lib/notifications/send";
 import { getErrorMessage } from "@/lib/supabase/error-handler";
 import type { PostPriority, PostCategory } from "@/types";
 
@@ -99,7 +100,16 @@ export default function CreatePostPage() {
         image_urls: imageUrls.length > 0 ? imageUrls : undefined,
       });
 
-      // TODO: LINE通知送信（フェーズ8で実装）
+      // LINE通知 + アプリ内通知（非同期・失敗許容）
+      sendNotification({
+        team_id: currentTeam.id,
+        notification_type: "post",
+        title: `新しい投稿: ${title.trim()}`,
+        message_body: body.trim().slice(0, 100),
+        link: "/posts",
+        meta: { author_name: user.user_metadata?.display_name ?? "" },
+      });
+
       router.push("/posts");
     } catch (err) {
       setSubmitError(getErrorMessage(err));

@@ -895,6 +895,7 @@ export interface AppNotification {
   reference_id?: string;
   is_read: boolean;
   read_at?: string;
+  link?: string;
   is_sent_line: boolean;
   created_at: string;
 }
@@ -910,6 +911,11 @@ export interface TeamLineConfig {
   line_group_id?: string;
   liff_id?: string;
   is_active: boolean;
+  notify_post: boolean;
+  notify_event: boolean;
+  notify_payment: boolean;
+  notify_shop: boolean;
+  batch_mode: boolean;
   created_at: string;
   updated_at: string;
 }

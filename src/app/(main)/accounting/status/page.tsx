@@ -12,6 +12,7 @@ import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { usePermission } from "@/hooks/usePermission";
 import { getInvoices } from "@/lib/supabase/queries/accounting";
 import { getTeamMembers } from "@/lib/supabase/queries/members";
+import { sendNotification } from "@/lib/notifications/send";
 import type { Invoice, TeamMember } from "@/types";
 
 const STATUS_CELL: Record<string, { bg: string; text: string; label: string }> = {
@@ -149,8 +150,21 @@ export default function PaymentStatusPage() {
                     </span>
                     <div className="flex items-center gap-2">
                       <Badge variant="danger">未納あり</Badge>
-                      <Button size="sm" variant="outline">
-                        {/* TODO: LINE通知によるリマインド送信 */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (!currentTeam) return;
+                          sendNotification({
+                            team_id: currentTeam.id,
+                            notification_type: "payment",
+                            title: "会費リマインド",
+                            message_body: "未納の会費があります。ご確認ください。",
+                            link: "/mypage/payments",
+                            target_user_ids: [m.user_id],
+                          });
+                        }}
+                      >
                         リマインド送信
                       </Button>
                     </div>

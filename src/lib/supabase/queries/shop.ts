@@ -52,7 +52,7 @@ export async function deleteShopCategory(id: string) {
 
 // === 商品 ===
 
-/** 商品一覧取得 */
+/** 商品一覧取得（公開のみ） */
 export async function getShopProducts(categoryId?: string) {
   let query = supabase
     .from("shop_products")
@@ -63,6 +63,16 @@ export async function getShopProducts(categoryId?: string) {
     query = query.eq("category_id", categoryId);
   }
   const { data, error } = await query;
+  if (error) throw error;
+  return data as ShopProduct[];
+}
+
+/** 全商品取得（管理者用・公開/非公開問わず） */
+export async function getAllShopProducts() {
+  const { data, error } = await supabase
+    .from("shop_products")
+    .select("*, shop_categories(name, slug), shop_product_images(id, image_url, sort_order)")
+    .order("created_at", { ascending: false });
   if (error) throw error;
   return data as ShopProduct[];
 }

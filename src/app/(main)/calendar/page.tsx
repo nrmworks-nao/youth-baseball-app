@@ -13,6 +13,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { getEvents, createEvent } from "@/lib/supabase/queries/events";
 import { supabase } from "@/lib/supabase/client";
 import { getErrorMessage } from "@/lib/supabase/error-handler";
+import { sendNotification } from "@/lib/notifications/send";
 import type { Event, EventType } from "@/types";
 
 type ViewMode = "month" | "week" | "list";
@@ -330,7 +331,16 @@ function CreateEventModal({
         created_by: user.id,
       });
 
-      // TODO: LINE通知送信（フェーズ8で実装）
+      // LINE通知 + アプリ内通知（非同期・失敗許容）
+      sendNotification({
+        team_id: teamId,
+        notification_type: "event",
+        title: `新しい予定: ${title.trim()}`,
+        message_body: `${date} ${startTime}〜${endTime} ${location.trim() ? `場所: ${location.trim()}` : ""}`,
+        link: "/calendar",
+        meta: { author_name: user.user_metadata?.display_name ?? "", event_title: title.trim() },
+      });
+
       onCreated();
     } catch (err) {
       setSubmitError(getErrorMessage(err));

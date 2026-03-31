@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { getUnreadCount } from "@/lib/supabase/queries/posts";
+import { getUnreadNotificationCount } from "@/lib/supabase/queries/notifications";
 import { supabase } from "@/lib/supabase/client";
 
 const TAB_ITEMS = [
@@ -210,6 +211,30 @@ function useUnreadPostCount() {
   return count;
 }
 
+function useUnreadNotificationCount() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchCount() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || cancelled) return;
+        const c = await getUnreadNotificationCount(user.id);
+        if (!cancelled) setCount(c);
+      } catch {
+        // ignore
+      }
+    }
+    fetchCount();
+    const interval = setInterval(fetchCount, 60000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  return count;
+}
+
 export default function MainLayout({
   children,
 }: {
@@ -217,6 +242,7 @@ export default function MainLayout({
 }) {
   const pathname = usePathname();
   const unreadPostCount = useUnreadPostCount();
+  const unreadNotificationCount = useUnreadNotificationCount();
 
   return (
     <ThemeProvider>
@@ -296,9 +322,11 @@ export default function MainLayout({
                       d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
                     />
                   </svg>
-                  <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-                    3
-                  </span>
+                  {unreadNotificationCount > 0 && (
+                    <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                      {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                    </span>
+                  )}
                 </Link>
               </div>
             </div>

@@ -10,6 +10,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { getBadges, createCustomBadge, updateBadge, awardBadge } from "@/lib/supabase/queries/kids";
 import { getPlayers } from "@/lib/supabase/queries/players";
 import { getBadgeIcon } from "@/lib/supabase/badges";
+import { sendNotification } from "@/lib/notifications/send";
 import type { BadgeCategory, KidsBadge, Player } from "@/types";
 
 const ICON_COLORS = [
@@ -117,9 +118,23 @@ export default function BadgeManagementPage() {
         player_id: awardPlayerId,
         badge_id: awardingBadgeId,
       });
+      // LINE通知 + アプリ内通知
+      const badge = badges.find((b) => b.id === awardingBadgeId);
+      const player = players.find((p) => p.id === awardPlayerId);
+      if (badge && player) {
+        sendNotification({
+          team_id: currentTeam.id,
+          notification_type: "general",
+          title: `表彰: ${player.name}さんが「${badge.name}」を獲得！`,
+          link: "/kids",
+          meta: {
+            player_name: player.name,
+            badge_category: badge.category,
+          },
+        });
+      }
       setAwardingBadgeId(null);
       setAwardPlayerId(null);
-      // TODO: LINE通知
     } catch {
       setError("バッジの付与に失敗しました");
     }

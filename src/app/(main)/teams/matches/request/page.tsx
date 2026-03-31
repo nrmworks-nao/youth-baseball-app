@@ -1,26 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-
-const DEMO_TEAMS = [
-  { id: "t1", name: "東ライオンズ" },
-  { id: "t2", name: "南イーグルス" },
-  { id: "t3", name: "北スターズ" },
-  { id: "t4", name: "西ドラゴンズ" },
-];
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
+import { searchTeams, createMatchRequest } from "@/lib/supabase/queries/inter-team";
+import { supabase } from "@/lib/supabase/client";
+import { getErrorMessage } from "@/lib/supabase/error-handler";
+import type { TeamProfile } from "@/types";
 
 export default function MatchRequestPage() {
+  const router = useRouter();
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { canRequestMatch } = usePermission(currentMembership?.permission_group ?? null);
+
+  const [teams, setTeams] = useState<TeamProfile[]>([]);
   const [toTeam, setToTeam] = useState("");
   const [format, setFormat] = useState("practice_match");
   const [venue, setVenue] = useState("");
   const [message, setMessage] = useState("");
   const [dates, setDates] = useState([{ date: "", startTime: "", endTime: "" }]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+
+  useEffect(() => {
+    async function loadTeams() {
+      try {
+        const data = await searchTeams();
+        setTeams(data);
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    if (!teamLoading) {
+      loadTeams();
+    }
+  }, [teamLoading]);
 
   const addDate = () => {
     if (dates.length < 5) {
@@ -36,6 +62,39 @@ export default function MatchRequestPage() {
     setDates(dates.map((d, i) => (i === index ? { ...d, [field]: value } : d)));
   };
 
+  const handleSubmit = async () => {
+    if (!currentTeam || !toTeam) return;
+    const validDates = dates.filter((d) => d.date);
+    if (validDates.length === 0) return;
+
+    setIsSending(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await createMatchRequest({
+        from_team_id: currentTeam.id,
+        to_team_id: toTeam,
+        requested_by: user.id,
+        message: message.trim() || undefined,
+        preferred_venue: venue.trim() || undefined,
+        dates: validDates.map((d) => ({
+          proposed_date: d.date,
+          start_time: d.startTime || undefined,
+          end_time: d.endTime || undefined,
+        })),
+      });
+      router.push("/teams/matches");
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  if (teamLoading || isLoading) {
+    return <Loading text="読み込み中..." />;
+  }
+
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3">
@@ -47,14 +106,21 @@ export default function MatchRequestPage() {
         <h2 className="text-base font-bold text-gray-900">練習試合申し込み</h2>
       </div>
 
+      {error && <ErrorDisplay message={error} />}
+
       <div className="space-y-4 p-4">
         <Card className="p-4">
           <div className="space-y-3">
             <Select label="相手チーム" value={toTeam} onChange={(e) => setToTeam(e.target.value)}>
               <option value="">チームを選択...</option>
-              {DEMO_TEAMS.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
+              {teams
+                .filter((t) => t.team_id !== currentTeam?.id)
+                .map((t) => {
+                  const team = (t as unknown as { teams?: { name: string } }).teams;
+                  return (
+                    <option key={t.team_id} value={t.team_id}>{team?.name ?? t.team_id}</option>
+                  );
+                })}
             </Select>
 
             <Select label="形式" value={format} onChange={(e) => setFormat(e.target.value)}>
@@ -126,8 +192,13 @@ export default function MatchRequestPage() {
           />
         </Card>
 
-        <Button className="w-full" size="lg" disabled={!toTeam || dates.every((d) => !d.date)}>
-          申し込みを送信
+        <Button
+          className="w-full"
+          size="lg"
+          disabled={!toTeam || dates.every((d) => !d.date) || isSending}
+          onClick={handleSubmit}
+        >
+          {isSending ? "送信中..." : "申し込みを送信"}
         </Button>
       </div>
     </div>
