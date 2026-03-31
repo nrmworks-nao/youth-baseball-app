@@ -4,8 +4,11 @@ import type { NextRequest } from "next/server";
 // 認証不要のパス
 const PUBLIC_PATHS = ["/login", "/invite", "/onboarding", "/offline.html"];
 
+// LIFF認証コールバックのパラメータ名
+const LIFF_CALLBACK_PARAMS = ["code", "state", "liffClientId", "liffRedirectUri"];
+
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
 
   // 公開パスはスキップ
   if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
@@ -22,6 +25,20 @@ export function middleware(request: NextRequest) {
     pathname.includes(".")
   ) {
     return NextResponse.next();
+  }
+
+  // LIFF認証コールバックパラメータがある場合は /login にフォワード
+  // （LIFFエンドポイントURLがルートに設定されている場合への対応）
+  const hasLiffParams = LIFF_CALLBACK_PARAMS.some((param) =>
+    searchParams.has(param)
+  );
+  if (hasLiffParams) {
+    const loginUrl = new URL("/login", request.url);
+    // LIFF関連のパラメータをすべて保持して /login にリダイレクト
+    searchParams.forEach((value, key) => {
+      loginUrl.searchParams.set(key, value);
+    });
+    return NextResponse.redirect(loginUrl);
   }
 
   // Supabase Authのセッションクッキーをチェック

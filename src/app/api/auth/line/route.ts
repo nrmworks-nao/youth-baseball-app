@@ -4,6 +4,13 @@ import crypto from "crypto";
 
 /**
  * LINE認証後のSupabase Auth連携API
+ *
+ * 受け付ける認証データ（優先順位順）：
+ * 1. accessToken: LIFFアクセストークン → LINE APIで検証してプロフィール取得（推奨）
+ * 2. idToken: LIFF IDトークン → LINE APIで検証
+ * 3. lineUserId + displayName: クライアントから直接送信（フォールバック）
+ *
+ * 処理フロー：
  * - Supabase Authユーザーを作成/取得
  * - usersテーブルにUPSERT
  * - team_membersの所属チェック
@@ -11,11 +18,93 @@ import crypto from "crypto";
  */
 export async function POST(req: Request) {
   try {
-    const { lineUserId, displayName, pictureUrl } = await req.json();
+    const body = await req.json();
+    const { accessToken, idToken, lineUserId, displayName, pictureUrl } = body;
 
-    if (!lineUserId || !displayName) {
+    // LINE プロフィール情報を取得（認証方式に応じて）
+    let lineProfile: {
+      userId: string;
+      displayName: string;
+      pictureUrl?: string;
+    };
+
+    if (accessToken) {
+      // 方式1: LIFFアクセストークンでLINE APIからプロフィール取得（最も安全）
+      const profileRes = await fetch("https://api.line.me/v2/profile", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!profileRes.ok) {
+        const errorText = await profileRes.text();
+        console.error("LINEプロフィール取得失敗:", profileRes.status, errorText);
+        return NextResponse.json(
+          { error: "LINEアクセストークンの検証に失敗しました" },
+          { status: 401 }
+        );
+      }
+
+      const profileData = await profileRes.json();
+      lineProfile = {
+        userId: profileData.userId,
+        displayName: profileData.displayName,
+        pictureUrl: profileData.pictureUrl,
+      };
+      console.log(
+        "LINE APIでプロフィール取得成功:",
+        lineProfile.displayName
+      );
+    } else if (idToken) {
+      // 方式2: IDトークンを検証
+      const channelId = process.env.LINE_LOGIN_CHANNEL_ID || "";
+      if (!channelId) {
+        console.error("LINE_LOGIN_CHANNEL_ID が設定されていません");
+        return NextResponse.json(
+          { error: "サーバー設定エラー: LINE_LOGIN_CHANNEL_ID未設定" },
+          { status: 500 }
+        );
+      }
+
+      const verifyRes = await fetch(
+        "https://api.line.me/oauth2/v2.1/verify",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            id_token: idToken,
+            client_id: channelId,
+          }),
+        }
+      );
+
+      if (!verifyRes.ok) {
+        const errorText = await verifyRes.text();
+        console.error("IDトークン検証失敗:", verifyRes.status, errorText);
+        return NextResponse.json(
+          { error: "LINE IDトークンの検証に失敗しました" },
+          { status: 401 }
+        );
+      }
+
+      const tokenData = await verifyRes.json();
+      lineProfile = {
+        userId: tokenData.sub,
+        displayName: tokenData.name,
+        pictureUrl: tokenData.picture,
+      };
+      console.log("IDトークン検証成功:", lineProfile.displayName);
+    } else if (lineUserId && displayName) {
+      // 方式3: クライアントから直接送信（フォールバック、後方互換）
+      lineProfile = { userId: lineUserId, displayName, pictureUrl };
+      console.log(
+        "クライアント送信データ使用（未検証）:",
+        lineProfile.displayName
+      );
+    } else {
       return NextResponse.json(
-        { error: "lineUserId と displayName は必須です" },
+        {
+          error:
+            "accessToken, idToken, または lineUserId+displayName が必要です",
+        },
         { status: 400 }
       );
     }
@@ -30,11 +119,11 @@ export async function POST(req: Request) {
     });
 
     // LINE userId から決定的なメールアドレスとパスワードを生成
-    const email = `line_${lineUserId}@line.youth-baseball.local`;
+    const email = `line_${lineProfile.userId}@line.youth-baseball.local`;
     const secret = process.env.LINE_CHANNEL_SECRET || "default-secret";
     const password = crypto
       .createHmac("sha256", secret)
-      .update(lineUserId)
+      .update(lineProfile.userId)
       .digest("hex");
 
     // Supabase Auth ユーザーを作成（既存の場合はスキップ）
@@ -46,9 +135,9 @@ export async function POST(req: Request) {
         password,
         email_confirm: true,
         user_metadata: {
-          line_id: lineUserId,
-          display_name: displayName,
-          picture_url: pictureUrl,
+          line_id: lineProfile.userId,
+          display_name: lineProfile.displayName,
+          picture_url: lineProfile.pictureUrl,
         },
       });
 
@@ -66,7 +155,10 @@ export async function POST(req: Request) {
           await signInClient.auth.signInWithPassword({ email, password });
 
         if (signInError) {
-          console.error("既存ユーザーのサインインに失敗:", signInError.message);
+          console.error(
+            "既存ユーザーのサインインに失敗:",
+            signInError.message
+          );
           return NextResponse.json(
             {
               error: `認証エラー: ${signInError.message}`,
@@ -82,9 +174,9 @@ export async function POST(req: Request) {
         const redirectTo = await determineRedirect(
           supabaseAdmin,
           authUserId,
-          lineUserId,
-          displayName,
-          pictureUrl
+          lineProfile.userId,
+          lineProfile.displayName,
+          lineProfile.pictureUrl
         );
 
         const response = NextResponse.json({
@@ -127,9 +219,9 @@ export async function POST(req: Request) {
     const redirectTo = await determineRedirect(
       supabaseAdmin,
       authUserId,
-      lineUserId,
-      displayName,
-      pictureUrl
+      lineProfile.userId,
+      lineProfile.displayName,
+      lineProfile.pictureUrl
     );
 
     const response = NextResponse.json({
