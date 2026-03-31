@@ -18,7 +18,7 @@ const DEMO_BEST_PLAYS: BestPlay[] = [
     is_auto: true,
     play_date: "2026-03-23",
     created_at: "2026-03-23",
-    player: { id: "p3", team_id: "t1", name: "鈴木健", number: 6, position: "遊撃手", grade: 6, created_at: "" },
+    player: { id: "p3", team_id: "t1", name: "鈴木健", number: 6, position: "遊撃手", grade: 6, is_active: true, created_at: "" },
     game: { id: "g1", team_id: "t1", opponent_name: "レッドスターズ", game_date: "2026-03-23", venue: "", game_type: "tournament", created_by: "", created_at: "", updated_at: "" } as BestPlay["game"],
   },
   {
@@ -31,7 +31,7 @@ const DEMO_BEST_PLAYS: BestPlay[] = [
     is_auto: true,
     play_date: "2026-03-23",
     created_at: "2026-03-23",
-    player: { id: "p1", team_id: "t1", name: "田中太郎", number: 8, position: "中堅手", grade: 6, created_at: "" },
+    player: { id: "p1", team_id: "t1", name: "田中太郎", number: 8, position: "中堅手", grade: 6, is_active: true, created_at: "" },
     game: { id: "g1", team_id: "t1", opponent_name: "レッドスターズ", game_date: "2026-03-23", venue: "", game_type: "tournament", created_by: "", created_at: "", updated_at: "" } as BestPlay["game"],
   },
   {
@@ -44,7 +44,7 @@ const DEMO_BEST_PLAYS: BestPlay[] = [
     is_auto: true,
     play_date: "2026-03-16",
     created_at: "2026-03-16",
-    player: { id: "p9", team_id: "t1", name: "小林直人", number: 1, position: "投手", grade: 6, created_at: "" },
+    player: { id: "p9", team_id: "t1", name: "小林直人", number: 1, position: "投手", grade: 6, is_active: true, created_at: "" },
     game: { id: "g2", team_id: "t1", opponent_name: "ブルーウェーブ", game_date: "2026-03-16", venue: "", game_type: "league", created_by: "", created_at: "", updated_at: "" } as BestPlay["game"],
   },
   {
@@ -57,7 +57,7 @@ const DEMO_BEST_PLAYS: BestPlay[] = [
     play_date: "2026-03-16",
     created_by: "u1",
     created_at: "2026-03-16",
-    player: { id: "p8", team_id: "t1", name: "中村雄太", number: 2, position: "捕手", grade: 6, created_at: "" },
+    player: { id: "p8", team_id: "t1", name: "中村雄太", number: 2, position: "捕手", grade: 6, is_active: true, created_at: "" },
   },
   {
     id: "bp5",
@@ -70,7 +70,7 @@ const DEMO_BEST_PLAYS: BestPlay[] = [
     play_date: "2026-03-09",
     created_by: "u1",
     created_at: "2026-03-09",
-    player: { id: "p5", team_id: "t1", name: "渡辺翔", number: 5, position: "三塁手", grade: 5, created_at: "" },
+    player: { id: "p5", team_id: "t1", name: "渡辺翔", number: 5, position: "三塁手", grade: 5, is_active: true, created_at: "" },
     game: { id: "g3", team_id: "t1", opponent_name: "グリーンファイターズ", game_date: "2026-03-09", venue: "", game_type: "practice", created_by: "", created_at: "", updated_at: "" } as BestPlay["game"],
   },
 ];

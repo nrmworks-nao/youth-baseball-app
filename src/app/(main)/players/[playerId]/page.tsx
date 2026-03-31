@@ -1,104 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { StatsLineChart } from "@/components/features/charts/LineChart";
-import { StatsRadarChart } from "@/components/features/charts/RadarChart";
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { supabase } from "@/lib/supabase/client";
+import {
+  getPlayer,
+  getPlayerAllStats,
+  updatePlayer,
+  getPlayerParents,
+} from "@/lib/supabase/queries/players";
+import { getMyChildren } from "@/lib/supabase/queries/players";
+import type { Player, ParentPlayerRelation } from "@/types";
 
 type ViewPeriod = "all" | "month" | "tournament";
 
-// デモ選手
-const DEMO_PLAYER = {
-  id: "p3",
-  name: "鈴木健",
-  number: 6,
-  position: "遊撃手",
-  grade: 6,
-};
-
-// 打撃集計デモ
-const DEMO_BATTING = {
-  all: {
-    games: 24,
-    at_bats: 82,
-    hits: 28,
-    doubles: 6,
-    triples: 2,
-    home_runs: 3,
-    rbis: 18,
-    walks: 12,
-    strikeouts: 10,
-    stolen_bases: 8,
-    hit_by_pitch: 2,
-    sacrifice_flies: 1,
-  },
-  month: {
-    games: 4,
-    at_bats: 14,
-    hits: 6,
-    doubles: 2,
-    triples: 0,
-    home_runs: 1,
-    rbis: 5,
-    walks: 3,
-    strikeouts: 1,
-    stolen_bases: 2,
-    hit_by_pitch: 0,
-    sacrifice_flies: 0,
-  },
-  tournament: {
-    games: 6,
-    at_bats: 20,
-    hits: 9,
-    doubles: 3,
-    triples: 1,
-    home_runs: 2,
-    rbis: 8,
-    walks: 4,
-    strikeouts: 2,
-    stolen_bases: 3,
-    hit_by_pitch: 1,
-    sacrifice_flies: 1,
-  },
-};
-
-// 投手集計デモ
-const DEMO_PITCHING = {
-  innings_pitched: 14.0,
-  earned_runs: 5,
-  hits_allowed: 12,
-  walks_allowed: 6,
-  strikeouts_pitched: 18,
-  wins: 2,
-  losses: 1,
-};
-
-// 守備集計デモ
-const DEMO_FIELDING = {
-  putouts: 32,
-  assists: 48,
-  errors: 4,
-};
-
-// 月別推移デモ
-const DEMO_MONTHLY_TREND = [
-  { month: "2025/10", batting_avg: 0.285, ops: 0.72 },
-  { month: "2025/11", batting_avg: 0.31, ops: 0.78 },
-  { month: "2025/12", batting_avg: 0.295, ops: 0.75 },
-  { month: "2026/01", batting_avg: 0.32, ops: 0.82 },
-  { month: "2026/02", batting_avg: 0.35, ops: 0.88 },
-  { month: "2026/03", batting_avg: 0.412, ops: 0.95 },
-];
-
-// レーダーチャートデモ
-const DEMO_RADAR = [
-  { subject: "打撃力", value: 85, fullMark: 100 },
-  { subject: "走力", value: 75, fullMark: 100 },
-  { subject: "守備力", value: 80, fullMark: 100 },
-  { subject: "体力", value: 70, fullMark: 100 },
+const POSITIONS = [
+  "ピッチャー",
+  "キャッチャー",
+  "ファースト",
+  "セカンド",
+  "サード",
+  "ショート",
+  "レフト",
+  "センター",
+  "ライト",
 ];
 
 function calcBattingAvg(hits: number, atBats: number): string {
@@ -164,8 +96,169 @@ export default function PlayerDashboardPage() {
   const params = useParams();
   const playerId = params.playerId as string;
   const [period, setPeriod] = useState<ViewPeriod>("all");
-  const player = DEMO_PLAYER;
-  const batting = DEMO_BATTING[period];
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [parents, setParents] = useState<ParentPlayerRelation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<Partial<Player>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Stats aggregation
+  const [batting, setBatting] = useState({
+    games: 0,
+    at_bats: 0,
+    hits: 0,
+    doubles: 0,
+    triples: 0,
+    home_runs: 0,
+    rbis: 0,
+    walks: 0,
+    strikeouts: 0,
+    stolen_bases: 0,
+    hit_by_pitch: 0,
+    sacrifice_flies: 0,
+  });
+  const [pitching, setPitching] = useState({
+    innings_pitched: 0,
+    earned_runs: 0,
+    hits_allowed: 0,
+    walks_allowed: 0,
+    strikeouts_pitched: 0,
+    wins: 0,
+    losses: 0,
+  });
+  const [fielding, setFielding] = useState({
+    putouts: 0,
+    assists: 0,
+    errors: 0,
+  });
+
+  const loadData = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setError("ログインが必要です");
+        setIsLoading(false);
+        return;
+      }
+
+      const [playerData, parentData] = await Promise.all([
+        getPlayer(playerId),
+        getPlayerParents(playerId),
+      ]);
+      setPlayer(playerData);
+      setParents(parentData);
+
+      // 編集権限チェック: team_admin/vice_president or 自分の子供
+      const { data: myMember } = await supabase
+        .from("team_members")
+        .select("permission_group")
+        .eq("user_id", user.id)
+        .eq("team_id", playerData.team_id)
+        .eq("is_active", true)
+        .single();
+
+      const isAdmin =
+        myMember?.permission_group === "team_admin" ||
+        myMember?.permission_group === "vice_president" ||
+        myMember?.permission_group === "system_admin";
+
+      const myChildren = await getMyChildren(user.id, playerData.team_id);
+      const isMyChild = myChildren.some(
+        (c) => c.players?.id === playerId || c.player_id === playerId
+      );
+
+      setCanEdit(isAdmin || isMyChild);
+
+      // 試合成績集計
+      try {
+        const stats = await getPlayerAllStats(playerId);
+        if (stats.length > 0) {
+          const battingAgg = {
+            games: stats.length,
+            at_bats: stats.reduce((s, g) => s + g.at_bats, 0),
+            hits: stats.reduce((s, g) => s + g.hits, 0),
+            doubles: stats.reduce((s, g) => s + g.doubles, 0),
+            triples: stats.reduce((s, g) => s + g.triples, 0),
+            home_runs: stats.reduce((s, g) => s + g.home_runs, 0),
+            rbis: stats.reduce((s, g) => s + g.rbis, 0),
+            walks: stats.reduce((s, g) => s + g.walks, 0),
+            strikeouts: stats.reduce((s, g) => s + g.strikeouts, 0),
+            stolen_bases: stats.reduce((s, g) => s + g.stolen_bases, 0),
+            hit_by_pitch: 0,
+            sacrifice_flies: 0,
+          };
+          setBatting(battingAgg);
+
+          const pitchingAgg = {
+            innings_pitched: stats.reduce((s, g) => s + g.innings_pitched, 0),
+            earned_runs: stats.reduce((s, g) => s + g.earned_runs, 0),
+            hits_allowed: stats.reduce((s, g) => s + g.hits_allowed, 0),
+            walks_allowed: stats.reduce((s, g) => s + g.walks_allowed, 0),
+            strikeouts_pitched: stats.reduce(
+              (s, g) => s + g.strikeouts_pitched,
+              0
+            ),
+            wins: stats.filter((g) => g.is_winning_pitcher).length,
+            losses: stats.filter((g) => g.is_losing_pitcher).length,
+          };
+          setPitching(pitchingAgg);
+
+          const fieldingAgg = {
+            putouts: stats.reduce((s, g) => s + g.putouts, 0),
+            assists: stats.reduce((s, g) => s + g.assists, 0),
+            errors: stats.reduce((s, g) => s + g.errors, 0),
+          };
+          setFielding(fieldingAgg);
+        }
+      } catch {
+        // 成績データがない場合はデフォルト値のまま
+      }
+
+      setIsLoading(false);
+    } catch {
+      setError("データの取得に失敗しました");
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerId]);
+
+  const handleStartEdit = () => {
+    if (!player) return;
+    setEditData({
+      name: player.name,
+      number: player.number,
+      grade: player.grade,
+      position: player.position,
+      throwing_hand: player.throwing_hand,
+      batting_hand: player.batting_hand,
+    });
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    setIsSaving(true);
+    try {
+      await updatePlayer(playerId, editData);
+      setIsEditing(false);
+      loadData();
+    } catch {
+      // エラー処理
+    }
+    setIsSaving(false);
+  };
+
+  if (isLoading) return <Loading className="min-h-screen" />;
+  if (error) return <ErrorDisplay message={error} />;
+  if (!player) return <ErrorDisplay message="選手が見つかりません" />;
 
   const battingAvg = calcBattingAvg(batting.hits, batting.at_bats);
   const obp = calcOBP(
@@ -183,22 +276,17 @@ export default function PlayerDashboardPage() {
     batting.at_bats
   );
   const ops = calcOPS(obp, slg);
-  const era = calcERA(DEMO_PITCHING.earned_runs, DEMO_PITCHING.innings_pitched);
+  const era = calcERA(pitching.earned_runs, pitching.innings_pitched);
   const whip = calcWHIP(
-    DEMO_PITCHING.hits_allowed,
-    DEMO_PITCHING.walks_allowed,
-    DEMO_PITCHING.innings_pitched
+    pitching.hits_allowed,
+    pitching.walks_allowed,
+    pitching.innings_pitched
   );
   const fieldingPct = calcFieldingPct(
-    DEMO_FIELDING.putouts,
-    DEMO_FIELDING.assists,
-    DEMO_FIELDING.errors
+    fielding.putouts,
+    fielding.assists,
+    fielding.errors
   );
-
-  // 前月比
-  const prevMonth = DEMO_MONTHLY_TREND[DEMO_MONTHLY_TREND.length - 2];
-  const currMonth = DEMO_MONTHLY_TREND[DEMO_MONTHLY_TREND.length - 1];
-  const avgDiff = currMonth.batting_avg - prevMonth.batting_avg;
 
   const periods: { key: ViewPeriod; label: string }[] = [
     { key: "all", label: "通算" },
@@ -225,30 +313,155 @@ export default function PlayerDashboardPage() {
             />
           </svg>
         </Link>
-        <h2 className="text-base font-bold text-gray-900">成長ダッシュボード</h2>
+        <h2 className="flex-1 text-base font-bold text-gray-900">
+          成長ダッシュボード
+        </h2>
+        {canEdit && !isEditing && (
+          <Button size="sm" variant="outline" onClick={handleStartEdit}>
+            編集
+          </Button>
+        )}
       </div>
 
       <div className="space-y-4 p-4">
         {/* 選手プロフィール */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-                <span className="text-xl font-bold text-green-700">
-                  {player.number}
-                </span>
+        {isEditing ? (
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <Input
+                label="名前"
+                value={editData.name || ""}
+                onChange={(e) =>
+                  setEditData({ ...editData, name: e.target.value })
+                }
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="背番号"
+                  type="number"
+                  value={editData.number?.toString() || ""}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      number: e.target.value ? parseInt(e.target.value) : undefined,
+                    })
+                  }
+                />
+                <Select
+                  label="学年"
+                  value={editData.grade?.toString() || ""}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      grade: e.target.value ? parseInt(e.target.value) : undefined,
+                    })
+                  }
+                >
+                  <option value="">選択</option>
+                  {[1, 2, 3, 4, 5, 6].map((g) => (
+                    <option key={g} value={g}>
+                      {g}年
+                    </option>
+                  ))}
+                </Select>
               </div>
-              <div>
-                <div className="text-lg font-bold text-gray-900">
-                  {player.name}
+              <Select
+                label="ポジション"
+                value={editData.position || ""}
+                onChange={(e) =>
+                  setEditData({ ...editData, position: e.target.value })
+                }
+              >
+                <option value="">選択</option>
+                {POSITIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </Select>
+              <div className="grid grid-cols-2 gap-3">
+                <Select
+                  label="投げ"
+                  value={editData.throwing_hand || ""}
+                  onChange={(e) =>
+                    setEditData({ ...editData, throwing_hand: e.target.value })
+                  }
+                >
+                  <option value="">選択</option>
+                  <option value="右投">右投</option>
+                  <option value="左投">左投</option>
+                </Select>
+                <Select
+                  label="打ち"
+                  value={editData.batting_hand || ""}
+                  onChange={(e) =>
+                    setEditData({ ...editData, batting_hand: e.target.value })
+                  }
+                >
+                  <option value="">選択</option>
+                  <option value="右打">右打</option>
+                  <option value="左打">左打</option>
+                  <option value="両打">両打</option>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={handleSaveEdit}
+                  disabled={isSaving}
+                >
+                  {isSaving ? "保存中..." : "保存"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setIsEditing(false)}
+                >
+                  キャンセル
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+                  <span className="text-xl font-bold text-green-700">
+                    {player.number ?? "-"}
+                  </span>
                 </div>
-                <div className="text-sm text-gray-500">
-                  {player.position} / {player.grade}年生
+                <div>
+                  <div className="text-lg font-bold text-gray-900">
+                    {player.name}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {player.position || "未設定"}
+                    {player.grade ? ` / ${player.grade}年生` : ""}
+                  </div>
+                  {(player.throwing_hand || player.batting_hand) && (
+                    <div className="text-xs text-gray-400">
+                      {player.throwing_hand}
+                      {player.batting_hand}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              {/* 保護者情報 */}
+              {parents.length > 0 && (
+                <div className="mt-3 border-t pt-3">
+                  <p className="text-xs font-medium text-gray-500">保護者</p>
+                  {parents.map((p) => (
+                    <p key={p.id} className="text-xs text-gray-600">
+                      {p.users?.display_name || "不明"}
+                      {p.relationship && `（${p.relationship}）`}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* 期間切替 */}
         <div className="flex gap-2">
@@ -287,22 +500,6 @@ export default function PlayerDashboardPage() {
           </div>
         </div>
 
-        {/* 前月比 */}
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500">前月比（打率）</span>
-              <span
-                className={`text-sm font-bold ${avgDiff >= 0 ? "text-green-600" : "text-red-600"}`}
-              >
-                {avgDiff >= 0 ? "+" : ""}
-                {avgDiff.toFixed(3)}
-                {avgDiff >= 0 ? " ↑" : " ↓"}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* 打撃詳細 */}
         <Card>
           <CardHeader className="pb-2">
@@ -331,34 +528,6 @@ export default function PlayerDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* 成績推移グラフ */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">成績推移</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <StatsLineChart
-              data={DEMO_MONTHLY_TREND}
-              xAxisKey="month"
-              datasets={[
-                { dataKey: "batting_avg", label: "打率", color: "#16a34a" },
-                { dataKey: "ops", label: "OPS", color: "#2563eb" },
-              ]}
-              height={220}
-            />
-          </CardContent>
-        </Card>
-
-        {/* レーダーチャート */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">能力チャート</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <StatsRadarChart data={DEMO_RADAR} height={250} />
-          </CardContent>
-        </Card>
-
         {/* 投手・守備成績 */}
         <div className="grid grid-cols-2 gap-3">
           <Card>
@@ -376,16 +545,16 @@ export default function PlayerDashboardPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">投球回</span>
-                <span>{DEMO_PITCHING.innings_pitched}</span>
+                <span>{pitching.innings_pitched}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">奪三振</span>
-                <span>{DEMO_PITCHING.strikeouts_pitched}</span>
+                <span>{pitching.strikeouts_pitched}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">勝-敗</span>
                 <span>
-                  {DEMO_PITCHING.wins}-{DEMO_PITCHING.losses}
+                  {pitching.wins}-{pitching.losses}
                 </span>
               </div>
             </CardContent>
@@ -402,15 +571,15 @@ export default function PlayerDashboardPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">刺殺</span>
-                <span>{DEMO_FIELDING.putouts}</span>
+                <span>{fielding.putouts}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">補殺</span>
-                <span>{DEMO_FIELDING.assists}</span>
+                <span>{fielding.assists}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">失策</span>
-                <span>{DEMO_FIELDING.errors}</span>
+                <span>{fielding.errors}</span>
               </div>
             </CardContent>
           </Card>

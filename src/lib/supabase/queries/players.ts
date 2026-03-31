@@ -4,14 +4,16 @@ import type {
   PlayerGameStats,
   PlayerMeasurement,
   PlayerFitnessRecord,
+  ParentPlayerRelation,
 } from "@/types";
 
-/** 選手一覧取得 */
+/** アクティブな選手一覧取得 */
 export async function getPlayers(teamId: string) {
   const { data, error } = await supabase
     .from("players")
     .select("*")
     .eq("team_id", teamId)
+    .eq("is_active", true)
     .order("number", { ascending: true });
   if (error) throw error;
   return data as Player[];
@@ -129,4 +131,97 @@ export async function getTeamFitnessRecords(teamId: string) {
   return data as (PlayerFitnessRecord & {
     players: { id: string; name: string; number: number };
   })[];
+}
+
+/** 選手登録 */
+export async function registerPlayer(data: {
+  team_id: string;
+  name: string;
+  number?: number;
+  grade?: number;
+  position?: string;
+  throwing_hand?: string;
+  batting_hand?: string;
+}) {
+  const { data: player, error } = await supabase
+    .from("players")
+    .insert({ ...data, is_active: true })
+    .select()
+    .single();
+  if (error) throw error;
+  return player as Player;
+}
+
+/** 選手情報更新 */
+export async function updatePlayer(
+  playerId: string,
+  data: Partial<
+    Pick<
+      Player,
+      "name" | "number" | "grade" | "position" | "throwing_hand" | "batting_hand"
+    >
+  >
+) {
+  const { error } = await supabase
+    .from("players")
+    .update(data)
+    .eq("id", playerId);
+  if (error) throw error;
+}
+
+/** 保護者-選手紐づけ */
+export async function linkParentToPlayer(
+  userId: string,
+  playerId: string,
+  teamId: string,
+  relationship?: string
+) {
+  const { error } = await supabase.from("user_children").insert({
+    user_id: userId,
+    player_id: playerId,
+    team_id: teamId,
+    relationship,
+  });
+  if (error) throw error;
+}
+
+/** 選手の保護者情報取得 */
+export async function getPlayerParents(playerId: string) {
+  const { data, error } = await supabase
+    .from("user_children")
+    .select("*, users(*)")
+    .eq("player_id", playerId);
+  if (error) throw error;
+  return data as ParentPlayerRelation[];
+}
+
+/** 自分の子供一覧取得 */
+export async function getMyChildren(userId: string, teamId: string) {
+  const { data, error } = await supabase
+    .from("user_children")
+    .select("*, players(*)")
+    .eq("user_id", userId)
+    .eq("team_id", teamId);
+  if (error) throw error;
+  return data as ParentPlayerRelation[];
+}
+
+/** 背番号重複チェック */
+export async function checkDuplicateNumber(
+  teamId: string,
+  number: number,
+  excludePlayerId?: string
+): Promise<boolean> {
+  let query = supabase
+    .from("players")
+    .select("id")
+    .eq("team_id", teamId)
+    .eq("number", number)
+    .eq("is_active", true);
+  if (excludePlayerId) {
+    query = query.neq("id", excludePlayerId);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data?.length ?? 0) > 0;
 }

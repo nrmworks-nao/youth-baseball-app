@@ -16,12 +16,12 @@ const AWARD_CONFIG: Record<AwardCategory, { label: string; icon: string; color: 
 
 // デモデータ
 const DEMO_AWARDS: Award[] = [
-  { id: "a1", team_id: "t1", player_id: "p3", category: "mvp", comment: "大会で猛打賞！チームを勝利に導きました！", awarded_at: "2026-03-23", created_by: "u1", created_at: "2026-03-23", player: { id: "p3", team_id: "t1", name: "鈴木健", number: 6, position: "遊撃手", grade: 6, created_at: "" } },
-  { id: "a2", team_id: "t1", player_id: "p7", category: "effort", comment: "毎日自主練を欠かさず続けています！", awarded_at: "2026-03-23", created_by: "u1", created_at: "2026-03-23", player: { id: "p7", team_id: "t1", name: "山田拓", number: 9, position: "右翼手", grade: 4, created_at: "" } },
-  { id: "a3", team_id: "t1", player_id: "p8", category: "nice_play", comment: "盗塁阻止で試合の流れを変えました！", awarded_at: "2026-03-16", created_by: "u1", created_at: "2026-03-16", player: { id: "p8", team_id: "t1", name: "中村雄太", number: 2, position: "捕手", grade: 6, created_at: "" } },
-  { id: "a4", team_id: "t1", player_id: "p1", category: "mvp", comment: "3打数3安打の猛打賞！", awarded_at: "2026-03-09", created_by: "u1", created_at: "2026-03-09", player: { id: "p1", team_id: "t1", name: "田中太郎", number: 8, position: "中堅手", grade: 6, created_at: "" } },
-  { id: "a5", team_id: "t1", player_id: "p6", category: "effort", comment: "守備が上手になりました！", awarded_at: "2026-03-09", created_by: "u1", created_at: "2026-03-09", player: { id: "p6", team_id: "t1", name: "伊藤誠", number: 7, position: "左翼手", grade: 5, created_at: "" } },
-  { id: "a6", team_id: "t1", player_id: "p9", category: "nice_play", comment: "5回を無失点に抑える好投！", awarded_at: "2026-03-02", created_by: "u1", created_at: "2026-03-02", player: { id: "p9", team_id: "t1", name: "小林直人", number: 1, position: "投手", grade: 6, created_at: "" } },
+  { id: "a1", team_id: "t1", player_id: "p3", category: "mvp", comment: "大会で猛打賞！チームを勝利に導きました！", awarded_at: "2026-03-23", created_by: "u1", created_at: "2026-03-23", player: { id: "p3", team_id: "t1", name: "鈴木健", number: 6, position: "遊撃手", grade: 6, is_active: true, created_at: "" } },
+  { id: "a2", team_id: "t1", player_id: "p7", category: "effort", comment: "毎日自主練を欠かさず続けています！", awarded_at: "2026-03-23", created_by: "u1", created_at: "2026-03-23", player: { id: "p7", team_id: "t1", name: "山田拓", number: 9, position: "右翼手", grade: 4, is_active: true, created_at: "" } },
+  { id: "a3", team_id: "t1", player_id: "p8", category: "nice_play", comment: "盗塁阻止で試合の流れを変えました！", awarded_at: "2026-03-16", created_by: "u1", created_at: "2026-03-16", player: { id: "p8", team_id: "t1", name: "中村雄太", number: 2, position: "捕手", grade: 6, is_active: true, created_at: "" } },
+  { id: "a4", team_id: "t1", player_id: "p1", category: "mvp", comment: "3打数3安打の猛打賞！", awarded_at: "2026-03-09", created_by: "u1", created_at: "2026-03-09", player: { id: "p1", team_id: "t1", name: "田中太郎", number: 8, position: "中堅手", grade: 6, is_active: true, created_at: "" } },
+  { id: "a5", team_id: "t1", player_id: "p6", category: "effort", comment: "守備が上手になりました！", awarded_at: "2026-03-09", created_by: "u1", created_at: "2026-03-09", player: { id: "p6", team_id: "t1", name: "伊藤誠", number: 7, position: "左翼手", grade: 5, is_active: true, created_at: "" } },
+  { id: "a6", team_id: "t1", player_id: "p9", category: "nice_play", comment: "5回を無失点に抑える好投！", awarded_at: "2026-03-02", created_by: "u1", created_at: "2026-03-02", player: { id: "p9", team_id: "t1", name: "小林直人", number: 1, position: "投手", grade: 6, is_active: true, created_at: "" } },
 ];
 
 export default function AwardsPage() {
