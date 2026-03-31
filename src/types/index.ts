@@ -460,6 +460,7 @@ export interface KidsBadge {
   category: BadgeCategory;
   icon_color: string;
   is_preset: boolean;
+  is_active: boolean;
   condition_key?: string;
   created_at: string;
 }

@@ -1,25 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { getBadges, getPlayerBadges } from "@/lib/supabase/queries/kids";
-import { PRESET_BADGES, getBadgeIcon } from "@/lib/supabase/badges";
-import type { KidsBadge, PlayerBadge, BadgeCategory } from "@/types";
-
-// デモバッジデータ
-const DEMO_ALL_BADGES: KidsBadge[] = PRESET_BADGES.map((b, i) => ({
-  id: `badge-${i}`,
-  name: b.name,
-  description: b.description,
-  category: b.category,
-  icon_color: b.icon_color,
-  is_preset: true,
-  condition_key: b.condition_key,
-  created_at: "2024-01-01",
-}));
-
-const DEMO_EARNED_IDS = new Set(["badge-0", "badge-1", "badge-3", "badge-4", "badge-12"]);
+import { getBadgeIcon } from "@/lib/supabase/badges";
+import type { KidsBadge, BadgeCategory } from "@/types";
 
 const CATEGORY_LABELS: Record<BadgeCategory, string> = {
   batting: "打撃",
@@ -32,35 +20,52 @@ const CATEGORY_LABELS: Record<BadgeCategory, string> = {
 };
 
 export default function BadgesPage() {
+  const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
   const [allBadges, setAllBadges] = useState<KidsBadge[]>([]);
   const [earnedBadgeIds, setEarnedBadgeIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<BadgeCategory | "all">("all");
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [badges, playerBadges] = await Promise.all([
-          getBadges("t1"),
-          getPlayerBadges("p1"),
-        ]);
-        setAllBadges(badges.length > 0 ? badges : DEMO_ALL_BADGES);
-        setEarnedBadgeIds(
-          playerBadges.length > 0
-            ? new Set(playerBadges.map((pb) => pb.badge_id))
-            : DEMO_EARNED_IDS
-        );
-      } catch {
-        setAllBadges(DEMO_ALL_BADGES);
-        setEarnedBadgeIds(DEMO_EARNED_IDS);
-      } finally {
-        setLoading(false);
-      }
+  // TODO: playerIdを実際のログインユーザーの子供IDから取得する
+  const loadData = useCallback(async () => {
+    if (!currentTeam) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const badges = await getBadges(currentTeam.id);
+      setAllBadges(badges);
+      // TODO: 実際のplayerIdで取得する
+      // const playerBadges = await getPlayerBadges(playerId);
+      // setEarnedBadgeIds(new Set(playerBadges.map((pb) => pb.badge_id)));
+    } catch {
+      setError("バッジデータの取得に失敗しました");
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, []);
+  }, [currentTeam]);
 
-  if (loading) return <Loading />;
+  useEffect(() => {
+    if (teamLoading || !currentTeam) return;
+    loadData();
+  }, [currentTeam, teamLoading, loadData]);
+
+  if (teamLoading || loading) return <Loading />;
+  if (error) return <ErrorDisplay message={error} onRetry={loadData} />;
+
+  if (allBadges.length === 0) {
+    return (
+      <div className="flex flex-col">
+        <div className="border-b border-gray-200 bg-white px-4 py-3">
+          <h2 className="text-base font-bold text-gray-900">バッジ図鑑</h2>
+        </div>
+        <EmptyState
+          title="まだバッジがありません"
+          description="バッジが登録されると、ここに表示されます"
+        />
+      </div>
+    );
+  }
 
   const categories: BadgeCategory[] = Array.from(new Set(allBadges.map((b) => b.category)));
   const filteredBadges =
@@ -86,7 +91,7 @@ export default function BadgesPage() {
           <div
             className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 transition-all"
             style={{
-              width: `${(earnedCount / allBadges.length) * 100}%`,
+              width: allBadges.length > 0 ? `${(earnedCount / allBadges.length) * 100}%` : "0%",
             }}
           />
         </div>

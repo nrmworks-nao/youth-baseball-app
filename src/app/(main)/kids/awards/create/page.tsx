@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { createAward } from "@/lib/supabase/queries/kids";
-import type { AwardCategory } from "@/types";
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
+import { createAward, getAwards } from "@/lib/supabase/queries/kids";
+import { getPlayers } from "@/lib/supabase/queries/players";
+import { supabase } from "@/lib/supabase/client";
+import type { AwardCategory, Player, Award } from "@/types";
 
 const AWARD_CATEGORIES: { key: AwardCategory; label: string; icon: string; description: string }[] = [
   { key: "mvp", label: "MVP", icon: "🏆", description: "今週最も活躍した選手" },
@@ -13,50 +18,99 @@ const AWARD_CATEGORIES: { key: AwardCategory; label: string; icon: string; descr
   { key: "nice_play", label: "ナイスプレー賞", icon: "✨", description: "素晴らしいプレーをした選手" },
 ];
 
-// デモ選手データ
-const DEMO_PLAYERS = [
-  { id: "p1", name: "田中太郎", number: 8, lastAwardDays: 14 },
-  { id: "p2", name: "佐藤次郎", number: 4, lastAwardDays: 21 },
-  { id: "p3", name: "鈴木健", number: 6, lastAwardDays: 7 },
-  { id: "p4", name: "高橋大輝", number: 3, lastAwardDays: 28 },
-  { id: "p5", name: "渡辺翔", number: 5, lastAwardDays: 35 },
-  { id: "p6", name: "伊藤誠", number: 7, lastAwardDays: 14 },
-  { id: "p7", name: "山田拓", number: 9, lastAwardDays: 42 },
-  { id: "p8", name: "中村雄太", number: 2, lastAwardDays: 21 },
-  { id: "p9", name: "小林直人", number: 1, lastAwardDays: 7 },
-];
+interface PlayerWithLastAward extends Player {
+  lastAwardDays: number | null;
+}
 
 export default function CreateAwardPage() {
   const router = useRouter();
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
   const [category, setCategory] = useState<AwardCategory | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [players, setPlayers] = useState<PlayerWithLastAward[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // 未受賞者を優先表示（最後の表彰から日数が多い順）
-  const sortedPlayers = [...DEMO_PLAYERS].sort(
-    (a, b) => b.lastAwardDays - a.lastAwardDays
+  const loadData = useCallback(async () => {
+    if (!currentTeam) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [playersData, awardsData] = await Promise.all([
+        getPlayers(currentTeam.id),
+        getAwards(currentTeam.id),
+      ]);
+
+      const now = new Date();
+      const oneMonthAgo = new Date(now);
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+      // 直近1ヶ月の受賞者を特定
+      const recentAwards = awardsData.filter(
+        (a) => new Date(a.awarded_at) >= oneMonthAgo
+      );
+      const lastAwardMap = new Map<string, Date>();
+      for (const a of awardsData) {
+        const d = new Date(a.awarded_at);
+        const existing = lastAwardMap.get(a.player_id);
+        if (!existing || d > existing) {
+          lastAwardMap.set(a.player_id, d);
+        }
+      }
+
+      const playersWithAwards: PlayerWithLastAward[] = playersData
+        .filter((p) => p.is_active)
+        .map((p) => {
+          const lastDate = lastAwardMap.get(p.id);
+          const lastAwardDays = lastDate
+            ? Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+            : null;
+          return { ...p, lastAwardDays };
+        });
+
+      setPlayers(playersWithAwards);
+    } catch {
+      setError("データの取得に失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentTeam]);
+
+  useEffect(() => {
+    if (teamLoading || !currentTeam) return;
+    loadData();
+  }, [currentTeam, teamLoading, loadData]);
+
+  // 未受賞者を優先表示（最後の表彰から日数が多い順、または未受賞者）
+  const suggestedPlayers = players.filter(
+    (p) => p.lastAwardDays === null || p.lastAwardDays >= 30
   );
-  const suggestedPlayers = sortedPlayers.filter((p) => p.lastAwardDays >= 30);
 
   const handleSubmit = async () => {
-    if (!category || !selectedPlayerId) return;
+    if (!category || !selectedPlayerId || !currentTeam) return;
     setSubmitting(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       await createAward({
-        team_id: "t1",
+        team_id: currentTeam.id,
         player_id: selectedPlayerId,
         category,
         comment: comment || undefined,
         awarded_at: new Date().toISOString().split("T")[0],
-        created_by: "u1",
+        created_by: user?.id ?? "",
       });
       router.push("/kids/awards");
     } catch {
-      // デモモードでは戻る
-      router.push("/kids/awards");
+      setError("表彰の作成に失敗しました");
+      setSubmitting(false);
     }
   };
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (error && players.length === 0) return <ErrorDisplay message={error} onRetry={loadData} />;
 
   return (
     <div className="flex flex-col">
@@ -67,6 +121,12 @@ export default function CreateAwardPage() {
       </div>
 
       <div className="space-y-4 p-4">
+        {error && (
+          <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-center text-xs text-red-700">
+            {error}
+          </div>
+        )}
+
         {/* カテゴリ選択 */}
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -112,7 +172,8 @@ export default function CreateAwardPage() {
                       : "bg-white text-blue-700 border border-blue-200"
                   }`}
                 >
-                  {p.name}（{p.lastAwardDays}日前）
+                  {p.name}
+                  {p.lastAwardDays !== null ? `（${p.lastAwardDays}日前）` : "（未受賞）"}
                 </button>
               ))}
             </div>
@@ -124,26 +185,30 @@ export default function CreateAwardPage() {
           <label className="mb-2 block text-sm font-medium text-gray-700">
             選手を選ぶ
           </label>
-          <div className="grid grid-cols-3 gap-2">
-            {DEMO_PLAYERS.map((player) => (
-              <button
-                key={player.id}
-                onClick={() => setSelectedPlayerId(player.id)}
-                className={`rounded-lg border-2 p-2 text-center transition-all ${
-                  selectedPlayerId === player.id
-                    ? "border-green-500 bg-green-50"
-                    : "border-gray-200 bg-white"
-                }`}
-              >
-                <div className="flex h-8 w-8 mx-auto items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700">
-                  {player.number}
-                </div>
-                <div className="mt-1 text-xs font-medium text-gray-900 truncate">
-                  {player.name}
-                </div>
-              </button>
-            ))}
-          </div>
+          {players.length === 0 ? (
+            <EmptyState title="選手が登録されていません" />
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {players.map((player) => (
+                <button
+                  key={player.id}
+                  onClick={() => setSelectedPlayerId(player.id)}
+                  className={`rounded-lg border-2 p-2 text-center transition-all ${
+                    selectedPlayerId === player.id
+                      ? "border-green-500 bg-green-50"
+                      : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <div className="flex h-8 w-8 mx-auto items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700">
+                    {player.number ?? "?"}
+                  </div>
+                  <div className="mt-1 text-xs font-medium text-gray-900 truncate">
+                    {player.name}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* コメント */}

@@ -1,74 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
 import { TeamChallengeBar } from "@/components/features/kids/TeamChallengeBar";
 import { getTeamChallenges, createTeamChallenge } from "@/lib/supabase/queries/kids";
 import type { TeamChallenge } from "@/types";
 
-// デモデータ
-const DEMO_CHALLENGES: TeamChallenge[] = [
-  {
-    id: "tc1",
-    team_id: "t1",
-    title: "チーム合計100安打を達成しよう！",
-    description: "シーズン中にチーム全体で100本のヒットを打とう",
-    target_value: 100,
-    current_value: 72,
-    start_date: "2026-01-01",
-    end_date: "2026-12-31",
-  },
-  {
-    id: "tc2",
-    team_id: "t1",
-    title: "全員でベースラン記録更新！",
-    description: "全メンバーがベースランの自己ベストを更新しよう",
-    target_value: 9,
-    current_value: 5,
-    start_date: "2026-03-01",
-    end_date: "2026-06-30",
-  },
-];
-
-const DEMO_COMPLETED: TeamChallenge[] = [
-  {
-    id: "tc3",
-    team_id: "t1",
-    title: "練習参加率90%以上を3ヶ月続けよう",
-    description: "チーム全体で高い練習参加率をキープしよう",
-    target_value: 3,
-    current_value: 3,
-    start_date: "2025-10-01",
-    end_date: "2025-12-31",
-  },
-];
-
 export default function TeamChallengePage() {
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
   const [challenges, setChallenges] = useState<TeamChallenge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newTarget, setNewTarget] = useState("");
   const [newEndDate, setNewEndDate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadData = useCallback(async () => {
+    if (!currentTeam) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getTeamChallenges(currentTeam.id);
+      setChallenges(data);
+    } catch {
+      setError("チャレンジデータの取得に失敗しました");
+    } finally {
+      setLoading(false);
+    }
+  }, [currentTeam]);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const data = await getTeamChallenges("t1");
-        setChallenges(
-          data.length > 0 ? data : [...DEMO_CHALLENGES, ...DEMO_COMPLETED]
-        );
-      } catch {
-        setChallenges([...DEMO_CHALLENGES, ...DEMO_COMPLETED]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+    if (teamLoading || !currentTeam) return;
+    loadData();
+  }, [currentTeam, teamLoading, loadData]);
 
   const activeChallenges = challenges.filter(
     (c) => c.current_value < c.target_value
@@ -77,11 +49,14 @@ export default function TeamChallengePage() {
     (c) => c.current_value >= c.target_value
   );
 
+  const canCreate = hasPermission(["team_admin", "vice_president", "manager"]);
+
   const handleCreate = async () => {
-    if (!newTitle || !newTarget || !newEndDate) return;
+    if (!newTitle || !newTarget || !newEndDate || !currentTeam) return;
+    setSubmitting(true);
     try {
       const challenge = await createTeamChallenge({
-        team_id: "t1",
+        team_id: currentTeam.id,
         title: newTitle,
         description: newDescription || undefined,
         target_value: parseInt(newTarget),
@@ -90,20 +65,9 @@ export default function TeamChallengePage() {
       });
       setChallenges((prev) => [challenge, ...prev]);
     } catch {
-      setChallenges((prev) => [
-        {
-          id: `tc-${Date.now()}`,
-          team_id: "t1",
-          title: newTitle,
-          description: newDescription || undefined,
-          target_value: parseInt(newTarget),
-          current_value: 0,
-          start_date: new Date().toISOString().split("T")[0],
-          end_date: newEndDate,
-        },
-        ...prev,
-      ]);
+      setError("チャレンジの作成に失敗しました");
     }
+    setSubmitting(false);
     setNewTitle("");
     setNewDescription("");
     setNewTarget("");
@@ -111,7 +75,8 @@ export default function TeamChallengePage() {
     setShowForm(false);
   };
 
-  if (loading) return <Loading />;
+  if (teamLoading || loading) return <Loading />;
+  if (error && challenges.length === 0) return <ErrorDisplay message={error} onRetry={loadData} />;
 
   return (
     <div className="flex flex-col">
@@ -123,12 +88,18 @@ export default function TeamChallengePage() {
             みんなで達成しよう！（最大2つ）
           </p>
         </div>
-        {activeChallenges.length < 2 && (
+        {canCreate && activeChallenges.length < 2 && (
           <Button size="sm" onClick={() => setShowForm(!showForm)}>
             {showForm ? "キャンセル" : "作成"}
           </Button>
         )}
       </div>
+
+      {error && (
+        <div className="mx-4 mt-2 rounded-lg bg-red-50 border border-red-200 p-2 text-center text-xs text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* 作成フォーム */}
       {showForm && (
@@ -166,8 +137,8 @@ export default function TeamChallengePage() {
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             />
           </div>
-          <Button onClick={handleCreate} className="w-full" disabled={!newTitle || !newTarget || !newEndDate}>
-            チャレンジを作成
+          <Button onClick={handleCreate} className="w-full" disabled={!newTitle || !newTarget || !newEndDate || submitting}>
+            {submitting ? "作成中..." : "チャレンジを作成"}
           </Button>
         </div>
       )}
@@ -187,7 +158,14 @@ export default function TeamChallengePage() {
           </div>
         )}
 
-        {activeChallenges.length === 0 && (
+        {activeChallenges.length === 0 && completedChallenges.length === 0 && (
+          <EmptyState
+            title="まだチャレンジがありません"
+            description="新しいチャレンジを作成してチームで挑戦しよう！"
+          />
+        )}
+
+        {activeChallenges.length === 0 && completedChallenges.length > 0 && (
           <div className="rounded-xl bg-gray-50 p-8 text-center">
             <span className="text-3xl">🎯</span>
             <p className="mt-2 text-sm text-gray-500">
