@@ -1,42 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
 import { cn } from "@/lib/utils/cn";
-import type { AttendanceStatus } from "@/types";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
+import {
+  getEvent,
+  getAttendances,
+  getMyChildren,
+  upsertPlayerAttendance,
+  upsertUserAttendance,
+} from "@/lib/supabase/queries/events";
+import { supabase } from "@/lib/supabase/client";
+import { getErrorMessage } from "@/lib/supabase/error-handler";
+import type { Event } from "@/types";
 
-// デモデータ
-const DEMO_EVENT: {
-  id: string;
-  title: string;
-  event_type: string;
-  description: string;
-  location: string;
-  start_at: string;
-  end_at: string;
-  created_by: string;
-} = {
-  id: "1",
-  title: "通常練習",
-  event_type: "practice",
-  description: "通常練習です。バッティング練習と守備練習を行います。",
-  location: "中央公園グラウンド",
-  start_at: "2026-04-05T09:00:00",
-  end_at: "2026-04-05T12:00:00",
-  created_by: "user1",
+// DB status mapping: DB uses present/absent/pending, UI uses attending/absent/undecided
+const STATUS_MAP_TO_DB: Record<string, string> = {
+  attending: "present",
+  absent: "absent",
+  undecided: "pending",
 };
 
-const DEMO_ATTENDANCES = [
-  { id: "1", player_name: "山田一郎", status: "attending" as const },
-  { id: "2", player_name: "鈴木次郎", status: "attending" as const },
-  { id: "3", player_name: "佐藤三郎", status: "absent" as const },
-  { id: "4", player_name: "田中四郎", status: "undecided" as const },
-  { id: "5", player_name: "伊藤五郎", status: "attending" as const },
-];
+const STATUS_MAP_FROM_DB: Record<string, string> = {
+  present: "attending",
+  absent: "absent",
+  pending: "undecided",
+  late: "undecided",
+};
+
+type UIAttendanceStatus = "attending" | "absent" | "undecided";
 
 function formatDateTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -44,45 +44,179 @@ function formatDateTime(dateStr: string) {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${weekdays[d.getDay()]}）${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
-const STATUS_CONFIG: Record<
-  AttendanceStatus,
-  { label: string; color: string; bgColor: string }
-> = {
-  attending: {
-    label: "参加",
-    color: "text-green-700",
-    bgColor: "bg-green-100",
-  },
+const STATUS_CONFIG: Record<UIAttendanceStatus, { label: string; color: string; bgColor: string }> = {
+  attending: { label: "参加", color: "text-green-700", bgColor: "bg-green-100" },
   absent: { label: "欠席", color: "text-red-700", bgColor: "bg-red-100" },
-  undecided: {
-    label: "未定",
-    color: "text-yellow-700",
-    bgColor: "bg-yellow-100",
-  },
+  undecided: { label: "未定", color: "text-yellow-700", bgColor: "bg-yellow-100" },
 };
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  practice: "練習",
+  practice_game: "練習試合",
+  game: "公式戦",
+  joint_practice: "合同練習",
+  meeting: "会議",
+  other: "その他",
+};
+
+interface AttendanceRow {
+  id: string;
+  event_id: string;
+  player_id: string | null;
+  user_id: string | null;
+  status: string;
+  note: string | null;
+  can_drive: boolean | null;
+  car_capacity: number | null;
+  players: { name: string; number: number | null } | null;
+  users: { display_name: string; avatar_url: string | null } | null;
+}
 
 export default function EventDetailPage() {
   const params = useParams();
   const eventId = params.eventId as string;
-  const event = DEMO_EVENT; // TODO: getEvent(eventId)
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
 
-  const [myStatus, setMyStatus] = useState<AttendanceStatus | null>(null);
-  const [note, setNote] = useState("");
+  const [event, setEvent] = useState<Event | null>(null);
+  const [attendances, setAttendances] = useState<AttendanceRow[]>([]);
+  const [children, setChildren] = useState<{ player_id: string; players: { id: string; name: string; number: number | null } }[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const attendingCount = DEMO_ATTENDANCES.filter(
-    (a) => a.status === "attending"
-  ).length;
-  const absentCount = DEMO_ATTENDANCES.filter(
-    (a) => a.status === "absent"
-  ).length;
-  const undecidedCount = DEMO_ATTENDANCES.filter(
-    (a) => a.status === "undecided"
-  ).length;
+  // 保護者自身の出欠
+  const [myNote, setMyNote] = useState("");
+  const [myCanDrive, setMyCanDrive] = useState(false);
+  const [myCarCapacity, setMyCarCapacity] = useState(0);
 
-  const handleAttendance = async (status: AttendanceStatus) => {
-    setMyStatus(status);
-    // TODO: upsertAttendance({ event_id: eventId, user_id: ..., status, note })
+  const canViewAll = hasPermission(["team_admin", "vice_president", "manager"]);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("ログインが必要です");
+      setUserId(user.id);
+
+      const [eventData, attendanceData] = await Promise.all([
+        getEvent(eventId),
+        getAttendances(eventId),
+      ]);
+
+      setEvent(eventData);
+      setAttendances(attendanceData as AttendanceRow[]);
+
+      if (currentTeam) {
+        const childData = await getMyChildren(user.id, currentTeam.id);
+        setChildren(childData as typeof children);
+      }
+
+      // 保護者自身の既存出欠情報を復元
+      const myAttendance = (attendanceData as AttendanceRow[]).find(
+        (a) => a.user_id === user.id && !a.player_id
+      );
+      if (myAttendance) {
+        setMyNote(myAttendance.note || "");
+        setMyCanDrive(myAttendance.can_drive || false);
+        setMyCarCapacity(myAttendance.car_capacity || 0);
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [eventId, currentTeam]);
+
+  useEffect(() => {
+    if (!teamLoading) {
+      fetchData();
+    }
+  }, [teamLoading, fetchData]);
+
+  // 出欠回答の締切チェック
+  const isRsvpClosed = event && (event as Event & { rsvp_deadline?: string }).rsvp_deadline
+    ? new Date((event as Event & { rsvp_deadline?: string }).rsvp_deadline!) < new Date()
+    : false;
+
+  // 子供の出欠を登録
+  const handleChildAttendance = async (playerId: string, status: UIAttendanceStatus) => {
+    if (!userId || !currentTeam || isRsvpClosed) return;
+    try {
+      await upsertPlayerAttendance({
+        event_id: eventId,
+        team_id: currentTeam.id,
+        player_id: playerId,
+        status: STATUS_MAP_TO_DB[status],
+        responded_by: userId,
+      });
+      fetchData();
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
   };
+
+  // 保護者自身の出欠を登録
+  const handleMyAttendance = async (status: UIAttendanceStatus) => {
+    if (!userId || !currentTeam || isRsvpClosed) return;
+    try {
+      await upsertUserAttendance({
+        event_id: eventId,
+        team_id: currentTeam.id,
+        user_id: userId,
+        status: STATUS_MAP_TO_DB[status],
+        note: myNote.trim() || undefined,
+        can_drive: myCanDrive,
+        car_capacity: myCanDrive ? myCarCapacity : 0,
+      });
+      fetchData();
+    } catch (err) {
+      alert(getErrorMessage(err));
+    }
+  };
+
+  if (isLoading || teamLoading) {
+    return <Loading text="イベント情報を読み込み中..." />;
+  }
+
+  if (error) {
+    return <ErrorDisplay message={error} onRetry={fetchData} />;
+  }
+
+  if (!event) {
+    return <ErrorDisplay title="イベントが見つかりません" message="指定されたイベントは存在しません。" />;
+  }
+
+  // 集計
+  const attendingCount = attendances.filter((a) => a.status === "present").length;
+  const absentCount = attendances.filter((a) => a.status === "absent").length;
+  const undecidedCount = attendances.filter((a) => a.status === "pending" || a.status === "late").length;
+
+  // 自分の子供の現在の出欠ステータスを取得
+  const getChildStatus = (playerId: string): UIAttendanceStatus | null => {
+    const att = attendances.find((a) => a.player_id === playerId);
+    if (!att) return null;
+    return (STATUS_MAP_FROM_DB[att.status] || "undecided") as UIAttendanceStatus;
+  };
+
+  // 保護者自身の現在の出欠ステータスを取得
+  const getMyStatus = (): UIAttendanceStatus | null => {
+    const att = attendances.find((a) => a.user_id === userId && !a.player_id);
+    if (!att) return null;
+    return (STATUS_MAP_FROM_DB[att.status] || "undecided") as UIAttendanceStatus;
+  };
+
+  const myStatus = getMyStatus();
+
+  // 表示する出欠一覧（権限に応じてフィルタ）
+  const visibleAttendances = canViewAll
+    ? attendances
+    : attendances.filter((a) =>
+        a.user_id === userId || children.some((c) => c.player_id === a.player_id)
+      );
+
+  const typeLabel = EVENT_TYPE_LABELS[event.event_type] || "その他";
 
   return (
     <div className="space-y-4 p-4">
@@ -91,18 +225,8 @@ export default function EventDetailPage() {
         href="/calendar"
         className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
       >
-        <svg
-          className="h-4 w-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M15.75 19.5 8.25 12l7.5-7.5"
-          />
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
         </svg>
         カレンダーに戻る
       </Link>
@@ -112,56 +236,32 @@ export default function EventDetailPage() {
         <CardContent className="space-y-3 pt-4">
           <div className="flex items-center gap-2">
             {event.event_type === "game" ? (
-              <Badge variant="game">試合</Badge>
+              <Badge variant="game">{typeLabel}</Badge>
             ) : event.event_type === "practice" ? (
-              <Badge variant="practice">練習</Badge>
+              <Badge variant="practice">{typeLabel}</Badge>
             ) : (
-              <Badge>その他</Badge>
+              <Badge>{typeLabel}</Badge>
             )}
-            <h1 className="text-lg font-bold text-gray-900">{event.title}</h1>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{event.title}</h1>
           </div>
 
-          <div className="space-y-2 text-sm text-gray-600">
+          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
             <div className="flex items-center gap-2">
-              <svg
-                className="h-4 w-4 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-                />
+              <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
               <div>
                 <p>{formatDateTime(event.start_at)}</p>
-                <p className="text-xs text-gray-400">
-                  〜 {formatDateTime(event.end_at)}
-                </p>
+                {event.end_at && (
+                  <p className="text-xs text-gray-400">〜 {formatDateTime(event.end_at)}</p>
+                )}
               </div>
             </div>
             {event.location && (
               <div className="flex items-center gap-2">
-                <svg
-                  className="h-4 w-4 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
-                  />
+                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                 </svg>
                 <span>{event.location}</span>
               </div>
@@ -169,52 +269,123 @@ export default function EventDetailPage() {
           </div>
 
           {event.description && (
-            <p className="text-sm text-gray-600">{event.description}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{event.description}</p>
+          )}
+
+          {isRsvpClosed && (
+            <div className="rounded-lg bg-yellow-50 p-2 text-center text-sm font-medium text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400">
+              出欠回答は締め切りました
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* 出欠登録 */}
+      {/* 子供の出欠登録 */}
+      {children.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>お子様の出欠回答</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {children.map((child) => {
+              const player = child.players;
+              if (!player) return null;
+              const childStatus = getChildStatus(player.id);
+              return (
+                <div key={player.id} className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {player.name}
+                    {player.number != null && (
+                      <span className="ml-1 text-xs text-gray-400">#{player.number}</span>
+                    )}
+                  </p>
+                  <div className="flex gap-2">
+                    {(["attending", "absent", "undecided"] as const).map((status) => (
+                      <Button
+                        key={status}
+                        variant={childStatus === status ? "default" : "outline"}
+                        size="sm"
+                        className={cn(
+                          "flex-1",
+                          childStatus === status && status === "attending" && "bg-green-600 hover:bg-green-700",
+                          childStatus === status && status === "absent" && "bg-red-600 hover:bg-red-700",
+                          childStatus === status && status === "undecided" && "bg-yellow-500 hover:bg-yellow-600"
+                        )}
+                        onClick={() => handleChildAttendance(player.id, status)}
+                        disabled={isRsvpClosed}
+                      >
+                        {STATUS_CONFIG[status].label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 保護者自身の出欠登録 */}
       <Card>
         <CardHeader>
-          <CardTitle>出欠回答</CardTitle>
+          <CardTitle>保護者の出欠回答</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <div className="flex gap-2">
-            {(
-              [
-                { status: "attending" as const, label: "参加" },
-                { status: "absent" as const, label: "欠席" },
-                { status: "undecided" as const, label: "未定" },
-              ] as const
-            ).map(({ status, label }) => (
+            {(["attending", "absent", "undecided"] as const).map((status) => (
               <Button
                 key={status}
                 variant={myStatus === status ? "default" : "outline"}
                 className={cn(
                   "flex-1",
-                  myStatus === status &&
-                    status === "attending" &&
-                    "bg-green-600 hover:bg-green-700",
-                  myStatus === status &&
-                    status === "absent" &&
-                    "bg-red-600 hover:bg-red-700",
-                  myStatus === status &&
-                    status === "undecided" &&
-                    "bg-yellow-500 hover:bg-yellow-600"
+                  myStatus === status && status === "attending" && "bg-green-600 hover:bg-green-700",
+                  myStatus === status && status === "absent" && "bg-red-600 hover:bg-red-700",
+                  myStatus === status && status === "undecided" && "bg-yellow-500 hover:bg-yellow-600"
                 )}
-                onClick={() => handleAttendance(status)}
+                onClick={() => handleMyAttendance(status)}
+                disabled={isRsvpClosed}
               >
-                {label}
+                {STATUS_CONFIG[status].label}
               </Button>
             ))}
           </div>
+
+          {/* 車出し */}
+          <div className="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300"
+                checked={myCanDrive}
+                onChange={(e) => setMyCanDrive(e.target.checked)}
+                disabled={isRsvpClosed}
+              />
+              車出し可能
+            </label>
+            {myCanDrive && (
+              <div className="flex items-center gap-2 pl-6">
+                <label className="text-xs text-gray-500">乗車可能人数:</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={10}
+                  className="w-16 rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  value={myCarCapacity}
+                  onChange={(e) => setMyCarCapacity(Number(e.target.value))}
+                  disabled={isRsvpClosed}
+                />
+                <span className="text-xs text-gray-500">人</span>
+              </div>
+            )}
+          </div>
+
           <textarea
-            className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             rows={2}
             placeholder="コメント（任意）"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
+            value={myNote}
+            onChange={(e) => setMyNote(e.target.value)}
+            disabled={isRsvpClosed}
           />
         </CardContent>
       </Card>
@@ -232,35 +403,56 @@ export default function EventDetailPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {DEMO_ATTENDANCES.map((attendance) => {
-              const config = STATUS_CONFIG[attendance.status];
-              return (
-                <div
-                  key={attendance.id}
-                  className="flex items-center justify-between rounded-lg px-2 py-1.5"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600">
-                      {attendance.player_name.charAt(0)}
-                    </div>
-                    <span className="text-sm text-gray-700">
-                      {attendance.player_name}
-                    </span>
-                  </div>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-xs font-medium",
-                      config.bgColor,
-                      config.color
-                    )}
+          {visibleAttendances.length === 0 ? (
+            <p className="py-4 text-center text-sm text-gray-400">まだ回答がありません</p>
+          ) : (
+            <div className="space-y-2">
+              {visibleAttendances.map((attendance) => {
+                const uiStatus = (STATUS_MAP_FROM_DB[attendance.status] || "undecided") as UIAttendanceStatus;
+                const config = STATUS_CONFIG[uiStatus];
+                const displayName = attendance.players?.name
+                  || attendance.users?.display_name
+                  || "不明";
+                return (
+                  <div
+                    key={attendance.id}
+                    className="flex items-center justify-between rounded-lg px-2 py-1.5"
                   >
-                    {config.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        {displayName.charAt(0)}
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{displayName}</span>
+                        {attendance.player_id && (
+                          <span className="ml-1 text-xs text-gray-400">（選手）</span>
+                        )}
+                        {!attendance.player_id && attendance.user_id && (
+                          <span className="ml-1 text-xs text-gray-400">（保護者）</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {attendance.can_drive && (
+                        <span className="text-xs text-blue-600" title={`乗車${attendance.car_capacity}人`}>
+                          🚗{attendance.car_capacity}人
+                        </span>
+                      )}
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-xs font-medium",
+                          config.bgColor,
+                          config.color
+                        )}
+                      >
+                        {config.label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

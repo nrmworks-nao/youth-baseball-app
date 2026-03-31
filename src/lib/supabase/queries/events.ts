@@ -57,29 +57,121 @@ export async function createEvent(data: {
   return event as Event;
 }
 
-/** 出欠登録 */
-export async function upsertAttendance(data: {
+/** 出欠登録（選手） */
+export async function upsertPlayerAttendance(data: {
   event_id: string;
-  user_id: string;
-  player_id?: string;
-  status: AttendanceStatus;
+  team_id: string;
+  player_id: string;
+  status: string;
   note?: string;
+  responded_by: string;
+  can_drive?: boolean;
+  car_capacity?: number;
 }) {
-  const { data: attendance, error } = await supabase
+  // player_id ベースの upsert
+  const { data: existing } = await supabase
     .from("event_attendances")
-    .upsert(data, { onConflict: "event_id,user_id" })
-    .select()
+    .select("id")
+    .eq("event_id", data.event_id)
+    .eq("player_id", data.player_id)
+    .limit(1)
     .single();
-  if (error) throw error;
-  return attendance as EventAttendance;
+
+  if (existing) {
+    const { data: attendance, error } = await supabase
+      .from("event_attendances")
+      .update({
+        status: data.status,
+        note: data.note,
+        responded_by: data.responded_by,
+        responded_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return attendance as EventAttendance;
+  } else {
+    const { data: attendance, error } = await supabase
+      .from("event_attendances")
+      .insert({
+        ...data,
+        responded_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return attendance as EventAttendance;
+  }
+}
+
+/** 出欠登録（保護者自身） */
+export async function upsertUserAttendance(data: {
+  event_id: string;
+  team_id: string;
+  user_id: string;
+  status: string;
+  note?: string;
+  can_drive?: boolean;
+  car_capacity?: number;
+}) {
+  const { data: existing } = await supabase
+    .from("event_attendances")
+    .select("id")
+    .eq("event_id", data.event_id)
+    .eq("user_id", data.user_id)
+    .is("player_id", null)
+    .limit(1)
+    .single();
+
+  if (existing) {
+    const { data: attendance, error } = await supabase
+      .from("event_attendances")
+      .update({
+        status: data.status,
+        note: data.note,
+        can_drive: data.can_drive,
+        car_capacity: data.car_capacity,
+        responded_by: data.user_id,
+        responded_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return attendance as EventAttendance;
+  } else {
+    const { data: attendance, error } = await supabase
+      .from("event_attendances")
+      .insert({
+        ...data,
+        responded_by: data.user_id,
+        responded_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return attendance as EventAttendance;
+  }
 }
 
 /** イベントの出欠一覧取得 */
 export async function getAttendances(eventId: string) {
   const { data, error } = await supabase
     .from("event_attendances")
-    .select("*, users(display_name, picture_url), players(name)")
+    .select("*, users:user_id(display_name, avatar_url), players:player_id(name, number)")
     .eq("event_id", eventId);
   if (error) throw error;
-  return data;
+  return data || [];
+}
+
+/** 自分の子供一覧を取得 */
+export async function getMyChildren(userId: string, teamId: string) {
+  const { data, error } = await supabase
+    .from("user_children")
+    .select("*, players:player_id(id, name, number)")
+    .eq("user_id", userId)
+    .eq("team_id", teamId);
+  if (error) throw error;
+  return data || [];
 }
