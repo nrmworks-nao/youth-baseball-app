@@ -1,65 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { GameType, GameResult } from "@/types";
-
-// デモデータ
-const DEMO_GAMES = [
-  {
-    id: "1",
-    opponent_name: "東京ジュニアーズ",
-    game_date: "2026-03-23",
-    venue: "中央公園グラウンド",
-    game_type: "tournament" as GameType,
-    result: "win" as GameResult,
-    score_team: 8,
-    score_opponent: 3,
-  },
-  {
-    id: "2",
-    opponent_name: "南部ベアーズ",
-    game_date: "2026-03-16",
-    venue: "南部運動場",
-    game_type: "practice" as GameType,
-    result: "lose" as GameResult,
-    score_team: 2,
-    score_opponent: 5,
-  },
-  {
-    id: "3",
-    opponent_name: "北区スターズ",
-    game_date: "2026-03-09",
-    venue: "北区野球場",
-    game_type: "league" as GameType,
-    result: "win" as GameResult,
-    score_team: 6,
-    score_opponent: 4,
-  },
-  {
-    id: "4",
-    opponent_name: "西部ライオンズ",
-    game_date: "2026-03-02",
-    venue: "西部グラウンド",
-    game_type: "practice" as GameType,
-    result: "draw" as GameResult,
-    score_team: 3,
-    score_opponent: 3,
-  },
-  {
-    id: "5",
-    opponent_name: "中央タイガース",
-    game_date: "2026-02-23",
-    venue: "中央球場",
-    game_type: "tournament" as GameType,
-    result: "win" as GameResult,
-    score_team: 10,
-    score_opponent: 2,
-  },
-];
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
+import { getGames } from "@/lib/supabase/queries/games";
+import type { Game, GameType, GameResult } from "@/types";
 
 const GAME_TYPE_LABEL: Record<GameType, string> = {
   practice: "練習試合",
@@ -86,25 +37,52 @@ type FilterType = "all" | GameType;
 
 export default function GamesPage() {
   const [filter, setFilter] = useState<FilterType>("all");
+  const [games, setGames] = useState<Game[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+
+  const canCreateGame = hasPermission(["team_admin", "vice_president", "manager"]);
+
+  useEffect(() => {
+    if (teamLoading || !currentTeam) return;
+    const load = async () => {
+      try {
+        const data = await getGames(currentTeam.id);
+        setGames(data);
+      } catch {
+        setError("試合データの取得に失敗しました");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [currentTeam, teamLoading]);
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (error) return <ErrorDisplay message={error} />;
 
   const filteredGames =
     filter === "all"
-      ? DEMO_GAMES
-      : DEMO_GAMES.filter((g) => g.game_type === filter);
+      ? games
+      : games.filter((g) => g.game_type === filter);
 
   // 勝敗サマリー
-  const wins = DEMO_GAMES.filter((g) => g.result === "win").length;
-  const losses = DEMO_GAMES.filter((g) => g.result === "lose").length;
-  const draws = DEMO_GAMES.filter((g) => g.result === "draw").length;
+  const wins = games.filter((g) => g.result === "win").length;
+  const losses = games.filter((g) => g.result === "lose").length;
+  const draws = games.filter((g) => g.result === "draw").length;
 
   return (
     <div className="flex flex-col">
       {/* ヘッダー */}
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
         <h2 className="text-base font-bold text-gray-900">試合一覧</h2>
-        <Link href="/games/create">
-          <Button size="sm">+ 試合登録</Button>
-        </Link>
+        {canCreateGame && (
+          <Link href="/games/create">
+            <Button size="sm">+ 試合登録</Button>
+          </Link>
+        )}
       </div>
 
       {/* 勝敗サマリー */}
@@ -185,11 +163,13 @@ export default function GamesPage() {
                         {resultConfig.label}
                       </span>
                     )}
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-gray-900">
-                        {game.score_team} - {game.score_opponent}
+                    {game.score_team != null && game.score_opponent != null && (
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-gray-900">
+                          {game.score_team} - {game.score_opponent}
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <svg
                       className="h-4 w-4 text-gray-400"
                       fill="none"

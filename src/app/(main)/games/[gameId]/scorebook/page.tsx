@@ -1,33 +1,24 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
+import { supabase } from "@/lib/supabase/client";
+import {
+  getScorebookImages,
+  deleteScorebookImage,
+} from "@/lib/supabase/queries/games";
+import type { ScorebookImage } from "@/types";
 
 const MAX_IMAGES = 20;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/heic"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
-// デモ用の既存画像
-const DEMO_IMAGES = [
-  {
-    id: "img1",
-    image_url: "",
-    sort_order: 0,
-    placeholder: "スコアブック 表（1回〜4回）",
-  },
-  {
-    id: "img2",
-    image_url: "",
-    sort_order: 1,
-    placeholder: "スコアブック 表（5回〜7回）",
-  },
-];
-
-// ANTHROPIC_API_KEY が設定されているか（デモ用: 未設定）
-const AI_ENABLED = false;
 
 interface PreviewImage {
   id: string;
@@ -39,10 +30,36 @@ export default function ScorebookPage() {
   const params = useParams();
   const gameId = params.gameId as string;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [existingImages] = useState(DEMO_IMAGES);
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const [existingImages, setExistingImages] = useState<ScorebookImage[]>([]);
   const [newImages, setNewImages] = useState<PreviewImage[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  const canManage = hasPermission(["team_admin", "manager"]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) setUserId(user.id);
+
+        const images = await getScorebookImages(gameId);
+        setExistingImages(images);
+      } catch {
+        setError("画像データの取得に失敗しました");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [gameId]);
 
   const totalImages = existingImages.length + newImages.length;
 
@@ -53,13 +70,11 @@ export default function ScorebookPage() {
 
     const fileArray = Array.from(files);
 
-    // 上限チェック
     if (totalImages + fileArray.length > MAX_IMAGES) {
       setError(`アップロード上限は${MAX_IMAGES}枚です`);
       return;
     }
 
-    // ファイル検証
     for (const file of fileArray) {
       if (!ACCEPTED_TYPES.includes(file.type) && !file.name.endsWith(".heic")) {
         setError("JPEG、PNG、HEIC形式の画像のみアップロードできます");
@@ -79,7 +94,6 @@ export default function ScorebookPage() {
 
     setNewImages((prev) => [...prev, ...previews]);
 
-    // inputリセット
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -94,21 +108,69 @@ export default function ScorebookPage() {
   };
 
   const handleUpload = async () => {
-    if (newImages.length === 0) return;
+    if (newImages.length === 0 || !currentTeam || !userId) return;
     setUploading(true);
-    // TODO: Supabase Storageへアップロード + Sharp処理 + EXIF削除
-    // 実際にはサーバーサイドAPIを経由してリサイズ・EXIF削除を行う
-    await new Promise((r) => setTimeout(r, 1500));
-    alert("アップロードしました（デモ）");
-    setNewImages([]);
-    setUploading(false);
+    setError(null);
+
+    try {
+      for (let i = 0; i < newImages.length; i++) {
+        const img = newImages[i];
+        const ext = img.file.name.split(".").pop() || "jpg";
+        const filePath = `scorebooks/${currentTeam.id}/${gameId}/${Date.now()}-${i}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("scorebooks")
+          .upload(filePath, img.file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("scorebooks")
+          .getPublicUrl(filePath);
+
+        await supabase.from("game_scorebook_images").insert({
+          game_id: gameId,
+          team_id: currentTeam.id,
+          image_url: urlData.publicUrl,
+          sort_order: existingImages.length + i,
+          uploaded_by: userId,
+        });
+      }
+
+      // リロード
+      const images = await getScorebookImages(gameId);
+      setExistingImages(images);
+      setNewImages([]);
+    } catch {
+      setError("アップロードに失敗しました");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteImage = async (image: ScorebookImage) => {
+    if (!confirm("この画像を削除しますか？")) return;
+
+    try {
+      // Storage上のファイルも削除
+      const urlParts = image.image_url.split("/scorebooks/");
+      if (urlParts.length > 1) {
+        await supabase.storage.from("scorebooks").remove([urlParts[1]]);
+      }
+
+      await deleteScorebookImage(image.id);
+      setExistingImages((prev) => prev.filter((img) => img.id !== image.id));
+    } catch {
+      setError("画像の削除に失敗しました");
+    }
   };
 
   const handleAiAnalyze = () => {
-    if (!AI_ENABLED) return;
-    // TODO: AI解析APIを呼び出し
-    alert("AI解析を開始しました（デモ）");
+    // TODO: AI解析APIを呼び出し（F-SCR-002）
+    alert("この機能は近日公開予定です");
   };
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
 
   return (
     <div className="flex flex-col">
@@ -247,18 +309,70 @@ export default function ScorebookPage() {
             <CardContent>
               <div className="grid grid-cols-2 gap-2">
                 {existingImages.map((img) => (
-                  <div
-                    key={img.id}
-                    className="flex h-32 items-center justify-center rounded-lg bg-gray-100 p-2"
-                  >
-                    <span className="text-center text-xs text-gray-400">
-                      {img.placeholder}
-                    </span>
+                  <div key={img.id} className="relative">
+                    <img
+                      src={img.image_url}
+                      alt={`スコアブック ${img.sort_order + 1}`}
+                      className="h-32 w-full cursor-pointer rounded-lg object-cover"
+                      onClick={() => setSelectedImage(img.image_url)}
+                    />
+                    {(canManage || img.uploaded_by === userId) && (
+                      <button
+                        onClick={() => handleDeleteImage(img)}
+                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500/80 text-white"
+                      >
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={2}
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* 画像拡大モーダル */}
+        {selectedImage && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+            onClick={() => setSelectedImage(null)}
+          >
+            <img
+              src={selectedImage}
+              alt="拡大画像"
+              className="max-h-[90vh] max-w-[90vw] object-contain"
+            />
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white"
+            >
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         )}
 
         {/* AI解析 */}
@@ -267,26 +381,23 @@ export default function ScorebookPage() {
             <CardTitle className="text-sm">AI解析</CardTitle>
           </CardHeader>
           <CardContent>
-            {AI_ENABLED ? (
+            <div className="rounded-lg bg-gray-50 p-4 text-center">
+              <div className="mb-1 text-sm font-medium text-gray-500">
+                準備中
+              </div>
+              <div className="text-xs text-gray-400">
+                AI解析機能は現在準備中です。
+                <br />
+                今後のアップデートをお待ちください。
+              </div>
               <Button
                 variant="outline"
-                className="w-full"
+                className="mt-3"
                 onClick={handleAiAnalyze}
               >
-                スコアブックをAI解析
+                AI解析（近日公開）
               </Button>
-            ) : (
-              <div className="rounded-lg bg-gray-50 p-4 text-center">
-                <div className="mb-1 text-sm font-medium text-gray-500">
-                  準備中
-                </div>
-                <div className="text-xs text-gray-400">
-                  AI解析機能は現在準備中です。
-                  <br />
-                  今後のアップデートをお待ちください。
-                </div>
-              </div>
-            )}
+            </div>
           </CardContent>
         </Card>
       </div>

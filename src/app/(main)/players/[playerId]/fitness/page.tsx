@@ -1,51 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
 import { StatsLineChart } from "@/components/features/charts/LineChart";
-
-// デモデータ
-const DEMO_FITNESS = [
-  {
-    measured_at: "2025/04",
-    sprint_50m: 8.5,
-    throw_distance: 32.0,
-    standing_jump: 160,
-    sit_ups: 18,
-  },
-  {
-    measured_at: "2025/07",
-    sprint_50m: 8.3,
-    throw_distance: 35.0,
-    standing_jump: 165,
-    sit_ups: 22,
-  },
-  {
-    measured_at: "2025/10",
-    sprint_50m: 8.1,
-    throw_distance: 38.0,
-    standing_jump: 170,
-    sit_ups: 25,
-  },
-  {
-    measured_at: "2026/01",
-    sprint_50m: 7.9,
-    throw_distance: 40.0,
-    standing_jump: 175,
-    sit_ups: 28,
-  },
-  {
-    measured_at: "2026/03",
-    sprint_50m: 7.8,
-    throw_distance: 42.5,
-    standing_jump: 178,
-    sit_ups: 30,
-  },
-];
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
+import { supabase } from "@/lib/supabase/client";
+import {
+  getPlayerFitnessRecords,
+  createPlayerFitnessRecord,
+} from "@/lib/supabase/queries/players";
+import { getMyChildren } from "@/lib/supabase/queries/players";
+import type { PlayerFitnessRecord } from "@/types";
 
 const FITNESS_FIELDS = [
   { key: "sprint_50m", label: "50m走", unit: "秒", step: "0.01" },
@@ -57,7 +29,14 @@ const FITNESS_FIELDS = [
 export default function FitnessPage() {
   const params = useParams();
   const playerId = params.playerId as string;
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const [records, setRecords] = useState<PlayerFitnessRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     measured_at: "",
     sprint_50m: "",
@@ -69,14 +48,97 @@ export default function FitnessPage() {
     grip_strength: "",
   });
 
-  const latest = DEMO_FITNESS[DEMO_FITNESS.length - 1];
-  const prev = DEMO_FITNESS[DEMO_FITNESS.length - 2];
+  useEffect(() => {
+    if (teamLoading || !currentTeam) return;
+    const load = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          setError("ログインが必要です");
+          setIsLoading(false);
+          return;
+        }
 
-  const handleSubmit = () => {
-    // TODO: createPlayerFitnessRecord() API呼び出し
-    alert("体力測定を記録しました（デモ）");
-    setShowForm(false);
+        const data = await getPlayerFitnessRecords(playerId);
+        setRecords(data);
+
+        // 権限チェック
+        const isAdmin = hasPermission(["team_admin", "manager"]);
+        const myChildren = await getMyChildren(user.id, currentTeam.id);
+        const isMyChild = myChildren.some(
+          (c) => c.players?.id === playerId || c.player_id === playerId
+        );
+        setCanEdit(isAdmin || isMyChild);
+      } catch {
+        setError("データの取得に失敗しました");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [playerId, currentTeam, teamLoading, hasPermission]);
+
+  const handleSubmit = async () => {
+    if (!currentTeam || !formData.measured_at) return;
+    setIsSaving(true);
+    setError(null);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await createPlayerFitnessRecord({
+        team_id: currentTeam.id,
+        player_id: playerId,
+        measured_at: formData.measured_at,
+        sprint_50m: formData.sprint_50m ? parseFloat(formData.sprint_50m) : undefined,
+        throw_distance: formData.throw_distance ? parseFloat(formData.throw_distance) : undefined,
+        standing_jump: formData.standing_jump ? parseFloat(formData.standing_jump) : undefined,
+        sit_ups: formData.sit_ups ? parseInt(formData.sit_ups) : undefined,
+        shuttle_run: formData.shuttle_run ? parseFloat(formData.shuttle_run) : undefined,
+        flexibility: formData.flexibility ? parseFloat(formData.flexibility) : undefined,
+        grip_strength: formData.grip_strength ? parseFloat(formData.grip_strength) : undefined,
+        recorded_by: user.id,
+      });
+
+      // リロード
+      const data = await getPlayerFitnessRecords(playerId);
+      setRecords(data);
+      setShowForm(false);
+      setFormData({
+        measured_at: "",
+        sprint_50m: "",
+        throw_distance: "",
+        standing_jump: "",
+        sit_ups: "",
+        shuttle_run: "",
+        flexibility: "",
+        grip_strength: "",
+      });
+    } catch {
+      setError("記録の保存に失敗しました");
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (error && records.length === 0) return <ErrorDisplay message={error} />;
+
+  const latest = records.length > 0 ? records[records.length - 1] : null;
+  const prev = records.length > 1 ? records[records.length - 2] : null;
+
+  // チャート用データ（measured_atをフォーマット）
+  const chartData = records.map((r) => ({
+    measured_at: r.measured_at.slice(0, 7).replace("-", "/"),
+    sprint_50m: r.sprint_50m ?? null,
+    throw_distance: r.throw_distance ?? null,
+    standing_jump: r.standing_jump ?? null,
+    sit_ups: r.sit_ups ?? null,
+  }));
 
   return (
     <div className="flex flex-col">
@@ -100,12 +162,20 @@ export default function FitnessPage() {
           </Link>
           <h2 className="text-base font-bold text-gray-900">体力測定</h2>
         </div>
-        <Button size="sm" onClick={() => setShowForm(!showForm)}>
-          {showForm ? "閉じる" : "+ 記録"}
-        </Button>
+        {canEdit && (
+          <Button size="sm" onClick={() => setShowForm(!showForm)}>
+            {showForm ? "閉じる" : "+ 記録"}
+          </Button>
+        )}
       </div>
 
       <div className="space-y-4 p-4">
+        {error && (
+          <div className="rounded-lg bg-red-50 p-3 text-xs text-red-600">
+            {error}
+          </div>
+        )}
+
         {/* 入力フォーム */}
         {showForm && (
           <Card>
@@ -200,138 +270,159 @@ export default function FitnessPage() {
                   }
                 />
               </div>
-              <Button className="w-full" onClick={handleSubmit}>
-                記録する
+              <Button className="w-full" onClick={handleSubmit} disabled={isSaving}>
+                {isSaving ? "保存中..." : "記録する"}
               </Button>
             </CardContent>
           </Card>
         )}
 
         {/* 最新データカード */}
-        <div className="grid grid-cols-2 gap-3">
-          {FITNESS_FIELDS.map((field) => {
-            const curr = latest[field.key];
-            const prevVal = prev[field.key];
-            // 50m走は小さいほど良い（差分を逆にする）
-            const diff = field.key === "sprint_50m" ? prevVal - curr : curr - prevVal;
-            const isPositive = diff >= 0;
-            return (
-              <Card key={field.key}>
-                <CardContent className="p-3 text-center">
-                  <div className="text-xl font-bold text-gray-900">
-                    {curr}
-                    <span className="text-xs font-normal text-gray-500">
-                      {field.unit}
-                    </span>
-                  </div>
-                  <div className="text-xs text-gray-500">{field.label}</div>
-                  <div
-                    className={`mt-0.5 text-[10px] font-medium ${isPositive ? "text-green-600" : "text-red-600"}`}
-                  >
-                    {isPositive ? "+" : ""}
-                    {field.key === "sprint_50m"
-                      ? (prevVal - curr).toFixed(2)
-                      : (curr - prevVal).toFixed(1)}
-                    {field.unit}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        {latest && (
+          <div className="grid grid-cols-2 gap-3">
+            {FITNESS_FIELDS.map((field) => {
+              const curr = latest[field.key];
+              const prevVal = prev ? prev[field.key] : null;
+              if (curr == null) return null;
+              const hasPrev = prevVal != null;
+              const diff = hasPrev
+                ? field.key === "sprint_50m"
+                  ? (prevVal as number) - curr
+                  : curr - (prevVal as number)
+                : 0;
+              const isPositive = diff >= 0;
+              return (
+                <Card key={field.key}>
+                  <CardContent className="p-3 text-center">
+                    <div className="text-xl font-bold text-gray-900">
+                      {curr}
+                      <span className="text-xs font-normal text-gray-500">
+                        {field.unit}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500">{field.label}</div>
+                    {hasPrev && (
+                      <div
+                        className={`mt-0.5 text-[10px] font-medium ${isPositive ? "text-green-600" : "text-red-600"}`}
+                      >
+                        {isPositive ? "+" : ""}
+                        {field.key === "sprint_50m"
+                          ? ((prevVal as number) - curr).toFixed(2)
+                          : (curr - (prevVal as number)).toFixed(1)}
+                        {field.unit}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
         {/* 50m走推移 */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">50m走 推移</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <StatsLineChart
-              data={DEMO_FITNESS}
-              xAxisKey="measured_at"
-              datasets={[
-                { dataKey: "sprint_50m", label: "50m走(秒)", color: "#dc2626" },
-              ]}
-              height={200}
-              yAxisLabel="秒"
-            />
-          </CardContent>
-        </Card>
+        {chartData.length > 0 && chartData.some((d) => d.sprint_50m != null) && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">50m走 推移</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StatsLineChart
+                data={chartData}
+                xAxisKey="measured_at"
+                datasets={[
+                  { dataKey: "sprint_50m", label: "50m走(秒)", color: "#dc2626" },
+                ]}
+                height={200}
+                yAxisLabel="秒"
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* 遠投推移 */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">遠投 推移</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <StatsLineChart
-              data={DEMO_FITNESS}
-              xAxisKey="measured_at"
-              datasets={[
-                {
-                  dataKey: "throw_distance",
-                  label: "遠投(m)",
-                  color: "#16a34a",
-                },
-              ]}
-              height={200}
-              yAxisLabel="m"
-            />
-          </CardContent>
-        </Card>
+        {chartData.length > 0 && chartData.some((d) => d.throw_distance != null) && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">遠投 推移</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StatsLineChart
+                data={chartData}
+                xAxisKey="measured_at"
+                datasets={[
+                  {
+                    dataKey: "throw_distance",
+                    label: "遠投(m)",
+                    color: "#16a34a",
+                  },
+                ]}
+                height={200}
+                yAxisLabel="m"
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* 測定履歴 */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">測定履歴</CardTitle>
-          </CardHeader>
-          <CardContent className="px-2 pb-4">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-2 py-1.5 text-left font-medium text-gray-500">
-                      日付
-                    </th>
-                    <th className="px-2 py-1.5 text-right font-medium text-gray-500">
-                      50m
-                    </th>
-                    <th className="px-2 py-1.5 text-right font-medium text-gray-500">
-                      遠投
-                    </th>
-                    <th className="px-2 py-1.5 text-right font-medium text-gray-500">
-                      幅跳
-                    </th>
-                    <th className="px-2 py-1.5 text-right font-medium text-gray-500">
-                      起こし
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...DEMO_FITNESS].reverse().map((m) => (
-                    <tr key={m.measured_at} className="border-b border-gray-50">
-                      <td className="px-2 py-1.5 text-gray-700">
-                        {m.measured_at}
-                      </td>
-                      <td className="px-2 py-1.5 text-right">
-                        {m.sprint_50m}秒
-                      </td>
-                      <td className="px-2 py-1.5 text-right">
-                        {m.throw_distance}m
-                      </td>
-                      <td className="px-2 py-1.5 text-right">
-                        {m.standing_jump}cm
-                      </td>
-                      <td className="px-2 py-1.5 text-right">
-                        {m.sit_ups}回
-                      </td>
+        {records.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">測定履歴</CardTitle>
+            </CardHeader>
+            <CardContent className="px-2 pb-4">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="px-2 py-1.5 text-left font-medium text-gray-500">
+                        日付
+                      </th>
+                      <th className="px-2 py-1.5 text-right font-medium text-gray-500">
+                        50m
+                      </th>
+                      <th className="px-2 py-1.5 text-right font-medium text-gray-500">
+                        遠投
+                      </th>
+                      <th className="px-2 py-1.5 text-right font-medium text-gray-500">
+                        幅跳
+                      </th>
+                      <th className="px-2 py-1.5 text-right font-medium text-gray-500">
+                        起こし
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                  </thead>
+                  <tbody>
+                    {[...records].reverse().map((m) => (
+                      <tr key={m.id} className="border-b border-gray-50">
+                        <td className="px-2 py-1.5 text-gray-700">
+                          {m.measured_at.slice(0, 7).replace("-", "/")}
+                        </td>
+                        <td className="px-2 py-1.5 text-right">
+                          {m.sprint_50m != null ? `${m.sprint_50m}秒` : "-"}
+                        </td>
+                        <td className="px-2 py-1.5 text-right">
+                          {m.throw_distance != null ? `${m.throw_distance}m` : "-"}
+                        </td>
+                        <td className="px-2 py-1.5 text-right">
+                          {m.standing_jump != null ? `${m.standing_jump}cm` : "-"}
+                        </td>
+                        <td className="px-2 py-1.5 text-right">
+                          {m.sit_ups != null ? `${m.sit_ups}回` : "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {records.length === 0 && !showForm && (
+          <div className="py-12 text-center text-sm text-gray-400">
+            体力測定の記録がありません
+          </div>
+        )}
       </div>
     </div>
   );

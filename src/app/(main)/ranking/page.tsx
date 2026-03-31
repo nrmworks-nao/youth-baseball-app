@@ -1,9 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
 import { StatsBarChart } from "@/components/features/charts/BarChart";
-import type { RankingMetric, RankingPeriod } from "@/types";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import {
+  getTeamAllPlayerStats,
+  getTeamFitnessRecords,
+} from "@/lib/supabase/queries/players";
+import type {
+  PlayerGameStats,
+  PlayerFitnessRecord,
+  RankingMetric,
+  RankingPeriod,
+} from "@/types";
 
 const METRIC_CONFIG: Record<
   RankingMetric,
@@ -52,91 +64,7 @@ const PERIOD_LABELS: Record<RankingPeriod, string> = {
   season: "今シーズン",
 };
 
-// デモデータ
-const DEMO_RANKINGS: Record<
-  RankingMetric,
-  { name: string; number: number; value: number; at_bats?: number }[]
-> = {
-  batting_avg: [
-    { name: "鈴木健", number: 6, value: 0.412, at_bats: 82 },
-    { name: "田中太郎", number: 8, value: 0.345, at_bats: 78 },
-    { name: "高橋大輝", number: 3, value: 0.325, at_bats: 80 },
-    { name: "中村雄太", number: 2, value: 0.301, at_bats: 73 },
-    { name: "佐藤次郎", number: 4, value: 0.289, at_bats: 76 },
-    { name: "渡辺翔", number: 5, value: 0.278, at_bats: 65 },
-    { name: "伊藤誠", number: 7, value: 0.256, at_bats: 74 },
-    { name: "小林直人", number: 1, value: 0.215, at_bats: 51 },
-    { name: "山田拓", number: 9, value: 0.198, at_bats: 58 },
-  ],
-  home_runs: [
-    { name: "高橋大輝", number: 3, value: 5 },
-    { name: "鈴木健", number: 6, value: 3 },
-    { name: "田中太郎", number: 8, value: 2 },
-    { name: "中村雄太", number: 2, value: 2 },
-    { name: "渡辺翔", number: 5, value: 1 },
-    { name: "佐藤次郎", number: 4, value: 1 },
-    { name: "伊藤誠", number: 7, value: 0 },
-    { name: "山田拓", number: 9, value: 0 },
-    { name: "小林直人", number: 1, value: 0 },
-  ],
-  rbis: [
-    { name: "高橋大輝", number: 3, value: 22 },
-    { name: "鈴木健", number: 6, value: 18 },
-    { name: "田中太郎", number: 8, value: 15 },
-    { name: "渡辺翔", number: 5, value: 12 },
-    { name: "中村雄太", number: 2, value: 10 },
-    { name: "佐藤次郎", number: 4, value: 8 },
-    { name: "山田拓", number: 9, value: 6 },
-    { name: "伊藤誠", number: 7, value: 5 },
-    { name: "小林直人", number: 1, value: 3 },
-  ],
-  stolen_bases: [
-    { name: "田中太郎", number: 8, value: 15 },
-    { name: "佐藤次郎", number: 4, value: 12 },
-    { name: "鈴木健", number: 6, value: 8 },
-    { name: "渡辺翔", number: 5, value: 6 },
-    { name: "山田拓", number: 9, value: 5 },
-    { name: "伊藤誠", number: 7, value: 3 },
-    { name: "中村雄太", number: 2, value: 2 },
-    { name: "高橋大輝", number: 3, value: 1 },
-    { name: "小林直人", number: 1, value: 0 },
-  ],
-  ops: [
-    { name: "鈴木健", number: 6, value: 0.952 },
-    { name: "高橋大輝", number: 3, value: 0.912 },
-    { name: "田中太郎", number: 8, value: 0.845 },
-    { name: "中村雄太", number: 2, value: 0.789 },
-    { name: "佐藤次郎", number: 4, value: 0.745 },
-    { name: "渡辺翔", number: 5, value: 0.712 },
-    { name: "伊藤誠", number: 7, value: 0.655 },
-    { name: "小林直人", number: 1, value: 0.598 },
-    { name: "山田拓", number: 9, value: 0.545 },
-  ],
-  throw_distance: [
-    { name: "高橋大輝", number: 3, value: 48.5 },
-    { name: "鈴木健", number: 6, value: 42.5 },
-    { name: "小林直人", number: 1, value: 41.0 },
-    { name: "中村雄太", number: 2, value: 40.0 },
-    { name: "田中太郎", number: 8, value: 38.0 },
-    { name: "渡辺翔", number: 5, value: 36.5 },
-    { name: "佐藤次郎", number: 4, value: 35.0 },
-    { name: "伊藤誠", number: 7, value: 33.0 },
-    { name: "山田拓", number: 9, value: 30.0 },
-  ],
-  sprint_50m: [
-    { name: "田中太郎", number: 8, value: 7.5 },
-    { name: "佐藤次郎", number: 4, value: 7.6 },
-    { name: "鈴木健", number: 6, value: 7.8 },
-    { name: "渡辺翔", number: 5, value: 7.9 },
-    { name: "山田拓", number: 9, value: 8.0 },
-    { name: "伊藤誠", number: 7, value: 8.1 },
-    { name: "中村雄太", number: 2, value: 8.2 },
-    { name: "高橋大輝", number: 3, value: 8.3 },
-    { name: "小林直人", number: 1, value: 8.5 },
-  ],
-};
-
-const MIN_AT_BATS = 30; // 最低打席数
+const MIN_AT_BATS = 10;
 
 const MEDAL_STYLES = [
   "bg-yellow-100 text-yellow-700 border-yellow-300",
@@ -144,22 +72,226 @@ const MEDAL_STYLES = [
   "bg-orange-100 text-orange-700 border-orange-300",
 ];
 
+type StatsWithPlayer = PlayerGameStats & {
+  players: { id: string; name: string; number: number };
+};
+type FitnessWithPlayer = PlayerFitnessRecord & {
+  players: { id: string; name: string; number: number };
+};
+
+interface RankingEntry {
+  name: string;
+  number: number;
+  value: number;
+  at_bats?: number;
+}
+
+function getSeasonRange(): { start: string; end: string } {
+  const now = new Date();
+  const year = now.getMonth() < 3 ? now.getFullYear() - 1 : now.getFullYear();
+  return {
+    start: `${year}-04-01`,
+    end: `${year + 1}-03-31`,
+  };
+}
+
+function getMonthRange(): { start: string; end: string } {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+  return {
+    start: `${year}-${month}-01`,
+    end: `${year}-${month}-${lastDay}`,
+  };
+}
+
 export default function RankingPage() {
   const [metric, setMetric] = useState<RankingMetric>("batting_avg");
   const [period, setPeriod] = useState<RankingPeriod>("all");
-  const config = METRIC_CONFIG[metric];
+  const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
+  const [allStats, setAllStats] = useState<StatsWithPlayer[]>([]);
+  const [fitnessRecords, setFitnessRecords] = useState<FitnessWithPlayer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // 打率系は足切りを適用
+  useEffect(() => {
+    if (teamLoading || !currentTeam) return;
+    const load = async () => {
+      try {
+        const [stats, fitness] = await Promise.all([
+          getTeamAllPlayerStats(currentTeam.id),
+          getTeamFitnessRecords(currentTeam.id),
+        ]);
+        setAllStats(stats as StatsWithPlayer[]);
+        setFitnessRecords(fitness as FitnessWithPlayer[]);
+      } catch {
+        setError("データの取得に失敗しました");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [currentTeam, teamLoading]);
+
+  const rankings = useMemo((): RankingEntry[] => {
+    const isFitnessMetric = ["throw_distance", "sprint_50m"].includes(metric);
+
+    if (isFitnessMetric) {
+      // 体力指標: 各選手の最新記録を使用
+      const playerLatest = new Map<string, FitnessWithPlayer>();
+      for (const r of fitnessRecords) {
+        const existing = playerLatest.get(r.player_id);
+        if (!existing || r.measured_at > existing.measured_at) {
+          playerLatest.set(r.player_id, r);
+        }
+      }
+
+      const entries: RankingEntry[] = [];
+      for (const [, record] of playerLatest) {
+        const val = metric === "throw_distance" ? record.throw_distance : record.sprint_50m;
+        if (val == null) continue;
+        entries.push({
+          name: record.players.name,
+          number: record.players.number,
+          value: val,
+        });
+      }
+
+      // 50m走は昇順（小さいほど良い）、遠投は降順
+      if (metric === "sprint_50m") {
+        entries.sort((a, b) => a.value - b.value);
+      } else {
+        entries.sort((a, b) => b.value - a.value);
+      }
+      return entries;
+    }
+
+    // 打撃指標: 期間フィルタリング + 集計
+    let filteredStats = allStats;
+    if (period === "month") {
+      const { start, end } = getMonthRange();
+      filteredStats = allStats.filter((s) => {
+        const gameDate = (s as unknown as { games?: { game_date: string } }).games?.game_date;
+        if (!gameDate) return true;
+        return gameDate >= start && gameDate <= end;
+      });
+    } else if (period === "season") {
+      const { start, end } = getSeasonRange();
+      filteredStats = allStats.filter((s) => {
+        const gameDate = (s as unknown as { games?: { game_date: string } }).games?.game_date;
+        if (!gameDate) return true;
+        return gameDate >= start && gameDate <= end;
+      });
+    }
+
+    // 選手ごとに集計
+    const playerAgg = new Map<
+      string,
+      {
+        name: string;
+        number: number;
+        at_bats: number;
+        hits: number;
+        doubles: number;
+        triples: number;
+        home_runs: number;
+        rbis: number;
+        walks: number;
+        stolen_bases: number;
+        hbp: number;
+        sf: number;
+      }
+    >();
+
+    for (const s of filteredStats) {
+      const pid = s.player_id;
+      const existing = playerAgg.get(pid);
+      if (existing) {
+        existing.at_bats += s.at_bats;
+        existing.hits += s.hits;
+        existing.doubles += s.doubles;
+        existing.triples += s.triples;
+        existing.home_runs += s.home_runs;
+        existing.rbis += s.rbis;
+        existing.walks += s.walks;
+        existing.stolen_bases += s.stolen_bases;
+      } else {
+        playerAgg.set(pid, {
+          name: s.players.name,
+          number: s.players.number,
+          at_bats: s.at_bats,
+          hits: s.hits,
+          doubles: s.doubles,
+          triples: s.triples,
+          home_runs: s.home_runs,
+          rbis: s.rbis,
+          walks: s.walks,
+          stolen_bases: s.stolen_bases,
+          hbp: 0,
+          sf: 0,
+        });
+      }
+    }
+
+    const entries: RankingEntry[] = [];
+    for (const [, agg] of playerAgg) {
+      let value: number;
+      switch (metric) {
+        case "batting_avg":
+          if (agg.at_bats === 0) continue;
+          value = agg.hits / agg.at_bats;
+          break;
+        case "home_runs":
+          value = agg.home_runs;
+          break;
+        case "rbis":
+          value = agg.rbis;
+          break;
+        case "stolen_bases":
+          value = agg.stolen_bases;
+          break;
+        case "ops": {
+          if (agg.at_bats === 0) continue;
+          const obpDenom = agg.at_bats + agg.walks + agg.hbp + agg.sf;
+          const obp = obpDenom > 0 ? (agg.hits + agg.walks + agg.hbp) / obpDenom : 0;
+          const singles = agg.hits - agg.doubles - agg.triples - agg.home_runs;
+          const totalBases = singles + agg.doubles * 2 + agg.triples * 3 + agg.home_runs * 4;
+          const slg = agg.at_bats > 0 ? totalBases / agg.at_bats : 0;
+          value = obp + slg;
+          break;
+        }
+        default:
+          continue;
+      }
+      entries.push({
+        name: agg.name,
+        number: agg.number,
+        value,
+        at_bats: agg.at_bats,
+      });
+    }
+
+    // 打率系は足切り
+    const isBattingRate = ["batting_avg", "ops"].includes(metric);
+    const filtered = isBattingRate
+      ? entries.filter((e) => (e.at_bats ?? 0) >= MIN_AT_BATS)
+      : entries;
+
+    filtered.sort((a, b) => b.value - a.value);
+    return filtered;
+  }, [allStats, fitnessRecords, metric, period]);
+
+  const config = METRIC_CONFIG[metric];
   const isBattingMetric = ["batting_avg", "ops"].includes(metric);
-  const rankings = DEMO_RANKINGS[metric].filter((r) => {
-    if (!isBattingMetric) return true;
-    return (r.at_bats ?? 0) >= MIN_AT_BATS;
-  });
 
   const chartData = rankings.map((r) => ({
     name: `#${r.number} ${r.name}`,
     value: r.value,
   }));
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (error) return <ErrorDisplay message={error} />;
 
   return (
     <div className="flex flex-col">
@@ -213,94 +345,102 @@ export default function RankingPage() {
           </div>
         )}
 
-        {/* 上位3名ハイライト */}
-        <div className="grid grid-cols-3 gap-2">
-          {rankings.slice(0, 3).map((r, i) => (
-            <Card
-              key={r.number}
-              className={`border ${MEDAL_STYLES[i]} text-center`}
-            >
-              <CardContent className="p-3">
-                <div className="text-lg font-bold">
-                  {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
-                </div>
-                <div className="text-xs font-medium">
-                  #{r.number} {r.name}
-                </div>
-                <div className="mt-1 text-lg font-bold">
-                  {config.format(r.value)}
-                  {config.unit && (
-                    <span className="text-xs font-normal">{config.unit}</span>
-                  )}
-                </div>
+        {rankings.length === 0 ? (
+          <div className="py-12 text-center text-sm text-gray-400">
+            データがありません
+          </div>
+        ) : (
+          <>
+            {/* 上位3名ハイライト */}
+            <div className="grid grid-cols-3 gap-2">
+              {rankings.slice(0, 3).map((r, i) => (
+                <Card
+                  key={r.number}
+                  className={`border ${MEDAL_STYLES[i]} text-center`}
+                >
+                  <CardContent className="p-3">
+                    <div className="text-lg font-bold">
+                      {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
+                    </div>
+                    <div className="text-xs font-medium">
+                      #{r.number} {r.name}
+                    </div>
+                    <div className="mt-1 text-lg font-bold">
+                      {config.format(r.value)}
+                      {config.unit && (
+                        <span className="text-xs font-normal">{config.unit}</span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* 棒グラフ */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">{config.label}ランキング</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <StatsBarChart
+                  data={chartData}
+                  height={Math.max(250, rankings.length * 40)}
+                  layout="vertical"
+                  valueLabel={config.label}
+                  highlightTop={3}
+                />
               </CardContent>
             </Card>
-          ))}
-        </div>
 
-        {/* 棒グラフ */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">{config.label}ランキング</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <StatsBarChart
-              data={chartData}
-              height={Math.max(250, rankings.length * 40)}
-              layout="vertical"
-              valueLabel={config.label}
-              highlightTop={3}
-            />
-          </CardContent>
-        </Card>
-
-        {/* テーブル */}
-        <Card>
-          <CardContent className="px-2 py-4">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="px-2 py-1.5 text-center font-medium text-gray-500">
-                    順位
-                  </th>
-                  <th className="px-2 py-1.5 text-left font-medium text-gray-500">
-                    選手
-                  </th>
-                  <th className="px-2 py-1.5 text-right font-medium text-gray-500">
-                    {config.label}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rankings.map((r, i) => (
-                  <tr key={r.number} className="border-b border-gray-50">
-                    <td className="px-2 py-2 text-center">
-                      {i < 3 ? (
-                        <span
-                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${MEDAL_STYLES[i]}`}
-                        >
-                          {i + 1}
-                        </span>
-                      ) : (
-                        <span className="text-gray-500">{i + 1}</span>
-                      )}
-                    </td>
-                    <td className="px-2 py-2">
-                      <span className="font-medium text-gray-900">
-                        {r.name}
-                      </span>
-                      <span className="ml-1 text-gray-400">#{r.number}</span>
-                    </td>
-                    <td className="px-2 py-2 text-right font-bold text-gray-900">
-                      {config.format(r.value)}
-                      {config.unit}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+            {/* テーブル */}
+            <Card>
+              <CardContent className="px-2 py-4">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="px-2 py-1.5 text-center font-medium text-gray-500">
+                        順位
+                      </th>
+                      <th className="px-2 py-1.5 text-left font-medium text-gray-500">
+                        選手
+                      </th>
+                      <th className="px-2 py-1.5 text-right font-medium text-gray-500">
+                        {config.label}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankings.map((r, i) => (
+                      <tr key={r.number} className="border-b border-gray-50">
+                        <td className="px-2 py-2 text-center">
+                          {i < 3 ? (
+                            <span
+                              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${MEDAL_STYLES[i]}`}
+                            >
+                              {i + 1}
+                            </span>
+                          ) : (
+                            <span className="text-gray-500">{i + 1}</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-2">
+                          <span className="font-medium text-gray-900">
+                            {r.name}
+                          </span>
+                          <span className="ml-1 text-gray-400">#{r.number}</span>
+                        </td>
+                        <td className="px-2 py-2 text-right font-bold text-gray-900">
+                          {config.format(r.value)}
+                          {config.unit}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
     </div>
   );
