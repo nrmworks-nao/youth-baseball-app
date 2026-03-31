@@ -16,6 +16,9 @@ import { supabase } from "@/lib/supabase/client";
 import { getPayments, getInvoices, createPayment, updateInvoiceStatus } from "@/lib/supabase/queries/accounting";
 import type { Payment, Invoice } from "@/types";
 
+type InvoiceWithUser = Invoice & { users?: { display_name: string } };
+type PaymentWithUser = Payment & { users?: { display_name: string } };
+
 const METHOD_LABELS: Record<string, string> = {
   cash: "現金",
   bank_transfer: "銀行振込",
@@ -29,8 +32,8 @@ export default function PaymentsPage() {
 
   const canManage = hasPermission(["team_admin", "treasurer"]);
 
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [pendingInvoices, setPendingInvoices] = useState<Invoice[]>([]);
+  const [payments, setPayments] = useState<PaymentWithUser[]>([]);
+  const [pendingInvoices, setPendingInvoices] = useState<InvoiceWithUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -49,8 +52,8 @@ export default function PaymentsPage() {
         getPayments(currentTeam.id),
         getInvoices(currentTeam.id),
       ]);
-      setPayments(paymentData);
-      setPendingInvoices(invoiceData.filter((inv) => inv.status === "pending" || inv.status === "overdue"));
+      setPayments(paymentData as PaymentWithUser[]);
+      setPendingInvoices((invoiceData as InvoiceWithUser[]).filter((inv) => inv.status === "pending" || inv.status === "overdue"));
     } catch {
       setError("データの取得に失敗しました");
     } finally {
@@ -159,9 +162,7 @@ export default function PaymentsPage() {
               >
                 <option value="">紐づけなし（直接入金）</option>
                 {pendingInvoices.map((inv) => {
-                  const userName = (inv as Record<string, unknown>).users
-                    ? ((inv as Record<string, unknown>).users as { display_name: string }).display_name
-                    : "";
+                  const userName = inv.users?.display_name ?? "";
                   return (
                     <option key={inv.id} value={inv.id}>
                       {inv.title} - {userName} (¥{inv.total_amount.toLocaleString()})
@@ -195,9 +196,7 @@ export default function PaymentsPage() {
             ) : (
               <div className="space-y-2">
                 {pendingInvoices.map((inv) => {
-                  const userName = (inv as Record<string, unknown>).users
-                    ? ((inv as Record<string, unknown>).users as { display_name: string }).display_name
-                    : "";
+                  const userName = inv.users?.display_name ?? "";
                   return (
                     <div key={inv.id} className="flex items-center justify-between rounded-lg bg-yellow-50 p-3">
                       <div>
@@ -229,9 +228,7 @@ export default function PaymentsPage() {
             ) : (
               <div className="space-y-2">
                 {payments.map((payment) => {
-                  const payerName = (payment as Record<string, unknown>).users
-                    ? ((payment as Record<string, unknown>).users as { display_name: string }).display_name
-                    : "";
+                  const payerName = payment.users?.display_name ?? "";
                   return (
                     <div key={payment.id} className="flex items-center justify-between rounded-lg p-2 hover:bg-gray-50">
                       <div>

@@ -13,6 +13,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { getInvoices } from "@/lib/supabase/queries/accounting";
 import type { Invoice, InvoiceStatus } from "@/types";
 
+type InvoiceWithUser = Invoice & { users?: { display_name: string } };
 type StatusFilter = "all" | InvoiceStatus;
 
 const STATUS_CONFIG: Record<
@@ -32,7 +33,7 @@ export default function InvoicesPage() {
   const { canManageAccounting } = usePermission(currentMembership?.permission_group ?? null);
 
   const [filter, setFilter] = useState<StatusFilter>("all");
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceWithUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +48,7 @@ export default function InvoicesPage() {
     const load = async () => {
       try {
         const data = await getInvoices(currentTeam.id);
-        setInvoices(data);
+        setInvoices(data as InvoiceWithUser[]);
       } catch {
         setError("請求データの取得に失敗しました");
       } finally {
@@ -110,9 +111,7 @@ export default function InvoicesPage() {
       <div className="space-y-2 p-4">
         {filteredInvoices.map((invoice) => {
           const statusCfg = STATUS_CONFIG[invoice.status] ?? STATUS_CONFIG.pending;
-          const userName = (invoice as Record<string, unknown>).users
-            ? ((invoice as Record<string, unknown>).users as { display_name: string }).display_name
-            : "";
+          const userName = invoice.users?.display_name ?? "";
           return (
             <Card key={invoice.id} className="p-4 transition-colors hover:bg-gray-50">
               <div className="flex items-start justify-between">

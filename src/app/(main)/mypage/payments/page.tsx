@@ -11,6 +11,8 @@ import { supabase } from "@/lib/supabase/client";
 import { getMyInvoices, getMyPayments } from "@/lib/supabase/queries/accounting";
 import type { Invoice, Payment } from "@/types";
 
+type PaymentWithInvoice = Payment & { invoices?: { title: string; total_amount: number } };
+
 const STATUS_CONFIG: Record<string, { label: string; variant: "primary" | "warning" | "danger" | "default" }> = {
   paid: { label: "支払済", variant: "primary" },
   pending: { label: "未払い", variant: "warning" },
@@ -29,7 +31,7 @@ export default function MyPaymentsPage() {
   const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useState<PaymentWithInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +52,7 @@ export default function MyPaymentsPage() {
         ]);
 
         setInvoices(invoiceData);
-        setPayments(paymentData);
+        setPayments(paymentData as PaymentWithInvoice[]);
       } catch {
         setError("支払いデータの取得に失敗しました");
       } finally {
@@ -119,9 +121,7 @@ export default function MyPaymentsPage() {
             ) : (
               <div className="space-y-2">
                 {payments.map((payment) => {
-                  const invoiceTitle = (payment as Record<string, unknown>).invoices
-                    ? ((payment as Record<string, unknown>).invoices as { title: string }).title
-                    : "";
+                  const invoiceTitle = payment.invoices?.title ?? "";
                   return (
                     <div key={payment.id} className="flex items-center justify-between rounded-lg p-2">
                       <div>
