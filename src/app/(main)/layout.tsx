@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -235,6 +235,21 @@ function useUnreadNotificationCount() {
   return count;
 }
 
+function useTeamMembershipGuard() {
+  const { teams, isLoading } = useCurrentTeam();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (teams.length === 0) {
+      // ユーザーがどのチームにも所属していない場合、オンボーディングへリダイレクト
+      router.replace("/onboarding");
+    }
+  }, [isLoading, teams, router]);
+
+  return { isLoading, hasTeam: teams.length > 0 };
+}
+
 export default function MainLayout({
   children,
 }: {
@@ -243,6 +258,18 @@ export default function MainLayout({
   const pathname = usePathname();
   const unreadPostCount = useUnreadPostCount();
   const unreadNotificationCount = useUnreadNotificationCount();
+  const { isLoading: guardLoading, hasTeam } = useTeamMembershipGuard();
+
+  if (guardLoading || !hasTeam) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+          <p className="mt-2 text-sm text-muted-foreground">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ThemeProvider>
