@@ -14,6 +14,8 @@ import type { LoginResult } from "@/lib/line/liff";
 
 interface DebugInfo {
   liffStatus: string;
+  liffLoggedIn: string;
+  accessToken: string;
   supabaseSession: string;
   userSaveResult: string;
   redirectTo: string;
@@ -27,6 +29,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [debug, setDebug] = useState<DebugInfo>({
     liffStatus: "初期化中",
+    liffLoggedIn: "N/A",
+    accessToken: "N/A",
     supabaseSession: "未確認",
     userSaveResult: "未実行",
     redirectTo: "未決定",
@@ -38,7 +42,16 @@ export default function LoginPage() {
       try {
         await initializeLiff();
         setIsLiffReady(true);
-        setDebug((prev) => ({ ...prev, liffStatus: "初期化成功" }));
+
+        // デバッグ情報を更新
+        const loggedIn = liff.isLoggedIn();
+        const token = liff.getAccessToken();
+        setDebug((prev) => ({
+          ...prev,
+          liffStatus: "初期化成功",
+          liffLoggedIn: String(loggedIn),
+          accessToken: token ? `${token.substring(0, 8)}...` : "なし",
+        }));
 
         // LINEログイン後のコールバック処理
         if (isLiffLoggedIn()) {
@@ -46,6 +59,28 @@ export default function LoginPage() {
           setDebug((prev) => ({
             ...prev,
             liffStatus: "ログイン済み - 認証処理中...",
+          }));
+
+          const result = await loginWithLine();
+          handleLoginResult(result);
+          return;
+        }
+
+        // LIFF未ログインだが認証コールバックの可能性がある場合
+        // （isLoggedIn()がfalseでもURL paramsやsessionStorageフラグで検知）
+        const params = new URLSearchParams(window.location.search);
+        const authAttempted =
+          sessionStorage.getItem("liff_auth_started") === "1";
+        const hasCallbackParams =
+          params.has("code") ||
+          params.has("liffClientId") ||
+          params.has("liffRedirectUri");
+
+        if (hasCallbackParams || authAttempted) {
+          setIsLoggingIn(true);
+          setDebug((prev) => ({
+            ...prev,
+            liffStatus: `コールバック検知 (params=${hasCallbackParams}, flag=${authAttempted}) - 認証試行中...`,
           }));
 
           const result = await loginWithLine();
@@ -93,6 +128,11 @@ export default function LoginPage() {
         redirectTo: "遷移中止",
         error: errorMsg,
       }));
+
+      // URLからコールバックパラメータをクリーン（ループ防止）
+      if (window.location.search) {
+        window.history.replaceState({}, "", window.location.pathname);
+      }
     }
   };
 
@@ -221,28 +261,31 @@ export default function LoginPage() {
         </div>
 
         {/* デバッグ情報 */}
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-xs text-gray-500 space-y-1">
-          <p className="font-semibold text-gray-700">デバッグ情報</p>
-          <p>
-            LIFF ID:{" "}
-            {(() => {
-              const id = getLiffId();
-              if (!id) return "未設定";
-              return `${id.substring(0, 4)}****`;
-            })()}
-          </p>
-          <p>LIFF状態: {debug.liffStatus}</p>
-          <p>ボタン状態: {!isLiffReady || isLoggingIn ? "disabled" : "enabled"}</p>
-          <p>ログイン済み: {isLiffReady ? String(liff.isLoggedIn()) : "N/A"}</p>
-          <p>LINEアプリ内: {isLiffReady ? String(liff.isInClient()) : "N/A"}</p>
-          <hr className="my-1 border-gray-200" />
-          <p>Supabaseセッション: {debug.supabaseSession}</p>
-          <p>usersテーブル保存: {debug.userSaveResult}</p>
-          <p>遷移先: {debug.redirectTo}</p>
-          {debug.error && (
-            <p className="text-red-500">エラー: {debug.error}</p>
-          )}
-        </div>
+        {process.env.NODE_ENV === "development" && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-xs text-gray-500 space-y-1">
+            <p className="font-semibold text-gray-700">デバッグ情報</p>
+            <p>
+              LIFF ID:{" "}
+              {(() => {
+                const id = getLiffId();
+                if (!id) return "未設定";
+                return `${id.substring(0, 4)}****`;
+              })()}
+            </p>
+            <p>LIFF状態: {debug.liffStatus}</p>
+            <p>ボタン状態: {!isLiffReady || isLoggingIn ? "disabled" : "enabled"}</p>
+            <p>ログイン済み(LIFF): {debug.liffLoggedIn}</p>
+            <p>アクセストークン: {debug.accessToken}</p>
+            <p>LINEアプリ内: {isLiffReady ? String(liff.isInClient()) : "N/A"}</p>
+            <hr className="my-1 border-gray-200" />
+            <p>Supabaseセッション: {debug.supabaseSession}</p>
+            <p>usersテーブル保存: {debug.userSaveResult}</p>
+            <p>遷移先: {debug.redirectTo}</p>
+            {debug.error && (
+              <p className="text-red-500">エラー: {debug.error}</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
