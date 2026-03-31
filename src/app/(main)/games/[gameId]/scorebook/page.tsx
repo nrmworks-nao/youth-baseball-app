@@ -116,7 +116,7 @@ export default function ScorebookPage() {
       for (let i = 0; i < newImages.length; i++) {
         const img = newImages[i];
         const ext = img.file.name.split(".").pop() || "jpg";
-        const filePath = `scorebooks/${currentTeam.id}/${gameId}/${Date.now()}-${i}.${ext}`;
+        const filePath = `${currentTeam.id}/${gameId}/${Date.now()}-${i}.${ext}`;
 
         const { error: uploadError } = await supabase.storage
           .from("scorebooks")
