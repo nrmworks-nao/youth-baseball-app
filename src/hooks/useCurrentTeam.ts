@@ -22,11 +22,12 @@ export function useCurrentTeam() {
   const [currentMembership, setCurrentMembership] = useState<TeamWithRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchTeams = useCallback(async () => {
+  const fetchTeams = useCallback(async (retryCount = 0) => {
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      console.log("useCurrentTeam - user:", user?.id ?? "null");
       if (!user) {
         setIsLoading(false);
         return;
@@ -38,6 +39,8 @@ export function useCurrentTeam() {
         .eq("user_id", user.id)
         .eq("is_active", true);
 
+      console.log("useCurrentTeam - query result:", { data, error, retryCount });
+
       if (error) throw error;
 
       const teamList: TeamWithRole[] = (data || []).map(
@@ -48,6 +51,13 @@ export function useCurrentTeam() {
           member_id: row.id as string,
         })
       );
+
+      // チーム作成直後のタイミング問題対策: 結果が空で再試行回数が残っている場合リトライ
+      if (teamList.length === 0 && retryCount < 2) {
+        console.log(`useCurrentTeam - チーム未検出、${retryCount + 1}回目のリトライ (1秒後)`);
+        setTimeout(() => fetchTeams(retryCount + 1), 1000);
+        return;
+      }
 
       setTeams(teamList);
 

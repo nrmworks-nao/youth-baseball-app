@@ -55,6 +55,7 @@ export async function POST(req: Request) {
     inviteExpiresAt.setDate(inviteExpiresAt.getDate() + 7);
 
     // チーム作成
+    console.log("チーム作成開始:", { name: name.trim(), userId });
     const { data: team, error: teamError } = await supabaseAdmin
       .from("teams")
       .insert({
@@ -77,15 +78,22 @@ export async function POST(req: Request) {
     }
 
     // 作成者をteam_adminとしてメンバー追加
-    const { error: memberError } = await supabaseAdmin
+    const memberPayload = {
+      team_id: team.id,
+      user_id: userId,
+      permission_group: "team_admin",
+      display_title: displayTitle,
+      is_active: true,
+    };
+    console.log("team_members INSERT:", memberPayload);
+
+    const { data: memberData, error: memberError } = await supabaseAdmin
       .from("team_members")
-      .insert({
-        team_id: team.id,
-        user_id: userId,
-        permission_group: "team_admin",
-        display_title: displayTitle,
-        is_active: true,
-      });
+      .insert(memberPayload)
+      .select()
+      .single();
+
+    console.log("team_members INSERT結果:", { memberData, memberError });
 
     if (memberError) {
       console.error("メンバー追加エラー:", memberError);
