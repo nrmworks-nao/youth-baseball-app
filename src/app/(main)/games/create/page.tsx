@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -8,23 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import type { GameType } from "@/types";
-
-// デモ用の選手リスト
-const DEMO_PLAYERS = [
-  { id: "p1", name: "田中太郎", number: 8 },
-  { id: "p2", name: "佐藤次郎", number: 4 },
-  { id: "p3", name: "鈴木健", number: 6 },
-  { id: "p4", name: "高橋大輝", number: 3 },
-  { id: "p5", name: "渡辺翔", number: 5 },
-  { id: "p6", name: "伊藤誠", number: 7 },
-  { id: "p7", name: "山田拓", number: 9 },
-  { id: "p8", name: "中村雄太", number: 2 },
-  { id: "p9", name: "小林直人", number: 1 },
-  { id: "p10", name: "加藤裕太", number: 10 },
-  { id: "p11", name: "松本翼", number: 11 },
-  { id: "p12", name: "井上龍", number: 12 },
-];
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
+import { supabase } from "@/lib/supabase/client";
+import { getPlayers } from "@/lib/supabase/queries/players";
+import { createGame, upsertGameLineup } from "@/lib/supabase/queries/games";
+import type { Player, GameType } from "@/types";
 
 const POSITIONS = [
   "投",
@@ -37,12 +28,14 @@ const POSITIONS = [
   "中",
   "右",
   "DH",
+  "控え",
 ];
 
 interface LineupEntry {
   batting_order: number;
   player_id: string;
   position: string;
+  is_starter: boolean;
 }
 
 interface InningScoreEntry {
@@ -53,6 +46,12 @@ interface InningScoreEntry {
 
 export default function GameCreatePage() {
   const router = useRouter();
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     opponent_name: "",
     game_date: "",
@@ -76,8 +75,35 @@ export default function GameCreatePage() {
       batting_order: i + 1,
       player_id: "",
       position: "",
+      is_starter: true,
     }))
   );
+
+  useEffect(() => {
+    if (teamLoading || !currentTeam) return;
+    const load = async () => {
+      try {
+        const data = await getPlayers(currentTeam.id);
+        setPlayers(data);
+      } catch {
+        setError("選手データの取得に失敗しました");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [currentTeam, teamLoading]);
+
+  // スコアから結果を自動判定
+  useEffect(() => {
+    const st = parseInt(formData.score_team);
+    const so = parseInt(formData.score_opponent);
+    if (!isNaN(st) && !isNaN(so)) {
+      if (st > so) setFormData((prev) => ({ ...prev, result: "win" }));
+      else if (st < so) setFormData((prev) => ({ ...prev, result: "lose" }));
+      else setFormData((prev) => ({ ...prev, result: "draw" }));
+    }
+  }, [formData.score_team, formData.score_opponent]);
 
   const handleInningsChange = (count: number) => {
     setInnings(count);
@@ -103,18 +129,70 @@ export default function GameCreatePage() {
   const updateLineup = (
     index: number,
     field: keyof LineupEntry,
-    value: string | number
+    value: string | number | boolean
   ) => {
     setLineup((prev) =>
       prev.map((l, i) => (i === index ? { ...l, [field]: value } : l))
     );
   };
 
-  const handleSubmit = () => {
-    // TODO: createGame() API呼び出し
-    alert("試合結果を登録しました（デモ）");
-    router.push("/games");
+  const handleSubmit = async () => {
+    if (!currentTeam) return;
+    if (!formData.opponent_name || !formData.game_date) {
+      setError("対戦チーム名と試合日は必須です");
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setError("ログインが必要です");
+        setIsSaving(false);
+        return;
+      }
+
+      const game = await createGame({
+        team_id: currentTeam.id,
+        opponent_name: formData.opponent_name,
+        game_date: formData.game_date,
+        venue: formData.venue || undefined,
+        game_type: formData.game_type,
+        result: formData.result || undefined,
+        score_team: formData.score_team ? parseInt(formData.score_team) : undefined,
+        score_opponent: formData.score_opponent ? parseInt(formData.score_opponent) : undefined,
+        notes: formData.notes || undefined,
+        created_by: user.id,
+      });
+
+      // ラインナップ登録
+      const lineupEntries = lineup.filter((l) => l.player_id);
+      for (const entry of lineupEntries) {
+        await upsertGameLineup({
+          game_id: game.id,
+          team_id: currentTeam.id,
+          player_id: entry.player_id,
+          batting_order: entry.batting_order,
+          position: entry.position || undefined,
+          is_starter: entry.is_starter,
+        });
+      }
+
+      router.push(`/games/${game.id}`);
+    } catch {
+      setError("試合の登録に失敗しました");
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const canCreate = hasPermission(["team_admin", "vice_president", "manager"]);
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (!canCreate) return <ErrorDisplay message="試合登録の権限がありません" />;
 
   return (
     <div className="flex flex-col">
@@ -139,6 +217,12 @@ export default function GameCreatePage() {
       </div>
 
       <div className="space-y-4 p-4">
+        {error && (
+          <div className="rounded-lg bg-red-50 p-3 text-xs text-red-600">
+            {error}
+          </div>
+        )}
+
         {/* 基本情報 */}
         <Card>
           <CardHeader className="pb-2">
@@ -343,7 +427,7 @@ export default function GameCreatePage() {
                         }
                       >
                         <option value="">選手を選択</option>
-                        {DEMO_PLAYERS.map((p) => (
+                        {players.map((p) => (
                           <option key={p.id} value={p.id}>
                             #{p.number} {p.name}
                           </option>
@@ -391,8 +475,8 @@ export default function GameCreatePage() {
         </Card>
 
         {/* 送信 */}
-        <Button className="w-full" onClick={handleSubmit}>
-          試合結果を登録
+        <Button className="w-full" onClick={handleSubmit} disabled={isSaving}>
+          {isSaving ? "登録中..." : "試合結果を登録"}
         </Button>
       </div>
     </div>
