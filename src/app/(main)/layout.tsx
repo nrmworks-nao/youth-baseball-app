@@ -241,8 +241,10 @@ function useTeamMembershipGuard() {
 
   useEffect(() => {
     if (isLoading) return;
+    console.log("TeamMembershipGuard - teams:", teams.length, "isLoading:", isLoading);
     if (teams.length === 0) {
       // ユーザーがどのチームにも所属していない場合、オンボーディングへリダイレクト
+      console.log("TeamMembershipGuard - チーム未所属、/onboardingへリダイレクト");
       router.replace("/onboarding");
     }
   }, [isLoading, teams, router]);
