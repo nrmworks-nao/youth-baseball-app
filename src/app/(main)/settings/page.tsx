@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -19,6 +19,38 @@ import type { Team, TeamMember } from "@/types";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "";
 
+async function uploadTeamImage(
+  teamId: string,
+  file: File,
+  type: "logo" | "banner"
+): Promise<string> {
+  const ext = file.name.split(".").pop();
+  const path = `${teamId}/${type}.${ext}`;
+
+  // 既存ファイルがあれば削除（upsertで上書き）
+  await supabase.storage.from("team-assets").remove([path]);
+
+  const { error } = await supabase.storage
+    .from("team-assets")
+    .upload(path, file, { upsert: true });
+
+  if (error) throw error;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("team-assets").getPublicUrl(path);
+
+  // teams テーブルを更新
+  const column = type === "logo" ? "logo_url" : "banner_url";
+  const { error: updateError } = await supabase
+    .from("teams")
+    .update({ [column]: publicUrl })
+    .eq("id", teamId);
+  if (updateError) throw updateError;
+
+  return publicUrl;
+}
+
 export default function SettingsPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [member, setMember] = useState<TeamMember | null>(null);
@@ -33,6 +65,11 @@ export default function SettingsPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const { hasPermission } = usePermission(member?.permission_group ?? null);
   const canManage = hasPermission(["team_admin", "vice_president"]);
@@ -137,11 +174,43 @@ export default function SettingsPage() {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !team) return;
+    setIsUploadingLogo(true);
+    try {
+      const publicUrl = await uploadTeamImage(team.id, file, "logo");
+      setTeam({ ...team, logo_url: publicUrl });
+    } catch {
+      setSaveMessage("ロゴのアップロードに失敗しました");
+      setTimeout(() => setSaveMessage(null), 2000);
+    }
+    setIsUploadingLogo(false);
+    if (logoInputRef.current) logoInputRef.current.value = "";
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !team) return;
+    setIsUploadingBanner(true);
+    try {
+      const publicUrl = await uploadTeamImage(team.id, file, "banner");
+      setTeam({ ...team, banner_url: publicUrl });
+    } catch {
+      setSaveMessage("バナーのアップロードに失敗しました");
+      setTimeout(() => setSaveMessage(null), 2000);
+    }
+    setIsUploadingBanner(false);
+    if (bannerInputRef.current) bannerInputRef.current.value = "";
+  };
+
   const isExpired =
     team?.invite_expires_at && new Date(team.invite_expires_at) < new Date();
   const inviteUrl = team?.invite_code
     ? `${APP_URL}/invite/${team.invite_code}`
     : null;
+
+  const teamInitial = team?.name?.charAt(0) || "T";
 
   if (isLoading) return <Loading className="min-h-screen" />;
   if (error) return <ErrorDisplay message={error} />;
@@ -153,6 +222,39 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-4 p-4">
+        {/* バナー画像 */}
+        <Card className="overflow-hidden">
+          <div className="relative h-[120px]">
+            {team?.banner_url ? (
+              <img
+                src={team.banner_url}
+                alt="チームバナー"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-green-400" />
+            )}
+            {canManage && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <button
+                  onClick={() => bannerInputRef.current?.click()}
+                  disabled={isUploadingBanner}
+                  className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-gray-700 shadow hover:bg-white transition-colors disabled:opacity-50"
+                >
+                  {isUploadingBanner ? "アップロード中..." : "バナーを変更"}
+                </button>
+                <input
+                  ref={bannerInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={handleBannerUpload}
+                />
+              </div>
+            )}
+          </div>
+        </Card>
+
         {/* チーム情報編集 */}
         <Card>
           <CardHeader>
@@ -160,6 +262,44 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
+              {/* チームロゴ */}
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  {team?.logo_url ? (
+                    <img
+                      src={team.logo_url}
+                      alt="チームロゴ"
+                      className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-2xl">
+                      {teamInitial}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium text-gray-700">チームロゴ</p>
+                  {canManage && (
+                    <>
+                      <button
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={isUploadingLogo}
+                        className="text-sm text-primary hover:underline disabled:opacity-50"
+                      >
+                        {isUploadingLogo ? "アップロード中..." : "変更"}
+                      </button>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        className="hidden"
+                        onChange={handleLogoUpload}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+
               <Input
                 label="チーム名"
                 value={teamName}

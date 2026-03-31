@@ -184,6 +184,121 @@ function TeamSwitcher() {
   );
 }
 
+function TeamBrandingHeader({
+  unreadNotificationCount,
+}: {
+  unreadNotificationCount: number;
+}) {
+  const { currentTeam } = useCurrentTeam();
+  const teamName = currentTeam?.name || "";
+  const initial = teamName.charAt(0);
+
+  return (
+    <header className="sticky top-0 z-30 overflow-hidden">
+      {/* モバイル: チームブランディングヘッダー */}
+      <div className="relative h-20 lg:hidden">
+        {/* バナー背景 */}
+        {currentTeam?.banner_url ? (
+          <img
+            src={currentTeam.banner_url}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-green-400" />
+        )}
+
+        {/* オーバーレイ */}
+        <div className="absolute inset-0 bg-black/20" />
+
+        {/* コンテンツ */}
+        <div className="relative h-full flex items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            {/* ロゴ */}
+            {currentTeam?.logo_url ? (
+              <img
+                src={currentTeam.logo_url}
+                alt=""
+                className="w-8 h-8 rounded-full object-cover border-2 border-white"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-sm">
+                {initial}
+              </div>
+            )}
+            {/* チーム名 */}
+            <h1 className="text-white font-bold text-lg drop-shadow-sm">
+              {teamName}
+            </h1>
+          </div>
+
+          {/* 通知ベル */}
+          <Link
+            href="/notifications"
+            className="relative flex h-11 w-11 items-center justify-center"
+          >
+            <svg
+              className="h-6 w-6 text-white drop-shadow-sm"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
+              />
+            </svg>
+            {unreadNotificationCount > 0 && (
+              <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                {unreadNotificationCount > 99
+                  ? "99+"
+                  : unreadNotificationCount}
+              </span>
+            )}
+          </Link>
+        </div>
+      </div>
+
+      {/* PC: 従来のヘッダー */}
+      <div className="hidden lg:block border-b border-border bg-card">
+        <div className="flex h-14 items-center justify-between px-6">
+          <div />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link
+              href="/notifications"
+              className="relative flex h-11 w-11 items-center justify-center rounded-lg hover:bg-muted"
+            >
+              <svg
+                className="h-6 w-6 text-muted-foreground"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
+                />
+              </svg>
+              {unreadNotificationCount > 0 && (
+                <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                  {unreadNotificationCount > 99
+                    ? "99+"
+                    : unreadNotificationCount}
+                </span>
+              )}
+            </Link>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
 function useUnreadPostCount() {
   const { currentTeam } = useCurrentTeam();
   const [count, setCount] = useState(0);
@@ -323,43 +438,10 @@ export default function MainLayout({
 
         {/* メインコンテンツエリア */}
         <div className="flex flex-1 flex-col lg:pl-64">
-          {/* ヘッダー */}
-          <header className="sticky top-0 z-30 border-b border-border bg-card">
-            <div className="flex h-14 items-center justify-between px-4 lg:px-6">
-              <div className="lg:hidden">
-                <TeamSwitcher />
-              </div>
-              <div className="hidden lg:block" />
-              <div className="flex items-center gap-2">
-                <div className="hidden lg:block">
-                  <ThemeToggle />
-                </div>
-                <Link
-                  href="/notifications"
-                  className="relative flex h-11 w-11 items-center justify-center rounded-lg hover:bg-muted"
-                >
-                  <svg
-                    className="h-6 w-6 text-muted-foreground"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
-                    />
-                  </svg>
-                  {unreadNotificationCount > 0 && (
-                    <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-                      {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-                    </span>
-                  )}
-                </Link>
-              </div>
-            </div>
-          </header>
+          {/* ヘッダー（チームブランディング対応） */}
+          <TeamBrandingHeader
+            unreadNotificationCount={unreadNotificationCount}
+          />
 
           {/* メインコンテンツ */}
           <main className="flex-1 pb-20 lg:pb-6">
