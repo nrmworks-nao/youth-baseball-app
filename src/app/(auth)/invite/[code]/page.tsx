@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,26 @@ interface PlayerEntry {
   position: string;
   throwing_hand: string;
   batting_hand: string;
+}
+
+interface ExistingPlayer {
+  id: string;
+  name: string;
+  number: number | null;
+  grade: number | null;
+  position: string | null;
+  user_children: {
+    relationship: string | null;
+    users: { display_name: string } | null;
+  }[];
+}
+
+interface ChildSelection {
+  type: "existing" | "new";
+  existingPlayerId?: string;
+  existingPlayerName?: string;
+  newPlayer?: PlayerEntry;
+  relationship: string;
 }
 
 const POSITIONS = [
@@ -66,10 +86,44 @@ export default function InvitePage() {
   // プロフィール入力
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
-  const [relationship, setRelationship] = useState("父");
 
-  // 子供（選手）登録
-  const [players, setPlayers] = useState<PlayerEntry[]>([emptyPlayer()]);
+  // 既存選手一覧
+  const [existingPlayers, setExistingPlayers] = useState<ExistingPlayer[]>([]);
+  const [isLoadingPlayers, setIsLoadingPlayers] = useState(false);
+
+  // 子供選択・登録（多対多対応）
+  const [selectedChildren, setSelectedChildren] = useState<ChildSelection[]>(
+    []
+  );
+  const [showNewPlayerForm, setShowNewPlayerForm] = useState(false);
+  const [newPlayers, setNewPlayers] = useState<PlayerEntry[]>([emptyPlayer()]);
+  const [newPlayerRelationships, setNewPlayerRelationships] = useState<
+    string[]
+  >(["父"]);
+
+  // 既存選手がいない場合は直接新規登録フォームを表示
+  const hasExistingPlayers = existingPlayers.length > 0;
+
+  const fetchExistingPlayers = useCallback(async (teamId: string) => {
+    setIsLoadingPlayers(true);
+    try {
+      const response = await fetch(
+        `/api/teams/players?teamId=${encodeURIComponent(teamId)}`
+      );
+      const data = await response.json();
+      if (response.ok && data.players) {
+        setExistingPlayers(data.players);
+        // 既存選手がいない場合は新規登録フォームを自動表示
+        if (data.players.length === 0) {
+          setShowNewPlayerForm(true);
+        }
+      }
+    } catch {
+      console.error("既存選手の取得に失敗しました");
+    } finally {
+      setIsLoadingPlayers(false);
+    }
+  }, []);
 
   useEffect(() => {
     async function loadInvite() {
@@ -109,6 +163,9 @@ export default function InvitePage() {
             setIsLoading(false);
             return;
           }
+
+          // 既存選手一覧を取得
+          await fetchExistingPlayers(teamData.id);
         }
 
         setIsLoading(false);
@@ -118,47 +175,105 @@ export default function InvitePage() {
       }
     }
     loadInvite();
-  }, [code]);
+  }, [code, fetchExistingPlayers]);
 
   const handleLogin = () => {
-    // LINEログインページへ遷移（招待コードをリダイレクト先に含める）
     window.location.href = `/login?redirect=/invite/${code}`;
   };
 
-  const addPlayer = () => {
-    setPlayers([...players, emptyPlayer()]);
+  // 既存選手の選択/解除
+  const toggleExistingPlayer = (player: ExistingPlayer, checked: boolean) => {
+    if (checked) {
+      setSelectedChildren((prev: ChildSelection[]) => [
+        ...prev,
+        {
+          type: "existing",
+          existingPlayerId: player.id,
+          existingPlayerName: player.name,
+          relationship: "父",
+        },
+      ]);
+    } else {
+      setSelectedChildren((prev: ChildSelection[]) =>
+        prev.filter((c: ChildSelection) => c.existingPlayerId !== player.id)
+      );
+    }
   };
 
-  const removePlayer = (index: number) => {
-    if (players.length <= 1) return;
-    setPlayers(players.filter((_, i) => i !== index));
+  // 既存選手の関係性を更新
+  const updateExistingRelationship = (playerId: string, relationship: string) => {
+    setSelectedChildren((prev: ChildSelection[]) =>
+      prev.map((c: ChildSelection) =>
+        c.existingPlayerId === playerId ? { ...c, relationship } : c
+      )
+    );
   };
 
-  const updatePlayer = (
+  // 新規選手フォーム操作
+  const addNewPlayer = () => {
+    setNewPlayers([...newPlayers, emptyPlayer()]);
+    setNewPlayerRelationships([...newPlayerRelationships, "父"]);
+  };
+
+  const removeNewPlayer = (index: number) => {
+    if (newPlayers.length <= 1) return;
+    setNewPlayers(newPlayers.filter((_: PlayerEntry, i: number) => i !== index));
+    setNewPlayerRelationships(
+      newPlayerRelationships.filter((_: string, i: number) => i !== index)
+    );
+  };
+
+  const updateNewPlayer = (
     index: number,
     field: keyof PlayerEntry,
     value: string
   ) => {
-    const updated = [...players];
+    const updated = [...newPlayers];
     updated[index] = { ...updated[index], [field]: value };
-    setPlayers(updated);
+    setNewPlayers(updated);
+  };
+
+  const updateNewPlayerRelationship = (index: number, value: string) => {
+    const updated = [...newPlayerRelationships];
+    updated[index] = value;
+    setNewPlayerRelationships(updated);
   };
 
   const validateForm = (): string | null => {
     if (!displayName.trim()) return "表示名を入力してください";
-    for (let i = 0; i < players.length; i++) {
-      if (!players[i].name.trim())
-        return `選手${i + 1}の名前を入力してください`;
-      if (!players[i].number)
-        return `選手${i + 1}の背番号を入力してください`;
+
+    const totalSelected = selectedChildren.length;
+    const hasNewPlayers =
+      showNewPlayerForm || !hasExistingPlayers;
+    let validNewPlayers = 0;
+
+    if (hasNewPlayers) {
+      for (let i = 0; i < newPlayers.length; i++) {
+        if (newPlayers[i].name.trim() || newPlayers[i].number) {
+          if (!newPlayers[i].name.trim())
+            return `新規選手${i + 1}の名前を入力してください`;
+          if (!newPlayers[i].number)
+            return `新規選手${i + 1}の背番号を入力してください`;
+          validNewPlayers++;
+        }
+      }
     }
+
+    if (totalSelected + validNewPlayers === 0) {
+      return "最低1人のお子さんを選択または登録してください";
+    }
+
     return null;
   };
 
   const checkDuplicateNumbers = async () => {
     if (!team) return false;
     const dups = new Set<number>();
-    for (const player of players) {
+
+    const playersToCheck =
+      showNewPlayerForm || !hasExistingPlayers ? newPlayers : [];
+
+    for (const player of playersToCheck) {
       if (!player.number) continue;
       const { data } = await supabase
         .from("players")
@@ -193,6 +308,50 @@ export default function InvitePage() {
     setError(null);
 
     try {
+      // children配列を構築
+      const children: {
+        existingPlayerId?: string;
+        newPlayer?: {
+          name: string;
+          number?: number;
+          grade?: number;
+          position?: string;
+          throwing_hand?: string;
+          batting_hand?: string;
+        };
+        relationship: string;
+      }[] = [];
+
+      // 既存選手の選択
+      for (const child of selectedChildren) {
+        if (child.type === "existing" && child.existingPlayerId) {
+          children.push({
+            existingPlayerId: child.existingPlayerId,
+            relationship: child.relationship,
+          });
+        }
+      }
+
+      // 新規選手の登録
+      const hasNewPlayers = showNewPlayerForm || !hasExistingPlayers;
+      if (hasNewPlayers) {
+        for (let i = 0; i < newPlayers.length; i++) {
+          const p = newPlayers[i];
+          if (!p.name.trim()) continue;
+          children.push({
+            newPlayer: {
+              name: p.name,
+              number: p.number ? parseInt(p.number) : undefined,
+              grade: p.grade ? parseInt(p.grade) : undefined,
+              position: p.position || undefined,
+              throwing_hand: p.throwing_hand || undefined,
+              batting_hand: p.batting_hand || undefined,
+            },
+            relationship: newPlayerRelationships[i] || "父",
+          });
+        }
+      }
+
       const response = await fetch("/api/teams/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,15 +360,7 @@ export default function InvitePage() {
           userId,
           displayName,
           phone: phone || undefined,
-          relationship,
-          players: players.map((p) => ({
-            name: p.name,
-            number: p.number ? parseInt(p.number) : undefined,
-            grade: p.grade ? parseInt(p.grade) : undefined,
-            position: p.position || undefined,
-            throwing_hand: p.throwing_hand || undefined,
-            batting_hand: p.batting_hand || undefined,
-          })),
+          children,
         }),
       });
 
@@ -286,6 +437,117 @@ export default function InvitePage() {
     );
   }
 
+  // 新規選手登録フォーム（共通コンポーネント）
+  const renderNewPlayerForm = (player: PlayerEntry, index: number) => (
+    <div
+      key={`new-${index}`}
+      className="relative rounded-xl border border-gray-200 p-4"
+    >
+      {newPlayers.length > 1 && (
+        <button
+          className="absolute right-2 top-2 text-gray-400 hover:text-red-500"
+          onClick={() => removeNewPlayer(index)}
+        >
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6 18 18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      )}
+      <div className="space-y-3">
+        <p className="text-xs font-medium text-gray-500">
+          新規選手 {index + 1}
+        </p>
+        <Input
+          id={`new-player-name-${index}`}
+          label="名前 *"
+          placeholder="例: 山田一郎"
+          value={player.name}
+          onChange={(e) => updateNewPlayer(index, "name", e.target.value)}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            id={`new-player-number-${index}`}
+            label="背番号 *"
+            placeholder="例: 10"
+            type="number"
+            value={player.number}
+            onChange={(e) => updateNewPlayer(index, "number", e.target.value)}
+          />
+          <Select
+            label="学年"
+            value={player.grade}
+            onChange={(e) => updateNewPlayer(index, "grade", e.target.value)}
+          >
+            <option value="">選択</option>
+            {GRADES.map((g) => (
+              <option key={g} value={g}>
+                {g}年
+              </option>
+            ))}
+          </Select>
+        </div>
+        <Select
+          label="ポジション"
+          value={player.position}
+          onChange={(e) => updateNewPlayer(index, "position", e.target.value)}
+        >
+          <option value="">選択</option>
+          {POSITIONS.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </Select>
+        <div className="grid grid-cols-2 gap-3">
+          <Select
+            label="投げ"
+            value={player.throwing_hand}
+            onChange={(e) =>
+              updateNewPlayer(index, "throwing_hand", e.target.value)
+            }
+          >
+            <option value="">選択</option>
+            <option value="右投">右投</option>
+            <option value="左投">左投</option>
+          </Select>
+          <Select
+            label="打ち"
+            value={player.batting_hand}
+            onChange={(e) =>
+              updateNewPlayer(index, "batting_hand", e.target.value)
+            }
+          >
+            <option value="">選択</option>
+            <option value="右打">右打</option>
+            <option value="左打">左打</option>
+            <option value="両打">両打</option>
+          </Select>
+        </div>
+        <Select
+          label="あなたとの関係 *"
+          value={newPlayerRelationships[index] || "父"}
+          onChange={(e) => updateNewPlayerRelationship(index, e.target.value)}
+        >
+          {RELATIONSHIPS.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </Select>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex min-h-screen flex-col bg-white">
       {/* ヘッダー */}
@@ -346,139 +608,172 @@ export default function InvitePage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
-            <Select
-              label="お子様との関係"
-              value={relationship}
-              onChange={(e) => setRelationship(e.target.value)}
-            >
-              {RELATIONSHIPS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </Select>
           </div>
         </section>
 
-        {/* 選手（お子様）登録 */}
+        {/* お子様の選択・登録 */}
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900">
-              お子様の情報（選手登録）
-            </h2>
-            <Button variant="ghost" size="sm" onClick={addPlayer}>
-              + 追加
-            </Button>
-          </div>
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">
+            お子様の情報
+          </h2>
 
-          <div className="space-y-4">
-            {players.map((player, index) => (
-              <div
-                key={index}
-                className="relative rounded-xl border border-gray-200 p-4"
-              >
-                {players.length > 1 && (
-                  <button
-                    className="absolute right-2 top-2 text-gray-400 hover:text-red-500"
-                    onClick={() => removePlayer(index)}
-                  >
-                    <svg
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
+          {isLoadingPlayers ? (
+            <div className="py-4 text-center text-sm text-gray-500">
+              選手情報を読み込み中...
+            </div>
+          ) : hasExistingPlayers ? (
+            /* フロー2: 既存選手がいる場合 */
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                チームに登録済みの選手から、あなたのお子さんを選んでください
+              </p>
+
+              {/* 既存選手一覧 */}
+              <div className="space-y-2">
+                {existingPlayers.map((player) => {
+                  const isSelected = selectedChildren.some(
+                    (c) => c.existingPlayerId === player.id
+                  );
+                  const selectedChild = selectedChildren.find(
+                    (c) => c.existingPlayerId === player.id
+                  );
+                  const guardianInfo = player.user_children
+                    ?.map(
+                      (uc) =>
+                        `${uc.users?.display_name || "不明"}（${uc.relationship || "不明"}）`
+                    )
+                    .join("、");
+
+                  return (
+                    <div
+                      key={player.id}
+                      className={`rounded-lg border p-3 transition-colors ${
+                        isSelected
+                          ? "border-green-500 bg-green-50"
+                          : "border-gray-200"
+                      }`}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M6 18 18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                )}
-                <div className="space-y-3">
-                  <p className="text-xs font-medium text-gray-500">
-                    選手 {index + 1}
-                  </p>
-                  <Input
-                    id={`player-name-${index}`}
-                    label="名前 *"
-                    placeholder="例: 山田一郎"
-                    value={player.name}
-                    onChange={(e) =>
-                      updatePlayer(index, "name", e.target.value)
-                    }
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input
-                      id={`player-number-${index}`}
-                      label="背番号 *"
-                      placeholder="例: 10"
-                      type="number"
-                      value={player.number}
-                      onChange={(e) =>
-                        updatePlayer(index, "number", e.target.value)
-                      }
-                    />
-                    <Select
-                      label="学年"
-                      value={player.grade}
-                      onChange={(e) =>
-                        updatePlayer(index, "grade", e.target.value)
-                      }
-                    >
-                      <option value="">選択</option>
-                      {GRADES.map((g) => (
-                        <option key={g} value={g}>
-                          {g}年
-                        </option>
-                      ))}
-                    </Select>
+                      <label className="flex cursor-pointer items-start gap-3">
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                          checked={isSelected}
+                          onChange={(e) =>
+                            toggleExistingPlayer(player, e.target.checked)
+                          }
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">
+                            {player.name}
+                            {player.number != null && (
+                              <span className="ml-1 text-gray-500">
+                                （背番号{player.number}
+                                {player.grade != null &&
+                                  `、${player.grade}年`}
+                                ）
+                              </span>
+                            )}
+                          </div>
+                          {guardianInfo && (
+                            <div className="mt-0.5 text-xs text-gray-500">
+                              登録済み保護者: {guardianInfo}
+                            </div>
+                          )}
+                        </div>
+                      </label>
+
+                      {/* 選択時に関係性を選択 */}
+                      {isSelected && (
+                        <div className="ml-7 mt-2">
+                          <Select
+                            label="あなたとの関係 *"
+                            value={selectedChild?.relationship || "父"}
+                            onChange={(e) =>
+                              updateExistingRelationship(
+                                player.id,
+                                e.target.value
+                              )
+                            }
+                          >
+                            {RELATIONSHIPS.map((r) => (
+                              <option key={r} value={r}>
+                                {r}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 新規登録ボタン/フォーム */}
+              {!showNewPlayerForm ? (
+                <button
+                  className="w-full rounded-lg border border-dashed border-gray-300 p-3 text-sm text-gray-600 hover:border-green-500 hover:text-green-600"
+                  onClick={() => setShowNewPlayerForm(true)}
+                >
+                  該当する子供がいない場合は新しく登録
+                </button>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      新規選手登録
+                    </h3>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={addNewPlayer}
+                      >
+                        + もう1人追加
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setShowNewPlayerForm(false);
+                          setNewPlayers([emptyPlayer()]);
+                          setNewPlayerRelationships(["父"]);
+                        }}
+                      >
+                        閉じる
+                      </Button>
+                    </div>
                   </div>
-                  <Select
-                    label="ポジション"
-                    value={player.position}
-                    onChange={(e) =>
-                      updatePlayer(index, "position", e.target.value)
-                    }
-                  >
-                    <option value="">選択</option>
-                    {POSITIONS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </Select>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Select
-                      label="投げ"
-                      value={player.throwing_hand}
-                      onChange={(e) =>
-                        updatePlayer(index, "throwing_hand", e.target.value)
-                      }
-                    >
-                      <option value="">選択</option>
-                      <option value="右投">右投</option>
-                      <option value="左投">左投</option>
-                    </Select>
-                    <Select
-                      label="打ち"
-                      value={player.batting_hand}
-                      onChange={(e) =>
-                        updatePlayer(index, "batting_hand", e.target.value)
-                      }
-                    >
-                      <option value="">選択</option>
-                      <option value="右打">右打</option>
-                      <option value="左打">左打</option>
-                      <option value="両打">両打</option>
-                    </Select>
+                  <div className="space-y-4">
+                    {newPlayers.map((player, index) =>
+                      renderNewPlayerForm(player, index)
+                    )}
                   </div>
                 </div>
+              )}
+            </div>
+          ) : (
+            /* フロー1: 既存選手がいない場合（新規登録のみ） */
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                チームにはまだ選手が登録されていません。お子さんの情報を入力してください。
+              </p>
+
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">
+                  選手登録
+                </h3>
+                <Button variant="ghost" size="sm" onClick={addNewPlayer}>
+                  + もう1人追加
+                </Button>
               </div>
-            ))}
-          </div>
+
+              <div className="space-y-4">
+                {newPlayers.map((player, index) =>
+                  renderNewPlayerForm(player, index)
+                )}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* 参加ボタン */}

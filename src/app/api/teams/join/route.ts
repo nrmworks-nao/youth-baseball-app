@@ -1,12 +1,27 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+interface ChildEntry {
+  existingPlayerId?: string;
+  newPlayer?: {
+    name: string;
+    number?: number;
+    grade?: number;
+    position?: string;
+    throwing_hand?: string;
+    batting_hand?: string;
+  };
+  relationship: string;
+}
+
 /**
  * チーム参加API（トランザクション処理）
  * - team_members追加
- * - players登録
+ * - players登録（新規）or 既存選手紐づけ
  * - user_children紐づけ
  * - users.phone更新
+ *
+ * 多対多対応: 既存選手の選択 + 新規選手の登録 + 子供ごとの関係性
  */
 export async function POST(req: Request) {
   try {
@@ -16,15 +31,19 @@ export async function POST(req: Request) {
       userId,
       displayName,
       phone,
-      relationship,
-      players,
+      children,
+      // 後方互換: 旧形式のリクエストもサポート
+      relationship: legacyRelationship,
+      players: legacyPlayers,
     } = body as {
       teamId: string;
       userId: string;
       displayName: string;
       phone?: string;
-      relationship: string;
-      players: {
+      children?: ChildEntry[];
+      // 後方互換
+      relationship?: string;
+      players?: {
         name: string;
         number?: number;
         grade?: number;
@@ -34,7 +53,13 @@ export async function POST(req: Request) {
       }[];
     };
 
-    if (!teamId || !userId || !displayName || !players?.length) {
+    // 新形式と旧形式を統合
+    const childEntries: ChildEntry[] | undefined = children ?? legacyPlayers?.map((p): ChildEntry => ({
+      newPlayer: p,
+      relationship: legacyRelationship || "父",
+    }));
+
+    if (!teamId || !userId || !displayName || !childEntries?.length) {
       return NextResponse.json(
         { error: "必須項目が不足しています" },
         { status: 400 }
@@ -108,44 +133,70 @@ export async function POST(req: Request) {
     }
 
     // 選手登録 + 紐づけ
-    for (const player of players) {
-      const { data: newPlayer, error: playerError } = await supabaseAdmin
-        .from("players")
-        .insert({
-          team_id: teamId,
-          name: player.name,
-          number: player.number || null,
-          grade: player.grade || null,
-          position: player.position || null,
-          throwing_hand: player.throwing_hand || null,
-          batting_hand: player.batting_hand || null,
-          is_active: isActive,
-        })
-        .select()
-        .single();
+    for (const child of childEntries) {
+      let playerId: string;
 
-      if (playerError) {
-        console.error("players追加エラー:", playerError);
-        // ロールバック: 作成済みのメンバーを削除
-        await supabaseAdmin
-          .from("team_members")
-          .delete()
-          .eq("id", member.id);
-        return NextResponse.json(
-          { error: "選手登録に失敗しました" },
-          { status: 500 }
-        );
+      if (child.existingPlayerId) {
+        // 既存選手と紐づけ（選手がチームに属しているか確認）
+        const { data: existingPlayer } = await supabaseAdmin
+          .from("players")
+          .select("id")
+          .eq("id", child.existingPlayerId)
+          .eq("team_id", teamId)
+          .eq("is_active", true)
+          .single();
+
+        if (!existingPlayer) {
+          console.error("既存選手が見つかりません:", child.existingPlayerId);
+          continue;
+        }
+        playerId = existingPlayer.id;
+      } else if (child.newPlayer) {
+        // 新規選手を登録
+        const { data: newPlayer, error: playerError } = await supabaseAdmin
+          .from("players")
+          .insert({
+            team_id: teamId,
+            name: child.newPlayer.name,
+            number: child.newPlayer.number || null,
+            grade: child.newPlayer.grade || null,
+            position: child.newPlayer.position || null,
+            throwing_hand: child.newPlayer.throwing_hand || null,
+            batting_hand: child.newPlayer.batting_hand || null,
+            is_active: isActive,
+          })
+          .select()
+          .single();
+
+        if (playerError) {
+          console.error("players追加エラー:", playerError);
+          // ロールバック: 作成済みのメンバーを削除
+          await supabaseAdmin
+            .from("team_members")
+            .delete()
+            .eq("id", member.id);
+          return NextResponse.json(
+            { error: "選手登録に失敗しました" },
+            { status: 500 }
+          );
+        }
+        playerId = newPlayer.id;
+      } else {
+        continue;
       }
 
-      // user_children紐づけ
+      // user_children紐づけ（upsertで重複防止）
       const { error: linkError } = await supabaseAdmin
         .from("user_children")
-        .insert({
-          user_id: userId,
-          player_id: newPlayer.id,
-          team_id: teamId,
-          relationship,
-        });
+        .upsert(
+          {
+            user_id: userId,
+            player_id: playerId,
+            team_id: teamId,
+            relationship: child.relationship,
+          },
+          { onConflict: "user_id,player_id" }
+        );
 
       if (linkError) {
         console.error("user_children追加エラー:", linkError);
