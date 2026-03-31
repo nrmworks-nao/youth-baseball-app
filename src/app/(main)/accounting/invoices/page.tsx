@@ -1,69 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
+import { getInvoices } from "@/lib/supabase/queries/accounting";
+import type { Invoice, InvoiceStatus } from "@/types";
 
-const DEMO_INVOICES = [
-  {
-    id: "1",
-    title: "3月会費",
-    target_user_name: "田中太郎",
-    total_amount: 5000,
-    status: "paid",
-    due_date: "2026-03-31",
-    issued_at: "2026-03-01",
-  },
-  {
-    id: "2",
-    title: "3月会費",
-    target_user_name: "佐藤花子",
-    total_amount: 5000,
-    status: "pending",
-    due_date: "2026-03-31",
-    issued_at: "2026-03-01",
-  },
-  {
-    id: "3",
-    title: "3月会費",
-    target_user_name: "鈴木一郎",
-    total_amount: 5000,
-    status: "overdue",
-    due_date: "2026-03-15",
-    issued_at: "2026-03-01",
-  },
-  {
-    id: "4",
-    title: "春季大会参加費",
-    target_user_name: "佐藤花子",
-    total_amount: 3000,
-    status: "pending",
-    due_date: "2026-03-20",
-    issued_at: "2026-03-10",
-  },
-  {
-    id: "5",
-    title: "2月会費",
-    target_user_name: "田中太郎",
-    total_amount: 5000,
-    status: "paid",
-    due_date: "2026-02-28",
-    issued_at: "2026-02-01",
-  },
-  {
-    id: "6",
-    title: "3月会費",
-    target_user_name: "高橋健太",
-    total_amount: 5000,
-    status: "cancelled",
-    due_date: "2026-03-31",
-    issued_at: "2026-03-01",
-  },
-];
-
-type StatusFilter = "all" | "pending" | "paid" | "overdue" | "cancelled";
+type InvoiceWithUser = Invoice & { users?: { display_name: string } };
+type StatusFilter = "all" | InvoiceStatus;
 
 const STATUS_CONFIG: Record<
   string,
@@ -77,12 +28,43 @@ const STATUS_CONFIG: Record<
 };
 
 export default function InvoicesPage() {
+  const router = useRouter();
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { canManageAccounting } = usePermission(currentMembership?.permission_group ?? null);
+
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const [invoices, setInvoices] = useState<InvoiceWithUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (teamLoading) return;
+    if (!currentMembership || !canManageAccounting()) {
+      router.replace("/");
+      return;
+    }
+    if (!currentTeam) return;
+
+    const load = async () => {
+      try {
+        const data = await getInvoices(currentTeam.id);
+        setInvoices(data as InvoiceWithUser[]);
+      } catch {
+        setError("請求データの取得に失敗しました");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [currentTeam, currentMembership, teamLoading, canManageAccounting, router]);
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (error) return <ErrorDisplay message={error} />;
 
   const filteredInvoices =
     filter === "all"
-      ? DEMO_INVOICES
-      : DEMO_INVOICES.filter((inv) => inv.status === filter);
+      ? invoices
+      : invoices.filter((inv) => inv.status === filter);
 
   const filters: { key: StatusFilter; label: string }[] = [
     { key: "all", label: "すべて" },
@@ -129,6 +111,7 @@ export default function InvoicesPage() {
       <div className="space-y-2 p-4">
         {filteredInvoices.map((invoice) => {
           const statusCfg = STATUS_CONFIG[invoice.status] ?? STATUS_CONFIG.pending;
+          const userName = invoice.users?.display_name ?? "";
           return (
             <Card key={invoice.id} className="p-4 transition-colors hover:bg-gray-50">
               <div className="flex items-start justify-between">
@@ -139,12 +122,12 @@ export default function InvoicesPage() {
                     </h3>
                     <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {invoice.target_user_name}
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-400">
-                    期限: {invoice.due_date}
-                  </p>
+                  <p className="mt-1 text-xs text-gray-500">{userName}</p>
+                  {invoice.due_date && (
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      期限: {invoice.due_date}
+                    </p>
+                  )}
                 </div>
                 <p className="text-sm font-bold text-gray-900">
                   ¥{invoice.total_amount.toLocaleString()}

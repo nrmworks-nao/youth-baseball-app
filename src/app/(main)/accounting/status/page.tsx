@@ -1,40 +1,115 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-// デモデータ: 保護者×月のマトリクス
-const DEMO_MEMBERS = [
-  { id: "u1", name: "田中太郎" },
-  { id: "u2", name: "佐藤花子" },
-  { id: "u3", name: "鈴木一郎" },
-  { id: "u4", name: "高橋健太" },
-  { id: "u5", name: "渡辺美咲" },
-];
-
-const MONTHS = ["1月", "2月", "3月"];
-
-// ステータス: paid, pending, overdue, none
-const STATUS_MAP: Record<string, Record<string, string>> = {
-  u1: { "1月": "paid", "2月": "paid", "3月": "paid" },
-  u2: { "1月": "paid", "2月": "paid", "3月": "pending" },
-  u3: { "1月": "paid", "2月": "paid", "3月": "overdue" },
-  u4: { "1月": "paid", "2月": "overdue", "3月": "overdue" },
-  u5: { "1月": "paid", "2月": "paid", "3月": "paid" },
-};
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
+import { getInvoices } from "@/lib/supabase/queries/accounting";
+import { getTeamMembers } from "@/lib/supabase/queries/members";
+import type { Invoice, TeamMember } from "@/types";
 
 const STATUS_CELL: Record<string, { bg: string; text: string; label: string }> = {
   paid: { bg: "bg-green-100", text: "text-green-700", label: "済" },
   pending: { bg: "bg-yellow-100", text: "text-yellow-700", label: "未" },
+  partial: { bg: "bg-orange-100", text: "text-orange-700", label: "部" },
   overdue: { bg: "bg-red-100", text: "text-red-700", label: "滞" },
   none: { bg: "bg-gray-50", text: "text-gray-400", label: "-" },
 };
 
 export default function PaymentStatusPage() {
-  const overdueMembers = DEMO_MEMBERS.filter((m) =>
-    Object.values(STATUS_MAP[m.id] ?? {}).includes("overdue")
+  const router = useRouter();
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { canManageAccounting } = usePermission(currentMembership?.permission_group ?? null);
+
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showOverdueOnly, setShowOverdueOnly] = useState(false);
+
+  useEffect(() => {
+    if (teamLoading) return;
+    if (!currentMembership || !canManageAccounting()) {
+      router.replace("/");
+      return;
+    }
+    if (!currentTeam) return;
+
+    const load = async () => {
+      try {
+        const [memberData, invoiceData] = await Promise.all([
+          getTeamMembers(currentTeam.id),
+          getInvoices(currentTeam.id),
+        ]);
+        // parent ロールのメンバーのみ
+        setMembers(memberData.filter((m) => m.permission_group === "parent"));
+        setInvoices(invoiceData);
+      } catch {
+        setError("データの取得に失敗しました");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [currentTeam, currentMembership, teamLoading, canManageAccounting, router]);
+
+  if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (error) return <ErrorDisplay message={error} />;
+
+  // 直近6ヶ月を生成
+  const now = new Date();
+  const months: { year: number; month: number; label: string }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      label: `${d.getMonth() + 1}月`,
+    });
+  }
+
+  // メンバー×月のステータスマトリクスを構築
+  const statusMap: Record<string, Record<string, string>> = {};
+  for (const member of members) {
+    statusMap[member.user_id] = {};
+    for (const m of months) {
+      // この月に発行された請求を探す
+      const monthInvoices = invoices.filter((inv) => {
+        if (inv.target_user_id !== member.user_id) return false;
+        const issuedDate = new Date(inv.issued_at || inv.created_at);
+        return issuedDate.getFullYear() === m.year && issuedDate.getMonth() + 1 === m.month;
+      });
+      if (monthInvoices.length === 0) {
+        statusMap[member.user_id][m.label] = "none";
+      } else {
+        // 最も「悪い」ステータスを採用
+        const statuses = monthInvoices.map((inv) => inv.status);
+        if (statuses.includes("overdue")) {
+          statusMap[member.user_id][m.label] = "overdue";
+        } else if (statuses.includes("pending")) {
+          statusMap[member.user_id][m.label] = "pending";
+        } else if (statuses.includes("partial")) {
+          statusMap[member.user_id][m.label] = "partial";
+        } else {
+          statusMap[member.user_id][m.label] = "paid";
+        }
+      }
+    }
+  }
+
+  // 未納者フィルタ
+  const displayMembers = showOverdueOnly
+    ? members.filter((m) => Object.values(statusMap[m.user_id] ?? {}).includes("overdue"))
+    : members;
+
+  const overdueMembers = members.filter((m) =>
+    Object.values(statusMap[m.user_id] ?? {}).includes("overdue")
   );
 
   return (
@@ -48,6 +123,14 @@ export default function PaymentStatusPage() {
           </Link>
           <h2 className="text-base font-bold text-gray-900">支払い状況</h2>
         </div>
+        <button
+          onClick={() => setShowOverdueOnly(!showOverdueOnly)}
+          className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+            showOverdueOnly ? "bg-red-600 text-white" : "bg-gray-100 text-gray-600"
+          }`}
+        >
+          未納者のみ
+        </button>
       </div>
 
       <div className="space-y-4 p-4">
@@ -61,10 +144,13 @@ export default function PaymentStatusPage() {
               <div className="space-y-2">
                 {overdueMembers.map((m) => (
                   <div key={m.id} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-900">{m.name}</span>
+                    <span className="text-sm text-gray-900">
+                      {m.users?.display_name ?? "不明"}
+                    </span>
                     <div className="flex items-center gap-2">
                       <Badge variant="danger">未納あり</Badge>
                       <Button size="sm" variant="outline">
+                        {/* TODO: LINE通知によるリマインド送信 */}
                         リマインド送信
                       </Button>
                     </div>
@@ -81,47 +167,53 @@ export default function PaymentStatusPage() {
             <CardTitle>保護者 × 月 支払い状況</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">
-                      保護者
-                    </th>
-                    {MONTHS.map((m) => (
-                      <th
-                        key={m}
-                        className="px-2 py-2 text-center text-xs font-medium text-gray-500"
-                      >
-                        {m}
+            {displayMembers.length === 0 ? (
+              <p className="text-sm text-gray-400">
+                {showOverdueOnly ? "未納者はいません" : "メンバーがいません"}
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">
+                        保護者
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {DEMO_MEMBERS.map((member) => (
-                    <tr key={member.id} className="border-t border-gray-100">
-                      <td className="px-2 py-2 text-sm text-gray-900">
-                        {member.name}
-                      </td>
-                      {MONTHS.map((month) => {
-                        const status = STATUS_MAP[member.id]?.[month] ?? "none";
-                        const cell = STATUS_CELL[status];
-                        return (
-                          <td key={month} className="px-2 py-2 text-center">
-                            <span
-                              className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium ${cell.bg} ${cell.text}`}
-                            >
-                              {cell.label}
-                            </span>
-                          </td>
-                        );
-                      })}
+                      {months.map((m) => (
+                        <th
+                          key={m.label}
+                          className="px-2 py-2 text-center text-xs font-medium text-gray-500"
+                        >
+                          {m.label}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {displayMembers.map((member) => (
+                      <tr key={member.id} className="border-t border-gray-100">
+                        <td className="px-2 py-2 text-sm text-gray-900">
+                          {member.users?.display_name ?? "不明"}
+                        </td>
+                        {months.map((m) => {
+                          const status = statusMap[member.user_id]?.[m.label] ?? "none";
+                          const cell = STATUS_CELL[status] ?? STATUS_CELL.none;
+                          return (
+                            <td key={m.label} className="px-2 py-2 text-center">
+                              <span
+                                className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium ${cell.bg} ${cell.text}`}
+                              >
+                                {cell.label}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             {/* 凡例 */}
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-500">
               <span className="flex items-center gap-1">
