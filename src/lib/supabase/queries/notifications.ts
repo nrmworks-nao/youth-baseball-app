@@ -54,6 +54,7 @@ export async function createNotification(data: {
   notification_type: string;
   reference_type?: string;
   reference_id?: string;
+  link?: string;
 }) {
   const { data: notification, error } = await supabase
     .from("notifications")
@@ -83,9 +84,14 @@ export async function upsertTeamLineConfig(data: {
   line_channel_id?: string;
   line_channel_secret?: string;
   line_channel_access_token?: string;
-  line_group_id?: string;
+  line_group_id?: string | null;
   liff_id?: string;
   is_active?: boolean;
+  notify_post?: boolean;
+  notify_event?: boolean;
+  notify_payment?: boolean;
+  notify_shop?: boolean;
+  batch_mode?: boolean;
 }) {
   const { data: config, error } = await supabase
     .from("team_line_config")

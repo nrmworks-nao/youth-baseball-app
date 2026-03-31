@@ -1,66 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-const DEMO_NOTIFICATIONS = [
-  {
-    id: "n1",
-    title: "新しい投稿",
-    body: "山本監督が「4月の練習スケジュール」を投稿しました",
-    notification_type: "post",
-    is_read: false,
-    created_at: "2026-03-30T10:00:00",
-    link: "/posts",
-  },
-  {
-    id: "n2",
-    title: "出欠未回答",
-    body: "4/5 通常練習の出欠が未回答です",
-    notification_type: "attendance",
-    is_read: false,
-    created_at: "2026-03-29T18:00:00",
-    link: "/calendar",
-  },
-  {
-    id: "n3",
-    title: "会費請求",
-    body: "4月会費 ¥5,000の請求が届いています",
-    notification_type: "payment",
-    is_read: false,
-    created_at: "2026-03-29T09:00:00",
-    link: "/mypage/payments",
-  },
-  {
-    id: "n4",
-    title: "練習試合申込",
-    body: "東ライオンズから練習試合の申し込みが届きました",
-    notification_type: "match_request",
-    is_read: true,
-    created_at: "2026-03-28T14:00:00",
-    link: "/teams/matches",
-  },
-  {
-    id: "n5",
-    title: "アルバム更新",
-    body: "「春季大会 2026」に新しい写真が追加されました",
-    notification_type: "album",
-    is_read: true,
-    created_at: "2026-03-27T16:00:00",
-    link: "/albums",
-  },
-  {
-    id: "n6",
-    title: "おすすめ商品",
-    body: "山本監督がグローブをおすすめしました",
-    notification_type: "shop",
-    is_read: true,
-    created_at: "2026-03-26T11:00:00",
-    link: "/shop",
-  },
-];
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import {
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+} from "@/lib/supabase/queries/notifications";
+import { supabase } from "@/lib/supabase/client";
+import { getErrorMessage } from "@/lib/supabase/error-handler";
+import type { AppNotification } from "@/types";
 
 const TYPE_ICONS: Record<string, { icon: string; bg: string }> = {
   post: { icon: "💬", bg: "bg-blue-100" },
@@ -71,6 +23,17 @@ const TYPE_ICONS: Record<string, { icon: string; bg: string }> = {
   shop: { icon: "🛒", bg: "bg-orange-100" },
   event: { icon: "📅", bg: "bg-cyan-100" },
   general: { icon: "🔔", bg: "bg-gray-100" },
+};
+
+const NOTIFICATION_LINKS: Record<string, string> = {
+  post: "/posts",
+  attendance: "/calendar",
+  payment: "/mypage/payments",
+  match_request: "/teams/matches",
+  album: "/albums",
+  shop: "/shop",
+  event: "/calendar",
+  general: "/home",
 };
 
 function timeAgo(dateStr: string) {
@@ -84,12 +47,63 @@ function timeAgo(dateStr: string) {
 }
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(DEMO_NOTIFICATIONS);
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  const markAllRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, is_read: true })));
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setUserId(user.id);
+      const data = await getNotifications(user.id);
+      setNotifications(data);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleTap = async (notification: AppNotification) => {
+    if (!notification.is_read) {
+      try {
+        await markNotificationAsRead(notification.id);
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n))
+        );
+      } catch {
+        // 既読失敗は無視
+      }
+    }
   };
+
+  const markAllRead = async () => {
+    if (!userId) return;
+    try {
+      await markAllNotificationsAsRead(userId);
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  if (isLoading) {
+    return <Loading text="通知を読み込み中..." />;
+  }
+
+  if (error) {
+    return <ErrorDisplay message={error} onRetry={fetchData} />;
+  }
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
     <div className="flex flex-col">
@@ -109,42 +123,53 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      <div className="divide-y divide-gray-100">
-        {notifications.map((notification) => {
-          const typeConfig = TYPE_ICONS[notification.notification_type] ?? TYPE_ICONS.general;
-          return (
-            <Link key={notification.id} href={notification.link ?? "#"}>
-              <div
-                className={`flex gap-3 px-4 py-3 transition-colors hover:bg-gray-50 ${
-                  !notification.is_read ? "bg-green-50/50" : ""
-                }`}
+      {notifications.length === 0 ? (
+        <p className="py-12 text-center text-sm text-gray-400">通知はありません</p>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {notifications.map((notification) => {
+            const typeConfig = TYPE_ICONS[notification.notification_type] ?? TYPE_ICONS.general;
+            const link = notification.link ?? NOTIFICATION_LINKS[notification.notification_type] ?? "/home";
+            return (
+              <Link
+                key={notification.id}
+                href={link}
+                onClick={() => handleTap(notification)}
               >
                 <div
-                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${typeConfig.bg}`}
+                  className={`flex gap-3 px-4 py-3 transition-colors hover:bg-gray-50 ${
+                    !notification.is_read ? "bg-green-50/50" : ""
+                  }`}
                 >
-                  <span className="text-lg">{typeConfig.icon}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-gray-900">
-                      {notification.title}
-                    </p>
-                    {!notification.is_read && (
-                      <span className="h-2 w-2 rounded-full bg-green-500" />
-                    )}
+                  <div
+                    className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${typeConfig.bg}`}
+                  >
+                    <span className="text-lg">{typeConfig.icon}</span>
                   </div>
-                  <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">
-                    {notification.body}
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-gray-400">
-                    {timeAgo(notification.created_at)}
-                  </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900">
+                        {notification.title}
+                      </p>
+                      {!notification.is_read && (
+                        <span className="h-2 w-2 rounded-full bg-green-500" />
+                      )}
+                    </div>
+                    {notification.body && (
+                      <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">
+                        {notification.body}
+                      </p>
+                    )}
+                    <p className="mt-0.5 text-[10px] text-gray-400">
+                      {timeAgo(notification.created_at)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

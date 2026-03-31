@@ -1,55 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const DEMO_CATEGORIES = [
-  { id: "all", name: "すべて", slug: "all" },
-  { id: "c1", name: "バット", slug: "bat" },
-  { id: "c2", name: "グローブ", slug: "glove" },
-  { id: "c3", name: "スパイク", slug: "spike" },
-  { id: "c4", name: "ウェア", slug: "wear" },
-  { id: "c5", name: "その他", slug: "other" },
-];
-
-const DEMO_PINNED = [
-  {
-    id: "p1",
-    product_id: "prod1",
-    product_name: "ミズノ 少年軟式グローブ セレクトナイン",
-    brand: "ミズノ",
-    price_min: 8800,
-    price_max: 12000,
-    comment: "初心者に最適！軽くて柔らかく、すぐに馴染みます。うちの子もこれでデビューしました。",
-    pinner_name: "山本監督",
-    category: "グローブ",
-    image_url: null,
-    rating: 5,
-  },
-  {
-    id: "p2",
-    product_id: "prod3",
-    product_name: "アシックス スターシャイン S",
-    brand: "アシックス",
-    price_min: 4500,
-    price_max: 6000,
-    comment: "コスパ良し。成長期なのですぐサイズアウトするから、これくらいがちょうどいいです。",
-    pinner_name: "田中コーチ",
-    category: "スパイク",
-    image_url: null,
-    rating: 4,
-  },
-];
-
-const DEMO_PRODUCTS = [
-  { id: "prod1", name: "ミズノ 少年軟式グローブ セレクトナイン", brand: "ミズノ", price_min: 8800, price_max: 12000, category: "グローブ", rating: 5, image_url: null },
-  { id: "prod2", name: "ゼット ブラックキャノン MAX", brand: "ゼット", price_min: 15000, price_max: 22000, category: "バット", rating: 4, image_url: null },
-  { id: "prod3", name: "アシックス スターシャイン S", brand: "アシックス", price_min: 4500, price_max: 6000, category: "スパイク", rating: 4, image_url: null },
-  { id: "prod4", name: "SSK テクニカルパッドTシャツ", brand: "SSK", price_min: 2200, price_max: 3500, category: "ウェア", rating: 3, image_url: null },
-  { id: "prod5", name: "ローリングス 軟式ボール M号", brand: "ローリングス", price_min: 600, price_max: 800, category: "その他", rating: 0, image_url: null },
-];
+import { Loading } from "@/components/ui/loading";
+import { ErrorDisplay } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { getShopCategories, getShopProducts, getTeamPinnedProducts } from "@/lib/supabase/queries/shop";
+import { getErrorMessage } from "@/lib/supabase/error-handler";
+import type { ShopCategory, ShopProduct, TeamPinnedProduct } from "@/types";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -69,12 +29,59 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function ShopPage() {
+  const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
   const [activeCategory, setActiveCategory] = useState("all");
+  const [categories, setCategories] = useState<ShopCategory[]>([]);
+  const [products, setProducts] = useState<ShopProduct[]>([]);
+  const [pinnedProducts, setPinnedProducts] = useState<TeamPinnedProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredProducts =
-    activeCategory === "all"
-      ? DEMO_PRODUCTS
-      : DEMO_PRODUCTS.filter((p) => p.category === DEMO_CATEGORIES.find((c) => c.id === activeCategory)?.name);
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [cats, prods] = await Promise.all([
+        getShopCategories(),
+        getShopProducts(),
+      ]);
+      setCategories(cats);
+      setProducts(prods);
+
+      if (currentTeam) {
+        const pinned = await getTeamPinnedProducts(currentTeam.id);
+        setPinnedProducts(pinned);
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentTeam]);
+
+  useEffect(() => {
+    if (!teamLoading) {
+      fetchData();
+    }
+  }, [teamLoading, fetchData]);
+
+  const handleCategoryChange = useCallback(async (categoryId: string) => {
+    setActiveCategory(categoryId);
+    try {
+      const prods = await getShopProducts(categoryId === "all" ? undefined : categoryId);
+      setProducts(prods);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }, []);
+
+  if (teamLoading || isLoading) {
+    return <Loading text="商品を読み込み中..." />;
+  }
+
+  if (error) {
+    return <ErrorDisplay message={error} onRetry={fetchData} />;
+  }
 
   return (
     <div className="flex flex-col">
@@ -83,7 +90,7 @@ export default function ShopPage() {
       </div>
 
       {/* チームのおすすめ */}
-      {DEMO_PINNED.length > 0 && (
+      {pinnedProducts.length > 0 && (
         <div className="bg-gradient-to-b from-green-50 to-white px-4 py-4">
           <h3 className="mb-3 flex items-center gap-1 text-sm font-bold text-gray-900">
             <svg className="h-4 w-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -92,44 +99,64 @@ export default function ShopPage() {
             チームのおすすめ
           </h3>
           <div className="space-y-3">
-            {DEMO_PINNED.map((pin) => (
-              <Link key={pin.id} href={`/shop/${pin.product_id}`}>
-                <Card className="p-3 transition-colors hover:bg-gray-50">
-                  <div className="flex gap-3">
-                    <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100">
-                      <svg className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900">{pin.product_name}</p>
-                      <div className="mt-0.5 flex items-center gap-2">
-                        <StarRating rating={pin.rating} />
-                        <span className="text-xs text-gray-500">
-                          ¥{pin.price_min?.toLocaleString()}〜
-                        </span>
+            {pinnedProducts.map((pin) => {
+              const product = pin.product as ShopProduct | undefined;
+              const pinnerName = (pin as unknown as { users?: { display_name: string } }).users?.display_name ?? "メンバー";
+              const imageUrl = product?.images?.[0]?.image_url;
+              return (
+                <Link key={pin.id} href={`/shop/${pin.product_id}`}>
+                  <Card className="p-3 transition-colors hover:bg-gray-50">
+                    <div className="flex gap-3">
+                      <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 overflow-hidden">
+                        {imageUrl ? (
+                          <img src={imageUrl} alt={product?.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <svg className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+                          </svg>
+                        )}
                       </div>
-                      <div className="mt-1 rounded bg-green-50 p-2">
-                        <p className="text-xs text-gray-700">
-                          &ldquo;{pin.comment}&rdquo;
-                        </p>
-                        <p className="mt-0.5 text-[10px] text-gray-400">— {pin.pinner_name}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-medium text-gray-900">{product?.name}</p>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span className="text-xs text-gray-500">
+                            ¥{product?.price_min?.toLocaleString()}〜
+                          </span>
+                        </div>
+                        {pin.comment && (
+                          <div className="mt-1 rounded bg-green-50 p-2">
+                            <p className="text-xs text-gray-700">
+                              &ldquo;{pin.comment}&rdquo;
+                            </p>
+                            <p className="mt-0.5 text-[10px] text-gray-400">— {pinnerName}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* カテゴリタブ */}
       <div className="flex gap-2 overflow-x-auto border-b border-gray-200 bg-white px-4 py-2">
-        {DEMO_CATEGORIES.map((cat) => (
+        <button
+          onClick={() => handleCategoryChange("all")}
+          className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+            activeCategory === "all"
+              ? "bg-green-600 text-white"
+              : "bg-gray-100 text-gray-600"
+          }`}
+        >
+          すべて
+        </button>
+        {categories.map((cat) => (
           <button
             key={cat.id}
-            onClick={() => setActiveCategory(cat.id)}
+            onClick={() => handleCategoryChange(cat.id)}
             className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
               activeCategory === cat.id
                 ? "bg-green-600 text-white"
@@ -143,27 +170,37 @@ export default function ShopPage() {
 
       {/* 商品一覧 */}
       <div className="grid grid-cols-2 gap-3 p-4">
-        {filteredProducts.map((product) => (
-          <Link key={product.id} href={`/shop/${product.id}`}>
-            <Card className="overflow-hidden transition-colors hover:bg-gray-50">
-              <div className="flex h-28 items-center justify-center bg-gray-100">
-                <svg className="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
-                </svg>
-              </div>
-              <div className="p-2">
-                <p className="truncate text-sm font-medium text-gray-900">{product.name}</p>
-                <p className="text-xs text-gray-500">{product.brand}</p>
-                <div className="mt-1 flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-900">
-                    ¥{product.price_min?.toLocaleString()}〜
-                  </span>
-                  {product.rating > 0 && <StarRating rating={product.rating} />}
-                </div>
-              </div>
-            </Card>
-          </Link>
-        ))}
+        {products.length === 0 ? (
+          <p className="col-span-2 py-8 text-center text-sm text-gray-400">商品がありません</p>
+        ) : (
+          products.map((product) => {
+            const imageUrl = product.images?.[0]?.image_url;
+            return (
+              <Link key={product.id} href={`/shop/${product.id}`}>
+                <Card className="overflow-hidden transition-colors hover:bg-gray-50">
+                  <div className="flex h-28 items-center justify-center bg-gray-100 overflow-hidden">
+                    {imageUrl ? (
+                      <img src={imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <svg className="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="p-2">
+                    <p className="truncate text-sm font-medium text-gray-900">{product.name}</p>
+                    <p className="text-xs text-gray-500">{product.brand}</p>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-900">
+                        ¥{product.price_min?.toLocaleString()}〜
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            );
+          })
+        )}
       </div>
     </div>
   );
