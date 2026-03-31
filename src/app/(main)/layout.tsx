@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils/cn";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { getUnreadCount } from "@/lib/supabase/queries/posts";
+import { supabase } from "@/lib/supabase/client";
 
 const TAB_ITEMS = [
   {
@@ -181,12 +183,40 @@ function TeamSwitcher() {
   );
 }
 
+function useUnreadPostCount() {
+  const { currentTeam } = useCurrentTeam();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!currentTeam) return;
+    let cancelled = false;
+
+    async function fetch() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || cancelled) return;
+        const c = await getUnreadCount(currentTeam!.id, user.id);
+        if (!cancelled) setCount(c);
+      } catch {
+        // ignore
+      }
+    }
+    fetch();
+    // ポーリング: 60秒ごとに再取得
+    const interval = setInterval(fetch, 60000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [currentTeam]);
+
+  return count;
+}
+
 export default function MainLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const unreadPostCount = useUnreadPostCount();
 
   return (
     <ThemeProvider>
@@ -207,18 +237,24 @@ export default function MainLayout({
                 const isActive =
                   pathname === item.href ||
                   pathname.startsWith(item.href + "/");
+                const showBadge = item.href === "/posts" && unreadPostCount > 0;
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
                       className={cn(
-                        "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        "flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                         isActive
                           ? "bg-primary/10 text-primary"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
                       {item.label}
+                      {showBadge && (
+                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                          {unreadPostCount > 99 ? "99+" : unreadPostCount}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );
@@ -280,13 +316,19 @@ export default function MainLayout({
                 const isActive =
                   pathname === item.href ||
                   pathname.startsWith(item.href + "/");
+                const showBadge = item.href === "/posts" && unreadPostCount > 0;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex min-h-[44px] min-w-[44px] flex-col items-center justify-center gap-0.5"
+                    className="relative flex min-h-[44px] min-w-[44px] flex-col items-center justify-center gap-0.5"
                   >
                     {item.icon(isActive)}
+                    {showBadge && (
+                      <span className="absolute right-1 top-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                        {unreadPostCount > 99 ? "99+" : unreadPostCount}
+                      </span>
+                    )}
                     <span
                       className={cn(
                         "text-[10px] font-medium",
