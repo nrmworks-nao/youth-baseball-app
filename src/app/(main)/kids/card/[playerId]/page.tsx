@@ -17,6 +17,7 @@ const DEMO_PLAYER: Player = {
   number: 8,
   position: "中堅手",
   grade: 6,
+  is_active: true,
   created_at: "2024-04-01",
 };
 

@@ -22,6 +22,7 @@ export async function addTeamMember(data: {
   user_id: string;
   permission_group: PermissionGroup;
   display_title: string;
+  is_active?: boolean;
 }) {
   const { data: member, error } = await supabase
     .from("team_members")
@@ -37,7 +38,8 @@ export async function getMyTeams(userId: string) {
   const { data, error } = await supabase
     .from("team_members")
     .select("*, teams(*)")
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .eq("is_active", true);
   if (error) throw error;
   return data;
 }
@@ -54,14 +56,72 @@ export async function getMyTeamMember(teamId: string, userId: string) {
   return data as TeamMember;
 }
 
-/** 招待コードでチーム情報取得 */
+/** 招待コードでチーム情報取得（有効期限チェック付き） */
 export async function getTeamByInviteCode(code: string) {
   const { data, error } = await supabase
-    .from("invitations")
-    .select("*, teams(*)")
-    .eq("code", code)
-    .gte("expires_at", new Date().toISOString())
+    .from("teams")
+    .select("*")
+    .eq("invite_code", code)
     .single();
   if (error) throw error;
-  return data;
+  if (!data) return null;
+  // 有効期限チェック
+  if (data.invite_expires_at && new Date(data.invite_expires_at) < new Date()) {
+    return null;
+  }
+  return data as Team;
+}
+
+/** 招待コード生成・更新 */
+export async function generateInviteCode(teamId: string): Promise<string> {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let code = "";
+  for (let i = 0; i < 10; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  const { error } = await supabase
+    .from("teams")
+    .update({
+      invite_code: code,
+      invite_expires_at: expiresAt.toISOString(),
+    })
+    .eq("id", teamId);
+  if (error) throw error;
+  return code;
+}
+
+/** 参加承認設定の更新 */
+export async function updateRequireApproval(
+  teamId: string,
+  value: boolean
+): Promise<void> {
+  const { error } = await supabase
+    .from("teams")
+    .update({ require_approval: value })
+    .eq("id", teamId);
+  if (error) throw error;
+}
+
+/** チーム情報取得 */
+export async function getTeam(teamId: string) {
+  const { data, error } = await supabase
+    .from("teams")
+    .select("*")
+    .eq("id", teamId)
+    .single();
+  if (error) throw error;
+  return data as Team;
+}
+
+/** チーム情報更新 */
+export async function updateTeam(
+  teamId: string,
+  data: { name?: string; region?: string; league?: string }
+) {
+  const { error } = await supabase.from("teams").update(data).eq("id", teamId);
+  if (error) throw error;
 }

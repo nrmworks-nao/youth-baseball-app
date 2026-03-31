@@ -14,6 +14,7 @@ export interface User {
   line_id: string;
   display_name: string;
   picture_url?: string;
+  phone?: string;
   created_at: string;
 }
 
@@ -23,6 +24,9 @@ export interface Team {
   name: string;
   region?: string;
   league?: string;
+  invite_code?: string;
+  invite_expires_at?: string;
+  require_approval: boolean;
   created_at: string;
 }
 
@@ -33,7 +37,10 @@ export interface TeamMember {
   user_id: string;
   permission_group: PermissionGroup;
   display_title: string;
+  is_active: boolean;
   created_at: string;
+  // 結合データ
+  users?: User;
 }
 
 // 選手
@@ -44,14 +51,23 @@ export interface Player {
   number?: number;
   position?: string;
   grade?: number;
+  throwing_hand?: string;
+  batting_hand?: string;
+  is_active: boolean;
   created_at: string;
 }
 
 // 保護者-選手紐づけ
 export interface ParentPlayerRelation {
   id: string;
-  parent_user_id: string;
+  user_id: string;
   player_id: string;
+  team_id: string;
+  relationship?: string;
+  created_at: string;
+  // 結合データ
+  users?: User;
+  players?: Player;
 }
 
 // 招待
