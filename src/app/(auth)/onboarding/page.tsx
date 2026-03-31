@@ -27,10 +27,12 @@ export default function OnboardingPage() {
   const [displayTitle, setDisplayTitle] = useState("監督");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setUserId(user.id);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        console.log("onboarding - session user.id:", session.user.id);
+        setUserId(session.user.id);
       } else {
+        console.log("onboarding - セッションなし、/loginへリダイレクト");
         window.location.href = "/login";
       }
     });
@@ -46,6 +48,7 @@ export default function OnboardingPage() {
     setIsSubmitting(true);
     setErrorMessage(null);
     try {
+      console.log("onboarding - チーム作成リクエスト userId:", userId);
       const res = await fetch("/api/teams/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,11 +62,16 @@ export default function OnboardingPage() {
       });
 
       const data = await res.json();
+      console.log("onboarding - チーム作成レスポンス:", data);
 
       if (!res.ok) {
         setErrorMessage(data.error || "チームの作成に失敗しました");
         return;
       }
+
+      // チーム作成成功後、セッションのuser.idでteam_membersが参照できることを確認
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("onboarding - 遷移前のsession user.id:", session?.user?.id);
 
       window.location.href = "/home";
     } catch (error) {

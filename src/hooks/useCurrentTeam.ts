@@ -24,11 +24,18 @@ export function useCurrentTeam() {
 
   const fetchTeams = useCallback(async (retryCount = 0) => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      console.log("useCurrentTeam - user:", user?.id ?? "null");
-      if (!user) {
+      // セッション復元を待つ: getSession() で現在のセッションを確認
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionUser = sessionData.session?.user;
+      console.log("useCurrentTeam - session user:", sessionUser?.id ?? "null", "retryCount:", retryCount);
+
+      if (!sessionUser) {
+        // セッション未確立の場合、リトライ（ページリロード直後のタイミング対策）
+        if (retryCount < 3) {
+          console.log(`useCurrentTeam - セッション未確立、${retryCount + 1}回目のリトライ (1秒後)`);
+          setTimeout(() => fetchTeams(retryCount + 1), 1000);
+          return; // isLoading は true のまま維持
+        }
         setIsLoading(false);
         return;
       }
@@ -36,10 +43,10 @@ export function useCurrentTeam() {
       const { data, error } = await supabase
         .from("team_members")
         .select("id, permission_group, display_title, teams(*)")
-        .eq("user_id", user.id)
+        .eq("user_id", sessionUser.id)
         .eq("is_active", true);
 
-      console.log("useCurrentTeam - query result:", { data, error, retryCount });
+      console.log("useCurrentTeam - query result:", { dataCount: data?.length, error });
 
       if (error) throw error;
 
@@ -53,10 +60,10 @@ export function useCurrentTeam() {
       );
 
       // チーム作成直後のタイミング問題対策: 結果が空で再試行回数が残っている場合リトライ
-      if (teamList.length === 0 && retryCount < 2) {
+      if (teamList.length === 0 && retryCount < 3) {
         console.log(`useCurrentTeam - チーム未検出、${retryCount + 1}回目のリトライ (1秒後)`);
         setTimeout(() => fetchTeams(retryCount + 1), 1000);
-        return;
+        return; // isLoading は true のまま維持
       }
 
       setTeams(teamList);
@@ -72,9 +79,9 @@ export function useCurrentTeam() {
         setCurrentMembership(teamList[0]);
         setStoredTeamId(teamList[0].team.id);
       }
+      setIsLoading(false);
     } catch (err) {
       console.error("チーム一覧取得エラー:", err);
-    } finally {
       setIsLoading(false);
     }
   }, []);
