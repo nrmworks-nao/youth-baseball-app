@@ -74,7 +74,7 @@ export async function upsertPlayerAttendance(data: {
     .eq("event_id", data.event_id)
     .eq("player_id", data.player_id)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (existing) {
     const { data: attendance, error } = await supabase
@@ -121,7 +121,7 @@ export async function upsertUserAttendance(data: {
     .eq("user_id", data.user_id)
     .is("player_id", null)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (existing) {
     const { data: attendance, error } = await supabase
