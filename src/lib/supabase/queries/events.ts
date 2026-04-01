@@ -45,7 +45,6 @@ export async function createEvent(data: {
   location?: string;
   start_at: string;
   end_at: string;
-  is_recurring?: boolean;
   created_by: string;
 }) {
   const { data: event, error } = await supabase
