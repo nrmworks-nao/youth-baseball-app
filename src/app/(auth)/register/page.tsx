@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Loading } from "@/components/ui/loading";
 import { supabase } from "@/lib/supabase/client";
 
-export default function RegisterPage() {
+function RegisterForm() {
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -90,8 +94,8 @@ export default function RegisterPage() {
         return;
       }
 
-      // onboardingに遷移
-      window.location.href = "/onboarding";
+      // redirectパラメータがある場合はそちらに遷移、なければonboarding
+      window.location.href = redirectTo || "/onboarding";
     } catch {
       setError("登録に失敗しました。再度お試しください。");
     } finally {
@@ -179,5 +183,13 @@ export default function RegisterPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<Loading className="min-h-screen" />}>
+      <RegisterForm />
+    </Suspense>
   );
 }
