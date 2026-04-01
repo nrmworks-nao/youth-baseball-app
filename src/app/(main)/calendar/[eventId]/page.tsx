@@ -295,8 +295,8 @@ export default function EventDetailPage() {
                 <div key={player.id} className="space-y-2">
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {player.name}
-                    {player.number != null && (
-                      <span className="ml-1 text-xs text-gray-400">#{player.number}</span>
+                    {player.uniform_number != null && (
+                      <span className="ml-1 text-xs text-gray-400">#{player.uniform_number}</span>
                     )}
                   </p>
                   <div className="flex gap-2">
