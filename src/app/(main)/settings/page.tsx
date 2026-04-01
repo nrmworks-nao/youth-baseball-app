@@ -17,7 +17,11 @@ import {
 import { usePermission } from "@/hooks/usePermission";
 import type { Team, TeamMember } from "@/types";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "";
+function getAppUrl() {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
+  if (typeof window !== "undefined") return window.location.origin;
+  return "";
+}
 
 async function uploadTeamImage(
   teamId: string,
@@ -164,7 +168,7 @@ export default function SettingsPage() {
 
   const handleCopyLink = async () => {
     if (!team?.invite_code) return;
-    const url = `${APP_URL}/invite/${team.invite_code}`;
+    const url = `${getAppUrl()}/invite/${team.invite_code}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -207,7 +211,7 @@ export default function SettingsPage() {
   const isExpired =
     team?.invite_expires_at && new Date(team.invite_expires_at) < new Date();
   const inviteUrl = team?.invite_code
-    ? `${APP_URL}/invite/${team.invite_code}`
+    ? `${getAppUrl()}/invite/${team.invite_code}`
     : null;
 
   const teamInitial = team?.name?.charAt(0) || "T";
