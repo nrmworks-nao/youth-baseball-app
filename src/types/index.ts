@@ -2,7 +2,11 @@
 export type PermissionGroup =
   | "system_admin"
   | "team_admin"
+  | "director"
+  | "president"
   | "vice_president"
+  | "captain"
+  | "coach"
   | "treasurer"
   | "manager"
   | "publicity"
@@ -32,7 +36,6 @@ export interface NotificationSettings {
 export interface TeamWithRole {
   team: Team;
   permission_group: PermissionGroup;
-  display_title: string;
   member_id: string;
 }
 
@@ -65,7 +68,6 @@ export interface TeamMember {
   team_id: string;
   user_id: string;
   permission_group: PermissionGroup;
-  display_title: string;
   is_active: boolean;
   created_at: string;
   // 結合データ

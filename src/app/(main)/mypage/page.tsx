@@ -18,6 +18,7 @@ import {
   getMyAllChildren,
   getMyTeamsWithRole,
 } from "@/lib/supabase/queries/users";
+import { getRoleLabel } from "@/lib/utils/roles";
 import { initializeLiff, isLiffInitialized } from "@/lib/line/liff";
 import liff from "@line/liff";
 import type {
@@ -790,7 +791,7 @@ export default function MyPage() {
                           {isCurrent && <Badge variant="primary">現在</Badge>}
                         </div>
                         <p className="text-xs text-gray-500">
-                          {t.display_title}（{t.permission_group}）
+                          {getRoleLabel(t.permission_group)}
                         </p>
                       </div>
                       {!isCurrent && (

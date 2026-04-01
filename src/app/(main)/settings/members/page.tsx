@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay } from "@/components/ui/error-display";
@@ -21,36 +20,19 @@ import {
   getMemberChildren,
 } from "@/lib/supabase/queries/members";
 import type { TeamMember } from "@/types";
-
-const PERMISSION_LABELS: Record<string, string> = {
-  system_admin: "システム管理者",
-  team_admin: "チーム管理者",
-  vice_president: "副代表",
-  treasurer: "会計担当",
-  manager: "マネージャー",
-  publicity: "広報担当",
-  parent: "保護者",
-};
+import { getRoleLabel } from "@/lib/utils/roles";
 
 const EDITABLE_PERMISSIONS = [
   "team_admin",
+  "director",
+  "president",
   "vice_president",
+  "captain",
+  "coach",
   "treasurer",
   "manager",
   "publicity",
   "parent",
-];
-
-const TITLE_SUGGESTIONS = [
-  "監督",
-  "コーチ",
-  "部長",
-  "会長",
-  "副会長",
-  "会計",
-  "マネージャー",
-  "広報",
-  "保護者",
 ];
 
 export default function MembersPage() {
@@ -284,12 +266,9 @@ export default function MembersPage() {
                             {member.users?.display_name || "不明"}
                           </p>
                           <Badge variant="primary">
-                            {PERMISSION_LABELS[member.permission_group]}
+                            {getRoleLabel(member.permission_group)}
                           </Badge>
                         </div>
-                        <p className="text-xs text-gray-500">
-                          表示: {member.display_title}
-                        </p>
                       </div>
                       <div className="flex gap-1">
                         <Button
@@ -354,9 +333,7 @@ function MemberEditForm({
   const [permissionGroup, setPermissionGroup] = useState(
     member.permission_group
   );
-  const [displayTitle, setDisplayTitle] = useState(member.display_title);
   const [isSaving, setIsSaving] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const handleSave = async () => {
     // team_admin最低1人チェック
@@ -373,7 +350,7 @@ function MemberEditForm({
 
     setIsSaving(true);
     try {
-      await updateMemberRole(member.id, permissionGroup, displayTitle);
+      await updateMemberRole(member.id, permissionGroup);
       onSave();
     } catch {
       onError("保存に失敗しました");
@@ -393,36 +370,10 @@ function MemberEditForm({
       >
         {EDITABLE_PERMISSIONS.map((key) => (
           <option key={key} value={key}>
-            {PERMISSION_LABELS[key]}
+            {getRoleLabel(key)}
           </option>
         ))}
       </Select>
-      <div className="relative">
-        <Input
-          label="表示呼称"
-          value={displayTitle}
-          onChange={(e) => setDisplayTitle(e.target.value)}
-          placeholder="例: 監督、コーチ"
-          onFocus={() => setShowSuggestions(true)}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-        />
-        {showSuggestions && (
-          <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border border-gray-200 bg-white shadow-sm">
-            {TITLE_SUGGESTIONS.map((s) => (
-              <button
-                key={s}
-                className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                onMouseDown={() => {
-                  setDisplayTitle(s);
-                  setShowSuggestions(false);
-                }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
       <div className="flex gap-2">
         <Button
           size="sm"

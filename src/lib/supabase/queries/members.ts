@@ -81,17 +81,15 @@ export async function getTeamMembers(teamId: string) {
   return data as TeamMember[];
 }
 
-/** メンバー権限・表示呼称更新 */
+/** メンバー権限更新 */
 export async function updateMemberRole(
   memberId: string,
-  permissionGroup: string,
-  displayTitle: string
+  permissionGroup: string
 ): Promise<void> {
   const { error } = await supabase
     .from("team_members")
     .update({
       permission_group: permissionGroup,
-      display_title: displayTitle,
     })
     .eq("id", memberId);
   if (error) throw error;

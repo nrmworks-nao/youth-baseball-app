@@ -9,17 +9,17 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, region, league, userId, permissionGroup, displayTitle } = body as {
+    const { name, region, league, userId, permissionGroup } = body as {
       name: string;
       region?: string;
       league?: string;
       userId: string;
       permissionGroup?: string;
-      displayTitle: string;
     };
 
     const validPermissionGroups = [
-      "team_admin", "vice_president", "treasurer", "manager", "publicity", "parent",
+      "team_admin", "director", "president", "vice_president", "captain",
+      "coach", "treasurer", "manager", "publicity", "parent",
     ];
     const resolvedPermissionGroup = permissionGroup && validPermissionGroups.includes(permissionGroup)
       ? permissionGroup
@@ -37,13 +37,6 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "ログインが必要です" },
         { status: 401 }
-      );
-    }
-
-    if (!displayTitle) {
-      return NextResponse.json(
-        { error: "表示呼称を選択してください" },
-        { status: 400 }
       );
     }
 
@@ -85,12 +78,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // 作成者をteam_adminとしてメンバー追加
+    // 作成者をメンバーとして追加
     const memberPayload = {
       team_id: team.id,
       user_id: userId,
       permission_group: resolvedPermissionGroup,
-      display_title: displayTitle,
       is_active: true,
     };
     console.log("team_members INSERT:", memberPayload);

@@ -42,7 +42,7 @@ export function useCurrentTeam() {
 
       const { data, error } = await supabase
         .from("team_members")
-        .select("id, permission_group, display_title, teams(*)")
+        .select("id, permission_group, teams(*)")
         .eq("user_id", sessionUser.id)
         .eq("is_active", true);
 
@@ -54,7 +54,6 @@ export function useCurrentTeam() {
         (row: Record<string, unknown>) => ({
           team: row.teams as Team,
           permission_group: row.permission_group as PermissionGroup,
-          display_title: row.display_title as string,
           member_id: row.id as string,
         })
       );

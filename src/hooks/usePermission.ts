@@ -7,7 +7,11 @@ import type { PermissionGroup } from "@/types";
 const PERMISSION_HIERARCHY: PermissionGroup[] = [
   "system_admin",
   "team_admin",
+  "director",
+  "president",
   "vice_president",
+  "captain",
+  "coach",
   "treasurer",
   "manager",
   "publicity",
