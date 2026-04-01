@@ -112,11 +112,11 @@ export async function createPlayerFitnessRecord(data: {
 export async function getTeamAllPlayerStats(teamId: string) {
   const { data, error } = await supabase
     .from("player_game_stats")
-    .select("*, players!player_id(id, name, number)")
+    .select("*, players!player_id(id, name, number, card_photo_url)")
     .eq("team_id", teamId);
   if (error) throw error;
   return data as (PlayerGameStats & {
-    players: { id: string; name: string; number: number };
+    players: { id: string; name: string; number: number; card_photo_url?: string };
   })[];
 }
 
@@ -124,12 +124,12 @@ export async function getTeamAllPlayerStats(teamId: string) {
 export async function getTeamFitnessRecords(teamId: string) {
   const { data, error } = await supabase
     .from("player_fitness_records")
-    .select("*, players!player_id(id, name, number)")
+    .select("*, players!player_id(id, name, number, card_photo_url)")
     .eq("team_id", teamId)
     .order("measured_at", { ascending: false });
   if (error) throw error;
   return data as (PlayerFitnessRecord & {
-    players: { id: string; name: string; number: number };
+    players: { id: string; name: string; number: number; card_photo_url?: string };
   })[];
 }
 
@@ -158,7 +158,7 @@ export async function updatePlayer(
   data: Partial<
     Pick<
       Player,
-      "name" | "number" | "grade" | "position" | "throwing_hand" | "batting_hand"
+      "name" | "number" | "grade" | "position" | "throwing_hand" | "batting_hand" | "card_photo_url"
     >
   >
 ) {

@@ -5,8 +5,10 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
+import { PlayerAvatar } from "@/components/features/PlayerAvatar";
 import { getMonthlyReviews } from "@/lib/supabase/queries/kids";
-import type { MonthlyReview } from "@/types";
+import { getPlayer } from "@/lib/supabase/queries/players";
+import type { MonthlyReview, Player } from "@/types";
 
 function ChangeIndicator({ value, unit = "" }: { value?: number; unit?: string; invert?: boolean }) {
   if (value === undefined || value === null) return null;
@@ -27,6 +29,7 @@ function ChangeIndicator({ value, unit = "" }: { value?: number; unit?: string; 
 export default function ReviewPage() {
   const params = useParams();
   const playerId = params.playerId as string;
+  const [player, setPlayer] = useState<Player | null>(null);
   const [reviews, setReviews] = useState<MonthlyReview[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -36,8 +39,12 @@ export default function ReviewPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getMonthlyReviews(playerId);
+      const [data, playerData] = await Promise.all([
+        getMonthlyReviews(playerId),
+        getPlayer(playerId),
+      ]);
       setReviews(data);
+      setPlayer(playerData);
     } catch {
       setError("ふりかえりデータの取得に失敗しました");
     } finally {
@@ -72,7 +79,13 @@ export default function ReviewPage() {
     <div className="flex flex-col">
       {/* ヘッダー */}
       <div className="border-b border-gray-200 bg-white px-4 py-3">
-        <h2 className="text-base font-bold text-gray-900">今月のふりかえり</h2>
+        <div className="flex items-center gap-3">
+          {player && <PlayerAvatar player={player} size="lg" showNumber />}
+          <div>
+            <h2 className="text-base font-bold text-gray-900">今月のふりかえり</h2>
+            {player && <p className="text-xs text-gray-500">{player.name}</p>}
+          </div>
+        </div>
       </div>
 
       {/* 月選択 */}

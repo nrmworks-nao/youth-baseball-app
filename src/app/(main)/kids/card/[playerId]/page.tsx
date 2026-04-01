@@ -3,11 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { PlayerCard } from "@/components/features/kids/PlayerCard";
+import { PlayerPhotoUpload } from "@/components/features/PlayerPhotoUpload";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
+import { supabase } from "@/lib/supabase/client";
 import { getPlayerBadges } from "@/lib/supabase/queries/kids";
-import { getPlayer } from "@/lib/supabase/queries/players";
+import { getPlayer, getMyChildren } from "@/lib/supabase/queries/players";
+import { uploadPlayerPhoto } from "@/lib/supabase/storage";
 import type { Player, PlayerBadge } from "@/types";
 
 export default function PlayerCardPage() {
@@ -17,6 +20,7 @@ export default function PlayerCardPage() {
   const [badges, setBadges] = useState<PlayerBadge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -28,6 +32,29 @@ export default function PlayerCardPage() {
       ]);
       setPlayer(playerData);
       setBadges(badgesData);
+
+      // 編集権限チェック
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: myMember } = await supabase
+          .from("team_members")
+          .select("permission_group")
+          .eq("user_id", user.id)
+          .eq("team_id", playerData.team_id)
+          .eq("is_active", true)
+          .single();
+
+        const isAdmin =
+          myMember?.permission_group === "team_admin" ||
+          myMember?.permission_group === "vice_president" ||
+          myMember?.permission_group === "system_admin";
+
+        const myChildren = await getMyChildren(user.id, playerData.team_id);
+        const isMyChild = myChildren.some(
+          (c) => c.players?.id === playerId || c.player_id === playerId
+        );
+        setCanEdit(isAdmin || isMyChild);
+      }
     } catch {
       setError("選手カードの取得に失敗しました");
     } finally {
@@ -61,6 +88,20 @@ export default function PlayerCardPage() {
           cardRank={player.card_rank ?? "bronze"}
           badges={badges}
         />
+
+        {/* 写真変更 */}
+        {canEdit && (
+          <div className="flex justify-center">
+            <PlayerPhotoUpload
+              player={player}
+              size="xl"
+              onUpload={async (file) => {
+                await uploadPlayerPhoto(file, player.team_id, player.id);
+                loadData();
+              }}
+            />
+          </div>
+        )}
 
         {/* プロフィール情報 */}
         {(player.favorite_pro_player || player.favorite_play || player.dream) && (

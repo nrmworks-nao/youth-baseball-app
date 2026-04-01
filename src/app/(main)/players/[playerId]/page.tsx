@@ -17,6 +17,9 @@ import {
   getPlayerParents,
 } from "@/lib/supabase/queries/players";
 import { getMyChildren } from "@/lib/supabase/queries/players";
+import { uploadPlayerPhoto } from "@/lib/supabase/storage";
+import { PlayerPhotoUpload } from "@/components/features/PlayerPhotoUpload";
+import { PlayerAvatar } from "@/components/features/PlayerAvatar";
 import type { Player, ParentPlayerRelation } from "@/types";
 
 type ViewPeriod = "all" | "month" | "tournament";
@@ -426,11 +429,18 @@ export default function PlayerDashboardPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-                  <span className="text-xl font-bold text-green-700">
-                    {player.number ?? "-"}
-                  </span>
-                </div>
+                {canEdit ? (
+                  <PlayerPhotoUpload
+                    player={player}
+                    size="lg"
+                    onUpload={async (file) => {
+                      await uploadPlayerPhoto(file, player.team_id, player.id);
+                      loadData();
+                    }}
+                  />
+                ) : (
+                  <PlayerAvatar player={player} size="lg" showNumber />
+                )}
                 <div>
                   <div className="text-lg font-bold text-gray-900">
                     {player.name}

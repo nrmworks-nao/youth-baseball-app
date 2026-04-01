@@ -7,6 +7,7 @@ import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import { supabase } from "@/lib/supabase/client";
 import { getPlayers } from "@/lib/supabase/queries/players";
+import { PlayerAvatar } from "@/components/features/PlayerAvatar";
 import type { Player } from "@/types";
 
 export default function PlayersPage() {
@@ -89,12 +90,8 @@ export default function PlayersPage() {
             <Link key={player.id} href={`/players/${player.id}`}>
               <Card className="p-3 transition-colors hover:bg-gray-50">
                 <div className="flex items-center gap-3">
-                  {/* 背番号 */}
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-green-100">
-                    <span className="text-sm font-bold text-green-700">
-                      {player.number ?? "-"}
-                    </span>
-                  </div>
+                  {/* アバター */}
+                  <PlayerAvatar player={player} size="md" showNumber />
                   {/* 選手情報 */}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">

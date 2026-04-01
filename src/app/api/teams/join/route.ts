@@ -203,10 +203,18 @@ export async function POST(req: Request) {
       }
     }
 
+    // 登録された選手一覧を返す（写真アップロード用）
+    const { data: registeredChildren } = await supabaseAdmin
+      .from("user_children")
+      .select("player_id")
+      .eq("user_id", userId)
+      .eq("team_id", teamId);
+
     return NextResponse.json({
       success: true,
       isActive,
       memberId: member.id,
+      playerIds: registeredChildren?.map((c) => c.player_id) ?? [],
     });
   } catch (err) {
     console.error("チーム参加APIエラー:", err);
