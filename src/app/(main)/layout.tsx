@@ -537,6 +537,7 @@ export default function MainLayout({
   const unreadPostCount = useUnreadPostCount();
   const unreadNotificationCount = useUnreadNotificationCount();
   const { isLoading: guardLoading, hasTeam } = useTeamMembershipGuard();
+  const userLabel = useCurrentUserDisplay();
 
   if (guardLoading || !hasTeam) {
     return (
@@ -555,9 +556,11 @@ export default function MainLayout({
         {/* PC用サイドバー */}
         <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 lg:border-r lg:border-border lg:bg-card">
           <SidebarTeamBanner />
-          <div className="border-b border-border px-3 py-2">
-            <TeamSwitcher />
-          </div>
+          {userLabel && (
+            <div className="border-b border-border px-3 py-2">
+              <p className="text-sm text-muted-foreground truncate">{userLabel}</p>
+            </div>
+          )}
           <nav className="flex-1 overflow-y-auto px-3 py-4">
             <ul className="space-y-1">
               {SIDEBAR_ITEMS.map((item) => {
