@@ -167,7 +167,6 @@ function SidebarTeamBanner() {
   const { currentTeam } = useCurrentTeam();
   const teamName = currentTeam?.name || "";
   const initial = teamName.charAt(0);
-  const userLabel = useCurrentUserDisplay();
 
   return (
     <div>
@@ -208,12 +207,6 @@ function SidebarTeamBanner() {
           </div>
         </div>
       </div>
-      {/* ユーザー名・役割 */}
-      {userLabel && (
-        <div className="bg-white px-4 py-1.5">
-          <p className="text-sm text-gray-600 truncate">{userLabel}</p>
-        </div>
-      )}
     </div>
   );
 }

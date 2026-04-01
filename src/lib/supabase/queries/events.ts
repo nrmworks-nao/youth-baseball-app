@@ -199,6 +199,33 @@ export async function getAttendances(eventId: string) {
   }));
 }
 
+/** イベントごとの参加人数（部員・保護者）を一括取得 */
+export async function getEventAttendanceCounts(eventIds: string[]) {
+  if (eventIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from("event_attendances")
+    .select("event_id, player_id, user_id, status")
+    .in("event_id", eventIds)
+    .in("status", ["present", "attend"]);
+
+  if (error) throw error;
+  if (!data) return {};
+
+  const counts: Record<string, { players: number; parents: number }> = {};
+  for (const row of data) {
+    if (!counts[row.event_id]) {
+      counts[row.event_id] = { players: 0, parents: 0 };
+    }
+    if (row.player_id) {
+      counts[row.event_id].players++;
+    } else {
+      counts[row.event_id].parents++;
+    }
+  }
+  return counts;
+}
+
 /** 自分の子供一覧を取得（リレーション参照を使わない分割クエリ） */
 export async function getMyChildren(userId: string, teamId: string) {
   const { data: childRows, error: childError } = await supabase
