@@ -5,36 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase/client";
+import { ROLE_OPTIONS } from "@/lib/utils/roles";
 
 type Step = "team" | "role";
-
-const PERMISSION_GROUP_OPTIONS = [
-  { value: "team_admin", label: "チーム管理者（全機能利用可能）" },
-  { value: "vice_president", label: "会長・副会長" },
-  { value: "treasurer", label: "会計" },
-  { value: "manager", label: "マネージャー" },
-  { value: "publicity", label: "広報" },
-  { value: "parent", label: "保護者" },
-];
-
-const DISPLAY_TITLE_MAP: Record<string, { value: string; label: string }[]> = {
-  team_admin: [
-    { value: "監督", label: "監督" },
-    { value: "コーチ", label: "コーチ" },
-    { value: "部長", label: "部長" },
-  ],
-  vice_president: [
-    { value: "会長", label: "会長" },
-    { value: "副会長", label: "副会長" },
-  ],
-  treasurer: [{ value: "会計", label: "会計" }],
-  manager: [
-    { value: "部長", label: "部長" },
-    { value: "マネージャー", label: "マネージャー" },
-  ],
-  publicity: [{ value: "広報", label: "広報" }],
-  parent: [{ value: "保護者", label: "保護者" }],
-};
 
 export default function OnboardingPage() {
   const [step, setStep] = useState<Step>("team");
@@ -46,8 +19,7 @@ export default function OnboardingPage() {
     region: "",
     league: "",
   });
-  const [permissionGroup, setPermissionGroup] = useState("team_admin");
-  const [displayTitle, setDisplayTitle] = useState("監督");
+  const [permissionGroup, setPermissionGroup] = useState("director");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -81,7 +53,6 @@ export default function OnboardingPage() {
           league: teamData.league,
           userId,
           permissionGroup,
-          displayTitle,
         }),
       });
 
@@ -171,25 +142,13 @@ export default function OnboardingPage() {
             <Select
               id="permission-group"
               label="あなたの役割"
-              options={PERMISSION_GROUP_OPTIONS}
+              options={ROLE_OPTIONS}
               value={permissionGroup}
-              onChange={(e) => {
-                const newGroup = e.target.value;
-                setPermissionGroup(newGroup);
-                setDisplayTitle(DISPLAY_TITLE_MAP[newGroup][0].value);
-              }}
-            />
-
-            <Select
-              id="display-title"
-              label="表示呼称を選択"
-              options={DISPLAY_TITLE_MAP[permissionGroup]}
-              value={displayTitle}
-              onChange={(e) => setDisplayTitle(e.target.value)}
+              onChange={(e) => setPermissionGroup(e.target.value)}
             />
 
             <p className="text-xs text-gray-500">
-              役割によって利用できる機能が異なります。表示呼称はメンバーに表示される肩書きです。
+              チーム作成者にはサイト管理者権限が自動で付与されます。役割はチーム内での立場を表します。
             </p>
 
             <div className="flex gap-3">

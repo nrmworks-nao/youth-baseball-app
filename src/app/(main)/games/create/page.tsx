@@ -47,7 +47,7 @@ interface InningScoreEntry {
 export default function GameCreatePage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -189,7 +189,7 @@ export default function GameCreatePage() {
     }
   };
 
-  const canCreate = hasPermission(["team_admin", "vice_president", "manager"]);
+  const canCreate = hasPermission(["director", "vice_president", "coach"]);
 
   if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
   if (!canCreate) return <ErrorDisplay message="試合登録の権限がありません" />;

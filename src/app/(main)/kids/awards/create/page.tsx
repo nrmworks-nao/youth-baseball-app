@@ -25,7 +25,7 @@ interface PlayerWithLastAward extends Player {
 export default function CreateAwardPage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [category, setCategory] = useState<AwardCategory | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [comment, setComment] = useState("");
@@ -117,7 +117,7 @@ export default function CreateAwardPage() {
       {/* ヘッダー */}
       <div className="border-b border-gray-200 bg-white px-4 py-3">
         <h2 className="text-base font-bold text-gray-900">表彰作成</h2>
-        <p className="text-xs text-gray-500">team_admin のみ作成できます</p>
+        <p className="text-xs text-gray-500">サイト管理者のみ作成できます</p>
       </div>
 
       <div className="space-y-4 p-4">

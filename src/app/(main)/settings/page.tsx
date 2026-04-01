@@ -75,8 +75,8 @@ export default function SettingsPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
-  const { hasPermission } = usePermission(member?.permission_group ?? null);
-  const canManage = hasPermission(["team_admin", "vice_president"]);
+  const { hasPermission } = usePermission(member?.permission_group ?? null, member?.is_admin ?? false);
+  const canManage = hasPermission(["director", "vice_president"]);
 
   useEffect(() => {
     async function loadData() {

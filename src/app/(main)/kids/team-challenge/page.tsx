@@ -12,7 +12,7 @@ import type { TeamChallenge } from "@/types";
 
 export default function TeamChallengePage() {
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [challenges, setChallenges] = useState<TeamChallenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export default function TeamChallengePage() {
     (c) => c.current_value >= c.target_value
   );
 
-  const canCreate = hasPermission(["team_admin", "vice_president", "manager"]);
+  const canCreate = hasPermission(["director", "vice_president", "coach"]);
 
   const handleCreate = async () => {
     if (!newTitle || !newTarget || !newEndDate || !currentTeam) return;
@@ -105,7 +105,7 @@ export default function TeamChallengePage() {
       {showForm && (
         <div className="border-b border-gray-200 bg-blue-50 p-4 space-y-3">
           <p className="text-xs text-blue-700 font-medium">
-            team_admin のみ作成できます
+            サイト管理者のみ作成できます
           </p>
           <input
             type="text"

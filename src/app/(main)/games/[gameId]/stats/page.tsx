@@ -86,7 +86,7 @@ export default function GameStatsPage() {
   const params = useParams();
   const gameId = params.gameId as string;
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [players, setPlayers] = useState<PlayerInfo[]>([]);
   const [activeTab, setActiveTab] = useState<StatsTab>("batting");
   const [selectedPlayer, setSelectedPlayer] = useState<string>("");
@@ -99,7 +99,7 @@ export default function GameStatsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
-  const canEdit = hasPermission(["team_admin", "vice_president", "manager"]);
+  const canEdit = hasPermission(["director", "vice_president", "coach"]);
 
   useEffect(() => {
     const load = async () => {

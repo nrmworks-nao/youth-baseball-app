@@ -61,8 +61,8 @@ export default function PostDetailPage() {
   const params = useParams();
   const postId = params.postId as string;
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
-  const canViewReadStatus = hasPermission(["team_admin", "vice_president", "manager"]);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
+  const canViewReadStatus = hasPermission(["director", "vice_president", "coach"]);
 
   const [post, setPost] = useState<PostData | null>(null);
   const [comments, setComments] = useState<CommentData[]>([]);

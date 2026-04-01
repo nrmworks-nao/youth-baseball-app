@@ -4,26 +4,25 @@ import { NextResponse } from "next/server";
 /**
  * チーム新規作成API
  * - teamsテーブルにINSERT（招待コード自動生成付き）
- * - team_membersテーブルに作成者をteam_adminとして登録
+ * - team_membersテーブルに作成者を is_admin=true として登録
  */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, region, league, userId, permissionGroup, displayTitle } = body as {
+    const { name, region, league, userId, permissionGroup } = body as {
       name: string;
       region?: string;
       league?: string;
       userId: string;
       permissionGroup?: string;
-      displayTitle: string;
     };
 
     const validPermissionGroups = [
-      "team_admin", "vice_president", "treasurer", "manager", "publicity", "parent",
+      "director", "president", "vice_president", "captain", "coach", "treasurer", "publicity", "parent",
     ];
     const resolvedPermissionGroup = permissionGroup && validPermissionGroups.includes(permissionGroup)
       ? permissionGroup
-      : "team_admin";
+      : "director";
 
     // バリデーション
     if (!name || name.trim().length === 0 || name.trim().length > 100) {
@@ -37,13 +36,6 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "ログインが必要です" },
         { status: 401 }
-      );
-    }
-
-    if (!displayTitle) {
-      return NextResponse.json(
-        { error: "表示呼称を選択してください" },
-        { status: 400 }
       );
     }
 
@@ -85,12 +77,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // 作成者をteam_adminとしてメンバー追加
+    // 作成者をサイト管理者(is_admin=true)としてメンバー追加
     const memberPayload = {
       team_id: team.id,
       user_id: userId,
       permission_group: resolvedPermissionGroup,
-      display_title: displayTitle,
+      is_admin: true,
+      display_title: null,
       is_active: true,
     };
     console.log("team_members INSERT:", memberPayload);

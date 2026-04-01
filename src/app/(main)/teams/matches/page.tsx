@@ -23,7 +23,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "primary" | "warni
 
 export default function MatchesPage() {
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canRequestMatch } = usePermission(currentMembership?.permission_group ?? null);
+  const { canRequestMatch } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [requests, setRequests] = useState<MatchRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);

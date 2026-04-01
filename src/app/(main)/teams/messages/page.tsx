@@ -30,7 +30,7 @@ function timeAgo(dateStr: string) {
 
 export default function TeamMessagesPage() {
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canSendInterTeamMessage } = usePermission(currentMembership?.permission_group ?? null);
+  const { canSendInterTeamMessage } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [threads, setThreads] = useState<InterTeamMessage[]>([]);
   const [selectedThread, setSelectedThread] = useState<InterTeamMessage | null>(null);

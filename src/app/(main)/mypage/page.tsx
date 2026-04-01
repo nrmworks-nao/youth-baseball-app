@@ -19,6 +19,7 @@ import {
   getMyTeamsWithRole,
 } from "@/lib/supabase/queries/users";
 import { initializeLiff, isLiffInitialized } from "@/lib/line/liff";
+import { getRoleLabel } from "@/lib/utils/roles";
 import liff from "@line/liff";
 import type {
   User,
@@ -790,7 +791,8 @@ export default function MyPage() {
                           {isCurrent && <Badge variant="primary">現在</Badge>}
                         </div>
                         <p className="text-xs text-gray-500">
-                          {t.display_title}（{t.permission_group}）
+                          {getRoleLabel(t.permission_group)}
+                          {t.is_admin && " ⚙サイト管理者"}
                         </p>
                       </div>
                       {!isCurrent && (

@@ -15,7 +15,7 @@ import type { LedgerEntry, Invoice, InvoiceStatus } from "@/types";
 export default function AccountingPage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canManageAccounting } = usePermission(currentMembership?.permission_group ?? null);
+  const { canManageAccounting } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [monthlySummary, setMonthlySummary] = useState({ income: 0, expense: 0, balance: 0 });
   const [overdueCount, setOverdueCount] = useState(0);

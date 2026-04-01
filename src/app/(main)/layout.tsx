@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils/cn";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { getRoleLabel } from "@/lib/utils/roles";
 import { getUnreadCount } from "@/lib/supabase/queries/posts";
 import { getUnreadNotificationCount } from "@/lib/supabase/queries/notifications";
 import { supabase } from "@/lib/supabase/client";
@@ -168,7 +169,7 @@ function TeamSwitcher() {
               >
                 <div>
                   <p className="font-medium">{t.team.name}</p>
-                  <p className="text-xs text-muted-foreground">{t.display_title}</p>
+                  <p className="text-xs text-muted-foreground">{getRoleLabel(t.permission_group)}</p>
                 </div>
                 {t.team.id === currentTeam.id && (
                   <svg className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

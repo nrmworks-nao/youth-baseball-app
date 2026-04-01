@@ -38,16 +38,15 @@ export default function PlayerCardPage() {
       if (user) {
         const { data: myMember } = await supabase
           .from("team_members")
-          .select("permission_group")
+          .select("permission_group, is_admin")
           .eq("user_id", user.id)
           .eq("team_id", playerData.team_id)
           .eq("is_active", true)
           .single();
 
         const isAdmin =
-          myMember?.permission_group === "team_admin" ||
-          myMember?.permission_group === "vice_president" ||
-          myMember?.permission_group === "system_admin";
+          myMember?.is_admin === true ||
+          myMember?.permission_group === "vice_president";
 
         const myChildren = await getMyChildren(user.id, playerData.team_id);
         const isMyChild = myChildren.some(

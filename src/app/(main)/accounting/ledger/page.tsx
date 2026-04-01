@@ -24,7 +24,7 @@ type ViewMode = "list" | "monthly";
 export default function LedgerPage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canViewLedger } = usePermission(currentMembership?.permission_group ?? null);
+  const { canViewLedger } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);

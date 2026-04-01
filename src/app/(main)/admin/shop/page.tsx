@@ -32,7 +32,7 @@ type Tab = "products" | "categories";
 export default function AdminShopPage() {
   const router = useRouter();
   const { currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canManageShop } = usePermission(currentMembership?.permission_group ?? null);
+  const { canManageShop } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [tab, setTab] = useState<Tab>("products");
   const [products, setProducts] = useState<ShopProduct[]>([]);

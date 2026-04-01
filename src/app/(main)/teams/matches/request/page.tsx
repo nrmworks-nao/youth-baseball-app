@@ -20,7 +20,7 @@ import type { TeamProfile } from "@/types";
 export default function MatchRequestPage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canRequestMatch } = usePermission(currentMembership?.permission_group ?? null);
+  const { canRequestMatch } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [teams, setTeams] = useState<TeamProfile[]>([]);
   const [toTeam, setToTeam] = useState("");

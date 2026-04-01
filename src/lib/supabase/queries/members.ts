@@ -81,18 +81,28 @@ export async function getTeamMembers(teamId: string) {
   return data as TeamMember[];
 }
 
-/** メンバー権限・表示呼称更新 */
+/** メンバー役割更新 */
 export async function updateMemberRole(
   memberId: string,
-  permissionGroup: string,
-  displayTitle: string
+  permissionGroup: string
 ): Promise<void> {
   const { error } = await supabase
     .from("team_members")
     .update({
       permission_group: permissionGroup,
-      display_title: displayTitle,
     })
+    .eq("id", memberId);
+  if (error) throw error;
+}
+
+/** メンバーのサイト管理者フラグ更新 */
+export async function updateMemberAdmin(
+  memberId: string,
+  isAdmin: boolean
+): Promise<void> {
+  const { error } = await supabase
+    .from("team_members")
+    .update({ is_admin: isAdmin })
     .eq("id", memberId);
   if (error) throw error;
 }
@@ -106,13 +116,13 @@ export async function deactivateMember(memberId: string): Promise<void> {
   if (error) throw error;
 }
 
-/** team_admin の数をカウント */
-export async function countTeamAdmins(teamId: string): Promise<number> {
+/** サイト管理者の数をカウント */
+export async function countAdmins(teamId: string): Promise<number> {
   const { count, error } = await supabase
     .from("team_members")
     .select("*", { count: "exact", head: true })
     .eq("team_id", teamId)
-    .eq("permission_group", "team_admin")
+    .eq("is_admin", true)
     .eq("is_active", true);
   if (error) throw error;
   return count ?? 0;

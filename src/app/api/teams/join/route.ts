@@ -118,7 +118,8 @@ export async function POST(req: Request) {
         team_id: teamId,
         user_id: userId,
         permission_group: "parent",
-        display_title: "保護者",
+        is_admin: false,
+        display_title: null,
         is_active: isActive,
       })
       .select()

@@ -19,9 +19,9 @@ import type { TeamMember, FeeSetting } from "@/types";
 export default function CreateInvoicePage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
-  const canManage = hasPermission(["team_admin", "treasurer"]);
+  const canManage = hasPermission(["director", "treasurer"]);
 
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [feeSettings, setFeeSettings] = useState<FeeSetting[]>([]);
