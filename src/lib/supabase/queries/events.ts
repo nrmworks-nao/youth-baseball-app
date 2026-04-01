@@ -158,7 +158,7 @@ export async function upsertUserAttendance(data: {
 export async function getAttendances(eventId: string) {
   const { data, error } = await supabase
     .from("event_attendances")
-    .select("*, users:user_id!event_attendances_user_id_fkey(display_name, avatar_url), players:player_id(name, number)")
+    .select("*, users:user_id!event_attendances_user_id_fkey(display_name, avatar_url), players:player_id(name, number:uniform_number)")
     .eq("event_id", eventId);
   if (error) throw error;
   return data || [];
@@ -168,7 +168,7 @@ export async function getAttendances(eventId: string) {
 export async function getMyChildren(userId: string, teamId: string) {
   const { data, error } = await supabase
     .from("user_children")
-    .select("*, players:player_id(id, name, number)")
+    .select("*, players:player_id(id, name, number:uniform_number)")
     .eq("user_id", userId)
     .eq("team_id", teamId);
   if (error) throw error;

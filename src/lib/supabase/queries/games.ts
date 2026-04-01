@@ -78,7 +78,7 @@ export async function updateGame(
 export async function getGameLineups(gameId: string) {
   const { data, error } = await supabase
     .from("game_lineups")
-    .select("*, players!player_id(id, name, number, position)")
+    .select("*, players!player_id(id, name, number:uniform_number, position)")
     .eq("game_id", gameId)
     .order("batting_order", { ascending: true });
   if (error) throw error;
@@ -104,7 +104,7 @@ export async function upsertGameLineup(data: {
 export async function getGameStats(gameId: string) {
   const { data, error } = await supabase
     .from("player_game_stats")
-    .select("*, players!player_id(id, name, number, position)")
+    .select("*, players!player_id(id, name, number:uniform_number, position)")
     .eq("game_id", gameId);
   if (error) throw error;
   return data as PlayerGameStats[];
