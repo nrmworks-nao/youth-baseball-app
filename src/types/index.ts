@@ -82,6 +82,13 @@ export interface Player {
   throwing_hand?: string;
   batting_hand?: string;
   is_active: boolean;
+  // キッズ機能用プロフィール
+  favorite_pro_player?: string;
+  favorite_play?: string;
+  dream?: string;
+  // 選手カード
+  card_rank: CardRank;
+  card_photo_url?: string;
   created_at: string;
 }
 
@@ -425,24 +432,6 @@ export type RankingPeriod = "all" | "month" | "season";
 // カードランク
 export type CardRank = "bronze" | "silver" | "gold" | "platinum";
 
-// 選手カード
-export interface PlayerCard {
-  id: string;
-  player_id: string;
-  team_id: string;
-  card_rank: CardRank;
-  photo_url?: string;
-  batting_throw?: string; // 例: "右投右打"
-  favorite_pro_player?: string;
-  best_play?: string;
-  future_dream?: string;
-  selected_badge_ids?: string[];
-  created_at: string;
-  updated_at: string;
-  // 結合データ
-  player?: Player;
-}
-
 // バッジカテゴリ
 export type BadgeCategory =
   | "batting"
@@ -472,7 +461,7 @@ export interface PlayerBadge {
   id: string;
   player_id: string;
   badge_id: string;
-  earned_at: string;
+  awarded_at: string;
   // 結合データ
   badge?: KidsBadge;
 }

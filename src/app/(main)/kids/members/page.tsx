@@ -7,7 +7,7 @@ import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { getPlayers } from "@/lib/supabase/queries/players";
-import type { Player, CardRank } from "@/types";
+import type { Player } from "@/types";
 
 type SortKey = "number" | "grade" | "name";
 type FilterPosition = "all" | string;
@@ -190,7 +190,7 @@ export default function MembersPage() {
                 number={member.number}
                 position={member.position}
                 grade={member.grade}
-                cardRank={"bronze" as CardRank}
+                cardRank={member.card_rank ?? "bronze"}
                 compact
                 className="transition-transform active:scale-[0.98]"
               />
