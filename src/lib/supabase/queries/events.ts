@@ -198,14 +198,14 @@ export async function getAttendances(eventId: string) {
 
   // 2. 関連する players を取得
   const playerIds = [...new Set(attendances.map((a: any) => a.player_id).filter(Boolean))];
-  let playersMap: Record<string, { name: string; number: number | null }> = {};
+  let playersMap: Record<string, { name: string; number: number | null; card_photo_url: string | null }> = {};
   if (playerIds.length > 0) {
     const { data: players } = await supabase
       .from("players")
-      .select("id, name, number")
+      .select("id, name, number, card_photo_url")
       .in("id", playerIds);
     if (players) {
-      playersMap = Object.fromEntries(players.map((p: any) => [p.id, { name: p.name, number: p.number }]));
+      playersMap = Object.fromEntries(players.map((p: any) => [p.id, { name: p.name, number: p.number, card_photo_url: p.card_photo_url }]));
     }
   }
 
