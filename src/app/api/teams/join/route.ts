@@ -1,6 +1,56 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+/**
+ * 同じ子供を共有している他の保護者にも新しい子供を自動追加する
+ */
+async function shareChildWithRelatedGuardians(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseAdmin: any,
+  currentUserId: string,
+  newPlayerId: string,
+  teamId: string
+) {
+  const { data: myChildren } = await supabaseAdmin
+    .from("user_children")
+    .select("player_id")
+    .eq("user_id", currentUserId);
+
+  if (!myChildren || myChildren.length === 0) return;
+
+  const myPlayerIds = myChildren
+    .map((c: { player_id: string }) => c.player_id)
+    .filter((id: string) => id !== newPlayerId);
+
+  if (myPlayerIds.length === 0) return;
+
+  const { data: relatedGuardians } = await supabaseAdmin
+    .from("user_children")
+    .select("user_id, relationship")
+    .in("player_id", myPlayerIds)
+    .neq("user_id", currentUserId);
+
+  if (!relatedGuardians || relatedGuardians.length === 0) return;
+
+  const uniqueGuardians = [
+    ...new Map(
+      relatedGuardians.map((g: { user_id: string; relationship: string }) => [g.user_id, g.relationship])
+    ),
+  ];
+
+  for (const [guardianUserId, relationship] of uniqueGuardians) {
+    await supabaseAdmin.from("user_children").upsert(
+      {
+        user_id: guardianUserId,
+        player_id: newPlayerId,
+        relationship: relationship,
+        team_id: teamId,
+      },
+      { onConflict: "user_id,player_id" }
+    );
+  }
+}
+
 interface ChildEntry {
   existingPlayerId?: string;
   newPlayer?: {
@@ -64,6 +114,16 @@ export async function POST(req: Request) {
         { error: "必須項目が不足しています" },
         { status: 400 }
       );
+    }
+
+    // 学年バリデーション
+    for (const child of childEntries) {
+      if (child.newPlayer?.grade != null && (child.newPlayer.grade < 1 || child.newPlayer.grade > 6)) {
+        return NextResponse.json(
+          { error: "学年は1〜6の範囲で入力してください" },
+          { status: 400 }
+        );
+      }
     }
 
     const supabaseAdmin = createClient(
@@ -202,6 +262,14 @@ export async function POST(req: Request) {
       if (linkError) {
         console.error("user_children追加エラー:", linkError);
       }
+
+      // 保護者間の子供情報共有
+      await shareChildWithRelatedGuardians(
+        supabaseAdmin,
+        userId,
+        playerId,
+        teamId
+      );
     }
 
     // 登録された選手一覧を返す（写真アップロード用）
