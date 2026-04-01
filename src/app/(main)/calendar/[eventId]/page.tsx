@@ -326,7 +326,7 @@ export default function EventDetailPage() {
             <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{event.title}</h1>
           </div>
 
-          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+          <div className="space-y-2 text-sm text-gray-900">
             <div className="flex items-center gap-2">
               <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -334,7 +334,7 @@ export default function EventDetailPage() {
               <div>
                 <p>{formatDateTime(event.start_at)}</p>
                 {event.end_at && (
-                  <p className="text-xs text-gray-400">〜 {formatDateTime(event.end_at)}</p>
+                  <p className="text-xs text-gray-900">〜 {formatDateTime(event.end_at)}</p>
                 )}
               </div>
             </div>
@@ -361,7 +361,7 @@ export default function EventDetailPage() {
           </div>
 
           {event.description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">{event.description}</p>
+            <p className="text-sm text-gray-900">{event.description}</p>
           )}
         </CardContent>
       </Card>
