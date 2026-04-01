@@ -154,14 +154,49 @@ export async function upsertUserAttendance(data: {
   }
 }
 
-/** イベントの出欠一覧取得 */
+/** イベントの出欠一覧取得（分割クエリ：リレーション構文回避） */
 export async function getAttendances(eventId: string) {
-  const { data, error } = await supabase
+  // 1. event_attendances を取得（リレーションなし）
+  const { data: attendances, error } = await supabase
     .from("event_attendances")
-    .select("*, users:user_id!event_attendances_user_id_fkey(display_name, avatar_url), players:player_id!event_attendances_player_id_fkey(name, number)")
+    .select("*")
     .eq("event_id", eventId);
+
   if (error) throw error;
-  return data || [];
+  if (!attendances) return [];
+
+  // 2. 関連する players を取得
+  const playerIds = [...new Set(attendances.map((a: any) => a.player_id).filter(Boolean))];
+  let playersMap: Record<string, { name: string; number: number | null }> = {};
+  if (playerIds.length > 0) {
+    const { data: players } = await supabase
+      .from("players")
+      .select("id, name, number")
+      .in("id", playerIds);
+    if (players) {
+      playersMap = Object.fromEntries(players.map((p: any) => [p.id, { name: p.name, number: p.number }]));
+    }
+  }
+
+  // 3. 関連する users を取得
+  const userIds = [...new Set(attendances.map((a: any) => a.user_id).filter(Boolean))];
+  let usersMap: Record<string, { display_name: string; avatar_url: string | null }> = {};
+  if (userIds.length > 0) {
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, display_name, avatar_url")
+      .in("id", userIds);
+    if (users) {
+      usersMap = Object.fromEntries(users.map((u: any) => [u.id, { display_name: u.display_name, avatar_url: u.avatar_url }]));
+    }
+  }
+
+  // 4. マージ
+  return attendances.map((a: any) => ({
+    ...a,
+    players: a.player_id ? playersMap[a.player_id] || null : null,
+    users: a.user_id ? usersMap[a.user_id] || null : null,
+  }));
 }
 
 /** 自分の子供一覧を取得 */
