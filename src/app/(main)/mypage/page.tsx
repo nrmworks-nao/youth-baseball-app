@@ -62,6 +62,20 @@ const RELATIONSHIP_OPTIONS = [
   { value: "その他", label: "その他" },
 ];
 
+const GRADES = ["1", "2", "3", "4", "5", "6"];
+
+interface ExistingPlayer {
+  id: string;
+  name: string;
+  number: number | null;
+  grade: number | null;
+  position: string | null;
+  user_children: {
+    relationship: string | null;
+    users: { display_name: string } | null;
+  }[];
+}
+
 const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   schedule: true,
   post: true,
@@ -89,6 +103,9 @@ export default function MyPage() {
   // 子供追加モーダル
   const [showAddChild, setShowAddChild] = useState(false);
   const [isAddingChild, setIsAddingChild] = useState(false);
+  const [addChildMode, setAddChildMode] = useState<"select" | "new">("select");
+  const [existingPlayers, setExistingPlayers] = useState<ExistingPlayer[]>([]);
+  const [selectedExistingPlayer, setSelectedExistingPlayer] = useState<string | null>(null);
   const [addChildForm, setAddChildForm] = useState({
     name: "",
     number: "",
@@ -202,32 +219,79 @@ export default function MyPage() {
     }
   };
 
+  // チームの既存選手を取得（自分に紐づいていない選手のみ）
+  const fetchExistingPlayers = useCallback(async (teamId: string) => {
+    try {
+      const res = await fetch(`/api/teams/players?teamId=${teamId}`);
+      const data = await res.json();
+      if (!res.ok) return;
+      // 自分に既に紐づいている選手を除外
+      const myPlayerIds = children
+        .filter((c) => c.team_id === teamId)
+        .map((c) => c.player.id);
+      const available = (data.players || []).filter(
+        (p: ExistingPlayer) => !myPlayerIds.includes(p.id)
+      );
+      setExistingPlayers(available);
+      // 既存選手がなければ新規登録モードに
+      if (available.length === 0) {
+        setAddChildMode("new");
+      } else {
+        setAddChildMode("select");
+      }
+    } catch {
+      setExistingPlayers([]);
+    }
+  }, [children]);
+
   // 子供追加
   const handleAddChild = async () => {
-    if (!userId || !addChildForm.name.trim() || !addChildForm.teamId) return;
+    if (!userId || !addChildForm.teamId) return;
+
+    // 既存選手選択モードの場合
+    if (addChildMode === "select") {
+      if (!selectedExistingPlayer) return;
+    } else {
+      if (!addChildForm.name.trim()) return;
+      // 学年バリデーション
+      const gradeNum = addChildForm.grade ? parseInt(addChildForm.grade) : undefined;
+      if (gradeNum !== undefined && (gradeNum < 1 || gradeNum > 6)) {
+        alert("学年は1〜6の範囲で入力してください");
+        return;
+      }
+    }
+
     setIsAddingChild(true);
     try {
+      const requestBody: Record<string, unknown> = {
+        userId,
+        teamId: addChildForm.teamId,
+        relationship: addChildForm.relationship,
+      };
+
+      if (addChildMode === "select") {
+        requestBody.existingPlayerId = selectedExistingPlayer;
+      } else {
+        requestBody.player = {
+          name: addChildForm.name,
+          number: addChildForm.number ? parseInt(addChildForm.number) : undefined,
+          grade: addChildForm.grade ? parseInt(addChildForm.grade) : undefined,
+          position: addChildForm.position || undefined,
+          throwing_hand: addChildForm.throwing_hand || undefined,
+          batting_hand: addChildForm.batting_hand || undefined,
+        };
+      }
+
       const res = await fetch("/api/users/children", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          teamId: addChildForm.teamId,
-          player: {
-            name: addChildForm.name,
-            number: addChildForm.number ? parseInt(addChildForm.number) : undefined,
-            grade: addChildForm.grade ? parseInt(addChildForm.grade) : undefined,
-            position: addChildForm.position || undefined,
-            throwing_hand: addChildForm.throwing_hand || undefined,
-            batting_hand: addChildForm.batting_hand || undefined,
-          },
-          relationship: addChildForm.relationship,
-        }),
+        body: JSON.stringify(requestBody),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       // リフレッシュ
       setShowAddChild(false);
+      setSelectedExistingPlayer(null);
       setAddChildForm({
         name: "",
         number: "",
@@ -262,6 +326,11 @@ export default function MyPage() {
   // 子供情報保存
   const handleSaveChild = async () => {
     if (!userId || !editingChild || !editChildForm.name.trim()) return;
+    const gradeNum = editChildForm.grade ? parseInt(editChildForm.grade) : undefined;
+    if (gradeNum !== undefined && (gradeNum < 1 || gradeNum > 6)) {
+      alert("学年は1〜6の範囲で入力してください");
+      return;
+    }
     setIsSavingChild(true);
     try {
       const res = await fetch("/api/users/children", {
@@ -444,11 +513,14 @@ export default function MyPage() {
                 variant="outline"
                 onClick={() => {
                   setShowAddChild(true);
+                  setSelectedExistingPlayer(null);
                   if (myTeams.length === 1) {
+                    const teamId = myTeams[0].team.id;
                     setAddChildForm((prev) => ({
                       ...prev,
-                      teamId: myTeams[0].team.id,
+                      teamId,
                     }));
+                    fetchExistingPlayers(teamId);
                   }
                 }}
               >
@@ -518,87 +590,165 @@ export default function MyPage() {
                       label: t.team.name,
                     }))}
                     value={addChildForm.teamId}
-                    onChange={(e) =>
-                      setAddChildForm({ ...addChildForm, teamId: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setAddChildForm({ ...addChildForm, teamId: e.target.value });
+                      setSelectedExistingPlayer(null);
+                      if (e.target.value) {
+                        fetchExistingPlayers(e.target.value);
+                      }
+                    }}
                     placeholder="チームを選択"
                   />
                 )}
-                <Input
-                  label="氏名"
-                  placeholder="お子さまの名前"
-                  value={addChildForm.name}
-                  onChange={(e) =>
-                    setAddChildForm({ ...addChildForm, name: e.target.value })
-                  }
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label="背番号"
-                    type="number"
-                    placeholder="7"
-                    value={addChildForm.number}
-                    onChange={(e) =>
-                      setAddChildForm({ ...addChildForm, number: e.target.value })
-                    }
-                  />
-                  <Input
-                    label="学年"
-                    type="number"
-                    placeholder="4"
-                    value={addChildForm.grade}
-                    onChange={(e) =>
-                      setAddChildForm({ ...addChildForm, grade: e.target.value })
-                    }
-                  />
-                </div>
-                <Select
-                  id="add-child-position"
-                  label="ポジション"
-                  options={POSITION_OPTIONS}
-                  value={addChildForm.position}
-                  onChange={(e) =>
-                    setAddChildForm({ ...addChildForm, position: e.target.value })
-                  }
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <Select
-                    id="add-child-throwing"
-                    label="投"
-                    options={THROWING_OPTIONS}
-                    value={addChildForm.throwing_hand}
-                    onChange={(e) =>
-                      setAddChildForm({
-                        ...addChildForm,
-                        throwing_hand: e.target.value,
-                      })
-                    }
-                  />
-                  <Select
-                    id="add-child-batting"
-                    label="打"
-                    options={BATTING_OPTIONS}
-                    value={addChildForm.batting_hand}
-                    onChange={(e) =>
-                      setAddChildForm({
-                        ...addChildForm,
-                        batting_hand: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <Select
-                  id="add-child-relationship"
-                  label="お子さまとの関係"
-                  options={RELATIONSHIP_OPTIONS}
-                  value={addChildForm.relationship}
-                  onChange={(e) =>
-                    setAddChildForm({
-                      ...addChildForm,
-                      relationship: e.target.value,
-                    })
-                  }
-                />
+
+                {/* 既存選手選択 / 新規登録の切り替え */}
+                {addChildForm.teamId && (
+                  <>
+                    {existingPlayers.length > 0 && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant={addChildMode === "select" ? "default" : "outline"}
+                          className="flex-1"
+                          onClick={() => setAddChildMode("select")}
+                        >
+                          既存選手を選択
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={addChildMode === "new" ? "default" : "outline"}
+                          className="flex-1"
+                          onClick={() => setAddChildMode("new")}
+                        >
+                          新しく登録
+                        </Button>
+                      </div>
+                    )}
+
+                    {addChildMode === "select" && existingPlayers.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-500">
+                          チームに登録済みの選手から選択してください
+                        </p>
+                        {existingPlayers.map((player) => {
+                          const isSelected = selectedExistingPlayer === player.id;
+                          const guardianInfo = player.user_children
+                            ?.map(
+                              (uc) =>
+                                `${uc.users?.display_name || "不明"}（${uc.relationship || "不明"}）`
+                            )
+                            .join("、");
+                          return (
+                            <div
+                              key={player.id}
+                              className={`rounded-lg border p-3 transition-colors cursor-pointer ${
+                                isSelected
+                                  ? "border-green-500 bg-green-50"
+                                  : "border-gray-200"
+                              }`}
+                              onClick={() => setSelectedExistingPlayer(player.id)}
+                            >
+                              <div className="font-medium text-sm text-gray-900">
+                                {player.name}
+                                {player.number != null && (
+                                  <span className="ml-1 text-gray-500">
+                                    （背番号{player.number}
+                                    {player.grade != null && `、${player.grade}年`}）
+                                  </span>
+                                )}
+                              </div>
+                              {guardianInfo && (
+                                <div className="mt-0.5 text-xs text-gray-500">
+                                  登録済み保護者: {guardianInfo}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <>
+                        <Input
+                          label="氏名"
+                          placeholder="お子さまの名前"
+                          value={addChildForm.name}
+                          onChange={(e) =>
+                            setAddChildForm({ ...addChildForm, name: e.target.value })
+                          }
+                        />
+                        <div className="grid grid-cols-2 gap-3">
+                          <Input
+                            label="背番号"
+                            type="number"
+                            placeholder="7"
+                            value={addChildForm.number}
+                            onChange={(e) =>
+                              setAddChildForm({ ...addChildForm, number: e.target.value })
+                            }
+                          />
+                          <Select
+                            id="add-child-grade"
+                            label="学年"
+                            options={GRADES.map((g) => ({ value: g, label: `${g}年` }))}
+                            value={addChildForm.grade}
+                            onChange={(e) =>
+                              setAddChildForm({ ...addChildForm, grade: e.target.value })
+                            }
+                            placeholder="選択"
+                          />
+                        </div>
+                        <Select
+                          id="add-child-position"
+                          label="ポジション"
+                          options={POSITION_OPTIONS}
+                          value={addChildForm.position}
+                          onChange={(e) =>
+                            setAddChildForm({ ...addChildForm, position: e.target.value })
+                          }
+                        />
+                        <div className="grid grid-cols-2 gap-3">
+                          <Select
+                            id="add-child-throwing"
+                            label="投"
+                            options={THROWING_OPTIONS}
+                            value={addChildForm.throwing_hand}
+                            onChange={(e) =>
+                              setAddChildForm({
+                                ...addChildForm,
+                                throwing_hand: e.target.value,
+                              })
+                            }
+                          />
+                          <Select
+                            id="add-child-batting"
+                            label="打"
+                            options={BATTING_OPTIONS}
+                            value={addChildForm.batting_hand}
+                            onChange={(e) =>
+                              setAddChildForm({
+                                ...addChildForm,
+                                batting_hand: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <Select
+                      id="add-child-relationship"
+                      label="お子さまとの関係"
+                      options={RELATIONSHIP_OPTIONS}
+                      value={addChildForm.relationship}
+                      onChange={(e) =>
+                        setAddChildForm({
+                          ...addChildForm,
+                          relationship: e.target.value,
+                        })
+                      }
+                    />
+                  </>
+                )}
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -612,8 +762,8 @@ export default function MyPage() {
                     onClick={handleAddChild}
                     disabled={
                       isAddingChild ||
-                      !addChildForm.name.trim() ||
-                      !addChildForm.teamId
+                      !addChildForm.teamId ||
+                      (addChildMode === "select" ? !selectedExistingPlayer : !addChildForm.name.trim())
                     }
                   >
                     {isAddingChild ? "追加中..." : "追加"}
@@ -661,9 +811,10 @@ export default function MyPage() {
                       })
                     }
                   />
-                  <Input
+                  <Select
+                    id="edit-child-grade"
                     label="学年"
-                    type="number"
+                    options={GRADES.map((g) => ({ value: g, label: `${g}年` }))}
                     value={editChildForm.grade}
                     onChange={(e) =>
                       setEditChildForm({
@@ -671,6 +822,7 @@ export default function MyPage() {
                         grade: e.target.value,
                       })
                     }
+                    placeholder="選択"
                   />
                 </div>
                 <Select
