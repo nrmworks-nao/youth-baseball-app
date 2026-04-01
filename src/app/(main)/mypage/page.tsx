@@ -104,9 +104,6 @@ export default function MyPage() {
   const [isLinking, setIsLinking] = useState(false);
   const [linkMessage, setLinkMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // ログアウト
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-
   // 子供編集モーダル
   const [editingChild, setEditingChild] = useState<ChildWithTeam | null>(null);
   const [isSavingChild, setIsSavingChild] = useState(false);
@@ -338,31 +335,6 @@ export default function MyPage() {
       });
     } finally {
       setIsLinking(false);
-    }
-  };
-
-  // ログアウト
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await supabase.auth.signOut();
-
-      // Cookie削除
-      document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-      document.cookie = "sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-
-      // LIFF初期化済みの場合はLINEもログアウト
-      try {
-        if (isLiffInitialized() && liff.isLoggedIn()) {
-          liff.logout();
-        }
-      } catch {
-        // LIFFログアウト失敗は無視
-      }
-
-      window.location.href = "/login";
-    } catch {
-      setIsLoggingOut(false);
     }
   };
 
@@ -910,16 +882,6 @@ export default function MyPage() {
           </CardContent>
         </Card>
 
-        {/* ログアウト */}
-        <div className="py-4">
-          <button
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className="w-full text-center text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
-          >
-            {isLoggingOut ? "ログアウト中..." : "ログアウト"}
-          </button>
-        </div>
       </div>
     </div>
   );
