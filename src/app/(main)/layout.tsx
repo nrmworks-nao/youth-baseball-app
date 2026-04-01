@@ -3,7 +3,23 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import {
+  Home,
+  Calendar,
+  MessageSquare,
+  Users,
+  Trophy,
+  Star,
+  Camera,
+  BarChart3,
+  Wallet,
+  ShoppingBag,
+  Search,
+  Settings,
+  User,
+  LogOut,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
@@ -93,20 +109,20 @@ const TAB_ITEMS = [
   },
 ];
 
-const SIDEBAR_ITEMS = [
-  { href: "/home", label: "ホーム" },
-  { href: "/calendar", label: "カレンダー" },
-  { href: "/posts", label: "連絡" },
-  { href: "/players", label: "選手一覧" },
-  { href: "/games", label: "試合" },
-  { href: "/kids", label: "キッズ" },
-  { href: "/albums", label: "アルバム" },
-  { href: "/ranking", label: "ランキング" },
-  { href: "/accounting", label: "会計" },
-  { href: "/shop", label: "ショップ" },
-  { href: "/teams/search", label: "チーム検索" },
-  { href: "/settings", label: "設定" },
-  { href: "/mypage", label: "マイページ" },
+const SIDEBAR_ITEMS: { href: string; label: string; icon: LucideIcon; iconColor: string; bgColor: string }[] = [
+  { href: "/home", label: "ホーム", icon: Home, iconColor: "text-green-500", bgColor: "bg-green-50" },
+  { href: "/calendar", label: "カレンダー", icon: Calendar, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
+  { href: "/posts", label: "連絡", icon: MessageSquare, iconColor: "text-orange-500", bgColor: "bg-orange-50" },
+  { href: "/players", label: "選手一覧", icon: Users, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
+  { href: "/games", label: "試合", icon: Trophy, iconColor: "text-orange-500", bgColor: "bg-orange-50" },
+  { href: "/kids", label: "キッズ", icon: Star, iconColor: "text-yellow-500", bgColor: "bg-yellow-50" },
+  { href: "/albums", label: "アルバム", icon: Camera, iconColor: "text-pink-500", bgColor: "bg-pink-50" },
+  { href: "/ranking", label: "ランキング", icon: BarChart3, iconColor: "text-purple-500", bgColor: "bg-purple-50" },
+  { href: "/accounting", label: "会計", icon: Wallet, iconColor: "text-green-500", bgColor: "bg-green-50" },
+  { href: "/shop", label: "ショップ", icon: ShoppingBag, iconColor: "text-red-500", bgColor: "bg-red-50" },
+  { href: "/teams/search", label: "チーム検索", icon: Search, iconColor: "text-cyan-500", bgColor: "bg-cyan-50" },
+  { href: "/settings", label: "設定", icon: Settings, iconColor: "text-gray-500", bgColor: "bg-gray-50" },
+  { href: "/mypage", label: "マイページ", icon: User, iconColor: "text-indigo-500", bgColor: "bg-indigo-50" },
 ];
 
 function SidebarTeamBanner() {
@@ -511,7 +527,12 @@ export default function MainLayout({
                           : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
-                      {item.label}
+                      <div className="flex items-center gap-3">
+                        <div className={cn("rounded-full p-1.5", item.bgColor)}>
+                          <item.icon className={cn("h-5 w-5", item.iconColor)} />
+                        </div>
+                        {item.label}
+                      </div>
                       {showBadge && (
                         <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
                           {unreadPostCount > 99 ? "99+" : unreadPostCount}
