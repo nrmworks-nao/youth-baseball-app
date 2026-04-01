@@ -172,7 +172,7 @@ export default function InvitePage() {
           // 既に別チームに所属しているかチェック（1ユーザー1チーム制限）
           const { data: existingMemberships } = await supabase
             .from("team_members")
-            .select("team_id, teams(name)")
+            .select("team_id")
             .eq("user_id", user.id)
             .eq("is_active", true);
 
@@ -185,9 +185,13 @@ export default function InvitePage() {
               setIsLoading(false);
               return;
             }
-            // 別チームに所属中
-            const teamName = (existingMemberships[0] as { teams: { name: string } | null }).teams?.name || "不明";
-            setExistingTeamName(teamName);
+            // 別チームに所属中 - チーム名を取得
+            const { data: existingTeam } = await supabase
+              .from("teams")
+              .select("name")
+              .eq("id", existingMemberships[0].team_id)
+              .single();
+            setExistingTeamName(existingTeam?.name || "不明");
             setIsLoading(false);
             return;
           }
