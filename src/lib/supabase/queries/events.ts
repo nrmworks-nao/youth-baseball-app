@@ -56,6 +56,37 @@ export async function createEvent(data: {
   return event as Event;
 }
 
+/** イベント更新 */
+export async function updateEvent(
+  eventId: string,
+  data: {
+    title: string;
+    event_type: EventType;
+    description?: string;
+    location?: string;
+    start_at: string;
+    end_at: string;
+  }
+) {
+  const { data: event, error } = await supabase
+    .from("events")
+    .update(data)
+    .eq("id", eventId)
+    .select()
+    .single();
+  if (error) throw error;
+  return event as Event;
+}
+
+/** イベント削除 */
+export async function deleteEvent(eventId: string) {
+  const { error } = await supabase
+    .from("events")
+    .delete()
+    .eq("id", eventId);
+  if (error) throw error;
+}
+
 /** 出欠登録（選手） */
 export async function upsertPlayerAttendance(data: {
   event_id: string;
