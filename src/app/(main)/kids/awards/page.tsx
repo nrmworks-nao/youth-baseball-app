@@ -8,6 +8,7 @@ import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
 import { PlayerAvatar } from "@/components/features/PlayerAvatar";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
 import { getAwards } from "@/lib/supabase/queries/kids";
 import type { Award, AwardCategory } from "@/types";
 
@@ -18,7 +19,8 @@ const AWARD_CONFIG: Record<AwardCategory, { label: string; icon: string; color: 
 };
 
 export default function AwardsPage() {
-  const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { canCreateAwards } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [awards, setAwards] = useState<Award[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,9 +68,11 @@ export default function AwardsPage() {
         <h2 className="text-base font-bold text-gray-900">
           今週のMVP・がんばったで賞
         </h2>
-        <Link href="/kids/awards/create">
-          <Button size="sm">表彰する</Button>
-        </Link>
+        {canCreateAwards() && (
+          <Link href="/kids/awards/create">
+            <Button size="sm">表彰する</Button>
+          </Link>
+        )}
       </div>
 
       {/* カテゴリフィルター */}

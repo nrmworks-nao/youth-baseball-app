@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import { supabase } from "@/lib/supabase/client";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
 import {
   getPendingMembers,
   approveMember,
@@ -24,6 +26,8 @@ import { getRoleLabel, ROLE_OPTIONS } from "@/lib/utils/roles";
 import type { TeamMember } from "@/types";
 
 export default function MembersPage() {
+  const { currentMembership } = useCurrentTeam();
+  const { canManageMembersPage } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [teamId, setTeamId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentMemberIsAdmin, setCurrentMemberIsAdmin] = useState(false);
@@ -164,6 +168,7 @@ export default function MembersPage() {
   };
 
   if (isLoading) return <Loading className="min-h-screen" />;
+  if (!canManageMembersPage()) return <ErrorDisplay message="権限がありません" />;
   if (error) return <ErrorDisplay message={error} />;
 
   return (

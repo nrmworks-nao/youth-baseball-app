@@ -23,7 +23,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "primary" | "warni
 
 export default function MatchesPage() {
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canRequestMatch } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
+  const { canManageInterTeam } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [requests, setRequests] = useState<MatchRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +63,9 @@ export default function MatchesPage() {
   if (teamLoading || isLoading) {
     return <Loading text="練習試合を読み込み中..." />;
   }
+  if (!canManageInterTeam()) {
+    return <ErrorDisplay message="権限がありません" />;
+  }
 
   if (error) {
     return <ErrorDisplay message={error} onRetry={fetchData} />;
@@ -76,7 +79,7 @@ export default function MatchesPage() {
     <div className="flex flex-col">
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
         <h2 className="text-base font-bold text-gray-900">練習試合管理</h2>
-        {canRequestMatch() && (
+        {canManageInterTeam() && (
           <Link href="/teams/matches/request">
             <Button size="sm">+ 申し込み</Button>
           </Link>
@@ -131,7 +134,7 @@ export default function MatchesPage() {
                   </span>
                 </div>
                 {/* 受信側でpendingの場合、承認/拒否ボタン */}
-                {!isOutgoing && match.status === "pending" && canRequestMatch() && (
+                {!isOutgoing && match.status === "pending" && canManageInterTeam() && (
                   <div className="mt-3 space-y-2">
                     {dates.length > 1 && (
                       <p className="text-xs text-gray-500">承認する日程を選択:</p>

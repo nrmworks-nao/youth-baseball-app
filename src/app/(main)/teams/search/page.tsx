@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay } from "@/components/ui/error-display";
+import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
 import { searchTeams } from "@/lib/supabase/queries/inter-team";
 import { getErrorMessage } from "@/lib/supabase/error-handler";
 import type { TeamProfile } from "@/types";
@@ -17,6 +19,8 @@ const REGIONS = ["", "東京都", "埼玉県", "神奈川県", "千葉県"];
 const LEAGUES = ["", "少年野球連盟A", "少年野球連盟B", "少年野球連盟C"];
 
 export default function TeamSearchPage() {
+  const { currentMembership, isLoading: teamLoading } = useCurrentTeam();
+  const { canManageInterTeam } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [keyword, setKeyword] = useState("");
   const [region, setRegion] = useState("");
   const [league, setLeague] = useState("");
@@ -42,6 +46,9 @@ export default function TeamSearchPage() {
       setIsLoading(false);
     }
   }, [keyword, region, league]);
+
+  if (teamLoading) return <Loading className="min-h-screen" />;
+  if (!canManageInterTeam()) return <ErrorDisplay message="権限がありません" />;
 
   return (
     <div className="flex flex-col">

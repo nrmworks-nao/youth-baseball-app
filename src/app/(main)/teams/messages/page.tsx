@@ -30,7 +30,7 @@ function timeAgo(dateStr: string) {
 
 export default function TeamMessagesPage() {
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canSendInterTeamMessage } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
+  const { canManageInterTeam } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [threads, setThreads] = useState<InterTeamMessage[]>([]);
   const [selectedThread, setSelectedThread] = useState<InterTeamMessage | null>(null);
@@ -138,6 +138,9 @@ export default function TeamMessagesPage() {
   if (teamLoading || isLoading) {
     return <Loading text="メッセージを読み込み中..." />;
   }
+  if (!canManageInterTeam()) {
+    return <ErrorDisplay message="権限がありません" />;
+  }
 
   if (error) {
     return <ErrorDisplay message={error} onRetry={fetchThreads} />;
@@ -176,7 +179,7 @@ export default function TeamMessagesPage() {
           })}
         </div>
 
-        {canSendInterTeamMessage() && (
+        {canManageInterTeam() && (
           <div className="border-t border-gray-200 bg-white p-4">
             <div className="flex gap-2">
               <Textarea
@@ -200,7 +203,7 @@ export default function TeamMessagesPage() {
     <div className="flex flex-col">
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
         <h2 className="text-base font-bold text-gray-900">チーム間メッセージ</h2>
-        {canSendInterTeamMessage() && (
+        {canManageInterTeam() && (
           <Button size="sm" onClick={() => setShowCompose(!showCompose)}>
             {showCompose ? "閉じる" : "+ 新規"}
           </Button>
