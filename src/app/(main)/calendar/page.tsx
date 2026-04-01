@@ -10,7 +10,7 @@ import { ErrorDisplay } from "@/components/ui/error-display";
 import { cn } from "@/lib/utils/cn";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { usePermission } from "@/hooks/usePermission";
-import { getEvents, createEvent } from "@/lib/supabase/queries/events";
+import { getEvents, createEvent, getEventAttendanceCounts } from "@/lib/supabase/queries/events";
 import { supabase } from "@/lib/supabase/client";
 import { getErrorMessage } from "@/lib/supabase/error-handler";
 import { sendNotification } from "@/lib/notifications/send";
@@ -78,6 +78,7 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
+  const [attendanceCounts, setAttendanceCounts] = useState<Record<string, { players: number; parents: number }>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,6 +92,11 @@ export default function CalendarPage() {
     try {
       const data = await getEvents(currentTeam.id);
       setEvents(data);
+      // 参加人数を一括取得
+      if (data.length > 0) {
+        const counts = await getEventAttendanceCounts(data.map((e) => e.id));
+        setAttendanceCounts(counts);
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -217,16 +223,23 @@ export default function CalendarPage() {
                   {dayEvents.slice(0, 2).map((event) => {
                     const colors = EVENT_TYPE_COLORS[event.event_type] || EVENT_TYPE_COLORS.other;
                     const past = isPastEvent(event.start_at);
+                    const counts = attendanceCounts[event.id];
                     return (
                       <Link
                         key={event.id}
                         href={`/calendar/${event.id}`}
                         className={cn(
-                          "mt-0.5 block truncate rounded px-1 text-[10px] leading-4",
+                          "mt-0.5 block rounded px-1 text-[10px] leading-4",
                           past ? "bg-gray-100 text-gray-400" : `${colors.bg} ${colors.text}`
                         )}
                       >
-                        {event.title}
+                        <span className="block truncate">{event.title}</span>
+                        {counts && (counts.players > 0 || counts.parents > 0) && (
+                          <span className="block text-[9px] leading-3 opacity-75">
+                            {counts.players > 0 && `部員${counts.players}`}
+                            {counts.parents > 0 && `保護者${counts.parents}`}
+                          </span>
+                        )}
                       </Link>
                     );
                   })}
@@ -249,6 +262,7 @@ export default function CalendarPage() {
             monthEvents.map((event) => {
               const colors = EVENT_TYPE_COLORS[event.event_type] || EVENT_TYPE_COLORS.other;
               const past = isPastEvent(event.start_at);
+              const counts = attendanceCounts[event.id];
               return (
                 <Link key={event.id} href={`/calendar/${event.id}`}>
                   <Card className={cn("p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800", past && "opacity-50")}>
@@ -267,6 +281,12 @@ export default function CalendarPage() {
                         </p>
                         {event.location && (
                           <p className="text-xs text-gray-400">{event.location}</p>
+                        )}
+                        {counts && (counts.players > 0 || counts.parents > 0) && (
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            {counts.players > 0 && <span>部員{counts.players}</span>}
+                            {counts.parents > 0 && <span className="ml-1">保護者{counts.parents}</span>}
+                          </p>
                         )}
                       </div>
                     </div>
