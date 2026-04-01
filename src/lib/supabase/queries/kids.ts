@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
 import type {
-  PlayerCard,
   KidsBadge,
   PlayerBadge,
   Award,
@@ -12,28 +11,6 @@ import type {
   BestPlay,
   TeamChallenge,
 } from "@/types";
-
-// === 選手カード ===
-
-export async function getPlayerCard(playerId: string) {
-  const { data, error } = await supabase
-    .from("player_cards")
-    .select("*, players!player_id(*)")
-    .eq("player_id", playerId)
-    .single();
-  if (error && error.code !== "PGRST116") throw error;
-  return data as PlayerCard | null;
-}
-
-export async function getAllPlayerCards(teamId: string) {
-  const { data, error } = await supabase
-    .from("player_cards")
-    .select("*, players!player_id(*)")
-    .eq("team_id", teamId)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return data as PlayerCard[];
-}
 
 // === バッジ ===
 
@@ -52,7 +29,7 @@ export async function getPlayerBadges(playerId: string) {
     .from("player_badges")
     .select("*, badge_definitions!badge_id(*)")
     .eq("player_id", playerId)
-    .order("earned_at", { ascending: false });
+    .order("awarded_at", { ascending: false });
   if (error) throw error;
   return (data as unknown as (PlayerBadge & { badge_definitions: KidsBadge })[]).map(
     (d) => ({ ...d, badge: d.badge_definitions })

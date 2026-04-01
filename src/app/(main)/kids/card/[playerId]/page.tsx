@@ -6,15 +6,14 @@ import { PlayerCard } from "@/components/features/kids/PlayerCard";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
-import { getPlayerCard, getPlayerBadges } from "@/lib/supabase/queries/kids";
+import { getPlayerBadges } from "@/lib/supabase/queries/kids";
 import { getPlayer } from "@/lib/supabase/queries/players";
-import type { Player, PlayerCard as PlayerCardType, PlayerBadge } from "@/types";
+import type { Player, PlayerBadge } from "@/types";
 
 export default function PlayerCardPage() {
   const params = useParams();
   const playerId = params.playerId as string;
   const [player, setPlayer] = useState<Player | null>(null);
-  const [card, setCard] = useState<PlayerCardType | null>(null);
   const [badges, setBadges] = useState<PlayerBadge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,13 +22,11 @@ export default function PlayerCardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [playerData, cardData, badgesData] = await Promise.all([
+      const [playerData, badgesData] = await Promise.all([
         getPlayer(playerId),
-        getPlayerCard(playerId),
         getPlayerBadges(playerId),
       ]);
       setPlayer(playerData);
-      setCard(cardData);
       setBadges(badgesData);
     } catch {
       setError("選手カードの取得に失敗しました");
@@ -60,44 +57,43 @@ export default function PlayerCardPage() {
           number={player.number}
           position={player.position}
           grade={player.grade}
-          battingThrow={card?.batting_throw}
-          photoUrl={card?.photo_url}
-          cardRank={card?.card_rank ?? "bronze"}
+          photoUrl={player.card_photo_url}
+          cardRank={player.card_rank ?? "bronze"}
           badges={badges}
         />
 
         {/* プロフィール情報 */}
-        {card && (card.favorite_pro_player || card.best_play || card.future_dream) && (
+        {(player.favorite_pro_player || player.favorite_play || player.dream) && (
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <h3 className="mb-3 text-sm font-bold text-gray-900">プロフィール</h3>
             <div className="space-y-2">
-              {card.favorite_pro_player && (
+              {player.favorite_pro_player && (
                 <div className="flex items-start gap-2">
                   <span className="flex-shrink-0 text-xs text-gray-500">
                     好きなプロ野球選手
                   </span>
                   <span className="text-sm font-medium text-gray-900">
-                    {card.favorite_pro_player}
+                    {player.favorite_pro_player}
                   </span>
                 </div>
               )}
-              {card.best_play && (
+              {player.favorite_play && (
                 <div className="flex items-start gap-2">
                   <span className="flex-shrink-0 text-xs text-gray-500">
                     得意なプレー
                   </span>
                   <span className="text-sm font-medium text-gray-900">
-                    {card.best_play}
+                    {player.favorite_play}
                   </span>
                 </div>
               )}
-              {card.future_dream && (
+              {player.dream && (
                 <div className="flex items-start gap-2">
                   <span className="flex-shrink-0 text-xs text-gray-500">
                     将来の夢
                   </span>
                   <span className="text-sm font-medium text-gray-900">
-                    {card.future_dream}
+                    {player.dream}
                   </span>
                 </div>
               )}
