@@ -199,13 +199,32 @@ export async function getAttendances(eventId: string) {
   }));
 }
 
-/** 自分の子供一覧を取得 */
+/** 自分の子供一覧を取得（リレーション参照を使わない分割クエリ） */
 export async function getMyChildren(userId: string, teamId: string) {
-  const { data, error } = await supabase
+  const { data: childRows, error: childError } = await supabase
     .from("user_children")
-    .select("*, players:player_id!user_children_player_id_fkey(id, name, number)")
+    .select("*")
     .eq("user_id", userId)
     .eq("team_id", teamId);
-  if (error) throw error;
-  return data || [];
+  if (childError) throw childError;
+  if (!childRows || childRows.length === 0) return [];
+
+  const playerIds = childRows.map((c: any) => c.player_id).filter(Boolean);
+  if (playerIds.length === 0) return childRows.map((c: any) => ({ ...c, players: null }));
+
+  const { data: players, error: playersError } = await supabase
+    .from("players")
+    .select("id, name, number")
+    .in("id", playerIds);
+  if (playersError) throw playersError;
+
+  const playersMap: Record<string, any> = {};
+  for (const p of players || []) {
+    playersMap[p.id] = p;
+  }
+
+  return childRows.map((c: any) => ({
+    ...c,
+    players: c.player_id ? playersMap[c.player_id] || null : null,
+  }));
 }
