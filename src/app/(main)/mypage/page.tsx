@@ -8,7 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { LoadingOverlay } from "@/components/ui/loading-spinner";
+import { PlayerAvatar } from "@/components/features/PlayerAvatar";
+import { PlayerPhotoUpload } from "@/components/features/PlayerPhotoUpload";
 import { supabase } from "@/lib/supabase/client";
+import { uploadPlayerPhoto } from "@/lib/supabase/storage";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import {
   getProfile,
@@ -411,10 +414,12 @@ export default function MyPage() {
                     key={child.user_child_id}
                     className="flex items-center justify-between rounded-lg bg-gray-50 p-3"
                   >
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {child.player.name}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <PlayerAvatar player={child.player} size="lg" showNumber />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {child.player.name}
+                        </p>
                       <p className="text-xs text-gray-500">
                         {child.player.grade
                           ? `${child.player.grade}年生`
@@ -430,6 +435,7 @@ export default function MyPage() {
                           : ""}
                       </p>
                       <p className="text-xs text-gray-400">{child.team_name}</p>
+                      </div>
                     </div>
                     <Button
                       size="sm"
@@ -568,6 +574,20 @@ export default function MyPage() {
                 <h4 className="text-sm font-medium text-gray-900">
                   {editingChild.player.name} を編集
                 </h4>
+                <div className="flex justify-center">
+                  <PlayerPhotoUpload
+                    player={editingChild.player}
+                    size="lg"
+                    onUpload={async (file) => {
+                      await uploadPlayerPhoto(
+                        file,
+                        editingChild.team_id,
+                        editingChild.player.id
+                      );
+                      if (userId) await fetchData(userId);
+                    }}
+                  />
+                </div>
                 <Input
                   label="氏名"
                   value={editChildForm.name}
