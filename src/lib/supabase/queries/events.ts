@@ -158,7 +158,7 @@ export async function upsertUserAttendance(data: {
 export async function getAttendances(eventId: string) {
   const { data, error } = await supabase
     .from("event_attendances")
-    .select("*, users:user_id(display_name, avatar_url), players:player_id(name, number)")
+    .select("*, users:user_id!event_attendances_user_id_fkey(display_name, avatar_url), players:player_id(name, number)")
     .eq("event_id", eventId);
   if (error) throw error;
   return data || [];
