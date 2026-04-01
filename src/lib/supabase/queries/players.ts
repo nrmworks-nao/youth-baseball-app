@@ -112,7 +112,7 @@ export async function createPlayerFitnessRecord(data: {
 export async function getTeamAllPlayerStats(teamId: string) {
   const { data, error } = await supabase
     .from("player_game_stats")
-    .select("*, players!player_id(id, name, number:uniform_number, card_photo_url)")
+    .select("*, players!player_id(id, name, number, card_photo_url)")
     .eq("team_id", teamId);
   if (error) throw error;
   return data as (PlayerGameStats & {
@@ -124,7 +124,7 @@ export async function getTeamAllPlayerStats(teamId: string) {
 export async function getTeamFitnessRecords(teamId: string) {
   const { data, error } = await supabase
     .from("player_fitness_records")
-    .select("*, players!player_id(id, name, number:uniform_number, card_photo_url)")
+    .select("*, players!player_id(id, name, number, card_photo_url)")
     .eq("team_id", teamId)
     .order("measured_at", { ascending: false });
   if (error) throw error;
