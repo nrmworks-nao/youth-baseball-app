@@ -310,8 +310,6 @@ export default function InvitePage() {
         if (newPlayers[i].name.trim() || newPlayers[i].number) {
           if (!newPlayers[i].name.trim())
             return `新規選手${i + 1}の名前を入力してください`;
-          if (!newPlayers[i].number)
-            return `新規選手${i + 1}の背番号を入力してください`;
           validNewPlayers++;
         }
       }
@@ -683,7 +681,7 @@ export default function InvitePage() {
         <div className="grid grid-cols-2 gap-3">
           <Input
             id={`new-player-number-${index}`}
-            label="背番号 *"
+            label="背番号（任意）"
             placeholder="例: 10"
             type="number"
             value={player.number}
