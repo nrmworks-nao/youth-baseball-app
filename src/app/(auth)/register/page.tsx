@@ -107,7 +107,8 @@ function RegisterForm() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">新規登録</h1>
+          <img src="/app-icon.png" alt="Youth Baseball Team Hub" className="w-20 h-20 mx-auto" />
+          <h1 className="mt-4 text-2xl font-bold text-gray-900">新規登録</h1>
           <p className="mt-2 text-sm text-gray-500">
             アカウントを作成してチームに参加しましょう
           </p>
