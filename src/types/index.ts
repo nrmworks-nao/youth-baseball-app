@@ -11,11 +11,12 @@ export type PermissionGroup =
 // ユーザー
 export interface User {
   id: string;
-  line_id: string;
+  line_id?: string | null;
   display_name: string;
   avatar_url?: string;
   picture_url?: string;
   phone?: string;
+  email?: string;
   notification_settings?: NotificationSettings;
   created_at: string;
 }

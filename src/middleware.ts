@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // 認証不要のパス
-const PUBLIC_PATHS = ["/login", "/invite", "/onboarding", "/offline.html"];
+const PUBLIC_PATHS = ["/login", "/register", "/invite", "/onboarding", "/offline.html"];
 
 // LIFF認証コールバックのパラメータ名
 const LIFF_CALLBACK_PARAMS = ["code", "state", "liffClientId", "liffRedirectUri"];

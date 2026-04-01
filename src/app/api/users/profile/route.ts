@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { userId, display_name, phone, avatar_url, notification_settings } =
+    const { userId, display_name, phone, avatar_url, notification_settings, line_id, line_display_name, line_picture_url } =
       body as {
         userId: string;
         display_name?: string;
@@ -19,6 +19,9 @@ export async function PUT(req: Request) {
           post: boolean;
           accounting: boolean;
         };
+        line_id?: string;
+        line_display_name?: string;
+        line_picture_url?: string | null;
       };
 
     if (!userId) {
@@ -48,6 +51,9 @@ export async function PUT(req: Request) {
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
     if (notification_settings !== undefined)
       updateData.notification_settings = notification_settings;
+    if (line_id !== undefined) updateData.line_id = line_id;
+    if (line_display_name !== undefined) updateData.line_display_name = line_display_name;
+    if (line_picture_url !== undefined) updateData.line_picture_url = line_picture_url;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
