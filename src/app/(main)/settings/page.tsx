@@ -220,12 +220,12 @@ export default function SettingsPage() {
   if (error) return <ErrorDisplay message={error} />;
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-w-0">
       <div className="border-b border-gray-200 bg-white px-4 py-3">
         <h2 className="text-base font-bold text-gray-900">チーム設定</h2>
       </div>
 
-      <div className="space-y-4 p-4">
+      <div className="space-y-4 p-3 sm:p-4 max-w-2xl w-full mx-auto">
         {/* バナー画像 */}
         <Card className="overflow-hidden">
           <div className="relative h-[120px]">
@@ -324,7 +324,7 @@ export default function SettingsPage() {
               />
               {canManage && (
                 <Button
-                  className="w-full"
+                  className="w-full min-h-[44px]"
                   onClick={handleSaveTeamInfo}
                   disabled={isSaving}
                 >
@@ -358,12 +358,12 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={handleToggleApproval}
-                  className={`relative h-6 w-11 rounded-full transition-colors ${
+                  className={`relative shrink-0 h-7 w-12 rounded-full transition-colors ${
                     requireApproval ? "bg-green-600" : "bg-gray-300"
                   }`}
                 >
                   <span
-                    className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                    className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white transition-transform ${
                       requireApproval ? "translate-x-5" : ""
                     }`}
                   />
@@ -383,13 +383,14 @@ export default function SettingsPage() {
               <div className="space-y-3">
                 {inviteUrl && !isExpired ? (
                   <>
-                    <div className="flex items-center gap-2 rounded-lg bg-gray-50 p-3">
-                      <code className="flex-1 truncate text-sm text-gray-700">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg bg-gray-50 p-3">
+                      <code className="flex-1 min-w-0 break-all text-sm text-gray-700">
                         {inviteUrl}
                       </code>
                       <Button
                         size="sm"
                         variant="outline"
+                        className="shrink-0 min-h-[44px] sm:min-h-0 w-full sm:w-auto"
                         onClick={handleCopyLink}
                       >
                         {copied ? "コピー済み" : "コピー"}
@@ -403,8 +404,8 @@ export default function SettingsPage() {
                         )}
                       </p>
                     )}
-                    <div className="flex items-center justify-center rounded-lg border border-gray-200 p-6">
-                      <QRCodeSVG value={inviteUrl} size={160} />
+                    <div className="flex items-center justify-center rounded-lg border border-gray-200 p-4 sm:p-6">
+                      <QRCodeSVG value={inviteUrl} size={160} className="max-w-full h-auto" />
                     </div>
                   </>
                 ) : (
@@ -422,7 +423,7 @@ export default function SettingsPage() {
                 )}
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full min-h-[44px]"
                   onClick={handleGenerateInviteCode}
                   disabled={isGenerating}
                 >
