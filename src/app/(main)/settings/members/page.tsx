@@ -167,7 +167,7 @@ export default function MembersPage() {
   if (error) return <ErrorDisplay message={error} />;
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-w-0">
       <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3">
         <Link href="/settings" className="text-gray-400">
           <svg
@@ -193,7 +193,7 @@ export default function MembersPage() {
         </div>
       )}
 
-      <div className="space-y-4 p-4">
+      <div className="space-y-4 p-3 sm:p-4 max-w-2xl w-full mx-auto">
         {/* 参加承認待ち */}
         {pendingMembers.length > 0 && (
           <Card className="border-l-4 border-l-orange-400">
@@ -207,7 +207,7 @@ export default function MembersPage() {
                     key={pending.id}
                     className="rounded-lg border border-gray-100 p-3"
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col gap-2">
                       <div>
                         <p className="text-sm font-medium text-gray-900">
                           {pending.users?.display_name || "不明"}
@@ -225,9 +225,10 @@ export default function MembersPage() {
                           </p>
                         ))}
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-2">
                         <Button
                           size="sm"
+                          className="min-h-[44px] sm:min-h-0 flex-1 sm:flex-none"
                           onClick={() => handleApprove(pending.id)}
                         >
                           承認
@@ -235,6 +236,7 @@ export default function MembersPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="min-h-[44px] sm:min-h-0 flex-1 sm:flex-none"
                           onClick={() => handleReject(pending.id)}
                         >
                           拒否
@@ -273,27 +275,26 @@ export default function MembersPage() {
                       onError={(msg) => showMessage(msg)}
                     />
                   ) : (
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-gray-900">
-                            {member.users?.display_name || "不明"}
-                          </p>
-                          <Badge variant="primary">
-                            {getRoleLabel(member.permission_group)}
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-gray-900">
+                          {member.users?.display_name || "不明"}
+                        </p>
+                        <Badge variant="primary">
+                          {getRoleLabel(member.permission_group)}
+                        </Badge>
+                        {member.is_admin && (
+                          <Badge variant="secondary">
+                            ⚙サイト管理者
                           </Badge>
-                          {member.is_admin && (
-                            <Badge variant="secondary">
-                              ⚙サイト管理者
-                            </Badge>
-                          )}
-                        </div>
+                        )}
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 flex-wrap">
                         {currentMemberIsAdmin && (
                           <Button
                             size="sm"
                             variant="outline"
+                            className="min-h-[44px] sm:min-h-0"
                             onClick={() => handleToggleAdmin(member)}
                           >
                             {member.is_admin ? "管理者解除" : "管理者設定"}
@@ -302,6 +303,7 @@ export default function MembersPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="min-h-[44px] sm:min-h-0"
                           onClick={() => setEditingId(member.id)}
                         >
                           編集
@@ -311,6 +313,7 @@ export default function MembersPage() {
                             <Button
                               size="sm"
                               variant="destructive"
+                              className="min-h-[44px] sm:min-h-0"
                               onClick={() => handleDeactivate(member.id)}
                             >
                               確認
@@ -318,6 +321,7 @@ export default function MembersPage() {
                             <Button
                               size="sm"
                               variant="outline"
+                              className="min-h-[44px] sm:min-h-0"
                               onClick={() => setConfirmDeleteId(null)}
                             >
                               戻る
@@ -327,6 +331,7 @@ export default function MembersPage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="min-h-[44px] sm:min-h-0"
                             onClick={() => setConfirmDeleteId(member.id)}
                           >
                             退会
@@ -393,13 +398,13 @@ function MemberEditForm({
       <div className="flex gap-2">
         <Button
           size="sm"
-          className="flex-1"
+          className="flex-1 min-h-[44px] sm:min-h-0"
           onClick={handleSave}
           disabled={isSaving}
         >
           {isSaving ? "保存中..." : "保存"}
         </Button>
-        <Button size="sm" variant="outline" className="flex-1" onClick={onClose}>
+        <Button size="sm" variant="outline" className="flex-1 min-h-[44px] sm:min-h-0" onClick={onClose}>
           キャンセル
         </Button>
       </div>
