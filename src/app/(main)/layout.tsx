@@ -3,14 +3,16 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { getRoleLabel } from "@/lib/utils/roles";
 import { getUnreadCount } from "@/lib/supabase/queries/posts";
 import { getUnreadNotificationCount } from "@/lib/supabase/queries/notifications";
 import { supabase } from "@/lib/supabase/client";
+import { isLiffInitialized } from "@/lib/line/liff";
+import liff from "@line/liff";
 
 const TAB_ITEMS = [
   {
@@ -106,6 +108,100 @@ const SIDEBAR_ITEMS = [
   { href: "/settings", label: "設定" },
   { href: "/mypage", label: "マイページ" },
 ];
+
+function SidebarTeamBanner() {
+  const { currentTeam } = useCurrentTeam();
+  const teamName = currentTeam?.name || "";
+  const initial = teamName.charAt(0);
+
+  return (
+    <div className="relative h-20 overflow-hidden">
+      {/* バナー背景 */}
+      {currentTeam?.banner_url ? (
+        <img
+          src={currentTeam.banner_url}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-green-400" />
+      )}
+
+      {/* オーバーレイ */}
+      <div className="absolute inset-0 bg-black/20" />
+
+      {/* コンテンツ */}
+      <div className="relative h-full flex items-center px-4">
+        <div className="flex items-center gap-3">
+          {/* ロゴ */}
+          {currentTeam?.logo_url ? (
+            <img
+              src={currentTeam.logo_url}
+              alt=""
+              className="w-8 h-8 rounded-full object-cover border-2 border-white"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-sm">
+              {initial}
+            </div>
+          )}
+          {/* チーム名 */}
+          <h1 className="text-white font-bold text-lg drop-shadow-sm truncate max-w-[160px]">
+            {teamName}
+          </h1>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SidebarLogoutButton() {
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+
+      // Cookie削除
+      document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+      // LIFF初期化済みの場合はLINEもログアウト
+      try {
+        if (isLiffInitialized() && liff.isLoggedIn()) {
+          liff.logout();
+        }
+      } catch {
+        // LIFFログアウト失敗は無視
+      }
+
+      window.location.href = "/login";
+    } catch {
+      setIsLoggingOut(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleLogout}
+      disabled={isLoggingOut}
+      className={cn(
+        "flex w-full items-center rounded-lg px-3 py-2.5 transition-colors",
+        "hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50"
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <div className="rounded-full bg-red-50 p-2 dark:bg-red-950">
+          <LogOut className="h-5 w-5 text-red-500" />
+        </div>
+        <p className="text-sm font-medium text-red-600 dark:text-red-400">
+          {isLoggingOut ? "ログアウト中..." : "ログアウト"}
+        </p>
+      </div>
+    </button>
+  );
+}
 
 function TeamSwitcher() {
   const { currentTeam, teams, switchTeam, isLoading } = useCurrentTeam();
@@ -267,7 +363,6 @@ function TeamBrandingHeader({
         <div className="flex h-14 items-center justify-between px-6">
           <div />
           <div className="flex items-center gap-2">
-            <ThemeToggle />
             <Link
               href="/notifications"
               className="relative flex h-11 w-11 items-center justify-center rounded-lg hover:bg-muted"
@@ -394,11 +489,7 @@ export default function MainLayout({
       <div className="flex min-h-screen bg-background">
         {/* PC用サイドバー */}
         <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 lg:border-r lg:border-border lg:bg-card">
-          <div className="flex h-14 items-center px-4 border-b border-border">
-            <h1 className="text-base font-bold text-foreground">
-              Youth Baseball Team Hub
-            </h1>
-          </div>
+          <SidebarTeamBanner />
           <div className="border-b border-border px-3 py-2">
             <TeamSwitcher />
           </div>
@@ -431,10 +522,11 @@ export default function MainLayout({
                 );
               })}
             </ul>
+            {/* セパレーター */}
+            <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
+            {/* ログアウト */}
+            <SidebarLogoutButton />
           </nav>
-          <div className="border-t border-border p-3">
-            <ThemeToggle />
-          </div>
         </aside>
 
         {/* メインコンテンツエリア */}
