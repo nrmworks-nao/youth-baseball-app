@@ -87,6 +87,9 @@ export default function InvitePage() {
   );
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
 
+  // 既に別チームに所属しているかチェック
+  const [existingTeamName, setExistingTeamName] = useState<string | null>(null);
+
   // メール/パスワード認証
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -166,10 +169,25 @@ export default function InvitePage() {
             setPhone(userData.phone || "");
           }
 
-          // 既存メンバーチェック
-          const alreadyMember = await isAlreadyMember(teamData.id, user.id);
-          if (alreadyMember) {
-            setError("既にこのチームに参加しています");
+          // 既に別チームに所属しているかチェック（1ユーザー1チーム制限）
+          const { data: existingMemberships } = await supabase
+            .from("team_members")
+            .select("team_id, teams(name)")
+            .eq("user_id", user.id)
+            .eq("is_active", true);
+
+          if (existingMemberships && existingMemberships.length > 0) {
+            const isSameTeam = existingMemberships.some(
+              (m: { team_id: string }) => m.team_id === teamData.id
+            );
+            if (isSameTeam) {
+              setError("既にこのチームに参加しています");
+              setIsLoading(false);
+              return;
+            }
+            // 別チームに所属中
+            const teamName = (existingMemberships[0] as { teams: { name: string } | null }).teams?.name || "不明";
+            setExistingTeamName(teamName);
             setIsLoading(false);
             return;
           }
@@ -503,6 +521,40 @@ export default function InvitePage() {
             <br />
             承認されると、チームの機能をご利用いただけます。
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 既に別チームに所属している場合
+  if (existingTeamName) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
+        <div className="text-center max-w-sm">
+          <div className="mb-4 flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-orange-100">
+            <svg
+              className="h-8 w-8 text-orange-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+              />
+            </svg>
+          </div>
+          <h2 className="mb-2 text-lg font-bold text-gray-900">別のチームに所属中</h2>
+          <p className="text-sm text-gray-600">
+            既に「{existingTeamName}」に所属しています。別のチームに参加するには、先に現在のチームを退会してください。
+          </p>
+          <Link href="/mypage">
+            <Button className="mt-6 w-full" size="lg">
+              マイページへ
+            </Button>
+          </Link>
         </div>
       </div>
     );

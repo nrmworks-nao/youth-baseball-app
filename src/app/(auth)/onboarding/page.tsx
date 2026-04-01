@@ -22,10 +22,24 @@ export default function OnboardingPage() {
   const [permissionGroup, setPermissionGroup] = useState("director");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         console.log("onboarding - session user.id:", session.user.id);
         setUserId(session.user.id);
+
+        // 既にチームに所属している場合は /home にリダイレクト
+        const { data: existingMemberships } = await supabase
+          .from("team_members")
+          .select("id")
+          .eq("user_id", session.user.id)
+          .eq("is_active", true)
+          .limit(1);
+
+        if (existingMemberships && existingMemberships.length > 0) {
+          console.log("onboarding - 既にチーム所属済み、/homeへリダイレクト");
+          window.location.href = "/home";
+          return;
+        }
       } else {
         console.log("onboarding - セッションなし、/loginへリダイレクト");
         window.location.href = "/login";

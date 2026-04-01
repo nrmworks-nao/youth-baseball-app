@@ -132,17 +132,23 @@ export async function POST(req: Request) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // 重複チェック
-    const { data: existing } = await supabaseAdmin
+    // 既に別チームに所属しているかチェック（1ユーザー1チーム制限）
+    const { data: existingMemberships } = await supabaseAdmin
       .from("team_members")
-      .select("id")
-      .eq("team_id", teamId)
+      .select("id, team_id")
       .eq("user_id", userId)
-      .maybeSingle();
+      .eq("is_active", true);
 
-    if (existing) {
+    if (existingMemberships && existingMemberships.length > 0) {
+      const isSameTeam = existingMemberships.some((m) => m.team_id === teamId);
+      if (isSameTeam) {
+        return NextResponse.json(
+          { error: "既にこのチームに参加しています" },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
-        { error: "既にこのチームに参加しています" },
+        { error: "既に別のチームに所属しています。先に現在のチームを退会してください。" },
         { status: 409 }
       );
     }
