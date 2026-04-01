@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
+import { PlayerAvatar } from "@/components/features/PlayerAvatar";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { getAwards } from "@/lib/supabase/queries/kids";
 import type { Award, AwardCategory } from "@/types";
@@ -124,8 +125,17 @@ export default function AwardsPage() {
                     >
                       <CardContent className="p-3">
                         <div className="flex items-start gap-3">
-                          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-white text-2xl shadow-sm">
-                            {config.icon}
+                          <div className="relative flex-shrink-0">
+                            {award.player ? (
+                              <PlayerAvatar player={award.player} size="lg" />
+                            ) : (
+                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl shadow-sm">
+                                {config.icon}
+                              </div>
+                            )}
+                            <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm shadow-sm">
+                              {config.icon}
+                            </span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">

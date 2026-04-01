@@ -10,6 +10,7 @@ import { ErrorDisplay } from "@/components/ui/error-display";
 import { supabase } from "@/lib/supabase/client";
 import { getTeamByInviteCode } from "@/lib/supabase/queries/teams";
 import { isAlreadyMember } from "@/lib/supabase/queries/members";
+import { uploadPlayerPhoto } from "@/lib/supabase/storage";
 import type { Team } from "@/types";
 
 interface PlayerEntry {
@@ -19,6 +20,8 @@ interface PlayerEntry {
   position: string;
   throwing_hand: string;
   batting_hand: string;
+  photoFile?: File;
+  photoPreview?: string;
 }
 
 interface ExistingPlayer {
@@ -372,6 +375,43 @@ export default function InvitePage() {
         return;
       }
 
+      // 写真アップロード（新規選手のみ、playerIds順に対応）
+      if (data.playerIds && data.playerIds.length > 0) {
+        const hasNewPlayers = showNewPlayerForm || !hasExistingPlayers;
+        if (hasNewPlayers) {
+          // 新規選手のファイルを持つもののみ抽出
+          const newPlayersWithPhotos = newPlayers
+            .filter((p: PlayerEntry) => p.name.trim() && p.photoFile);
+
+          // playerIdsのうち、既存選手分を除いたものが新規選手のID
+          const existingIds = selectedChildren
+            .filter((c: ChildSelection) => c.type === "existing")
+            .map((c: ChildSelection) => c.existingPlayerId);
+          const newPlayerIds = (data.playerIds as string[]).filter(
+            (id: string) => !existingIds.includes(id)
+          );
+
+          // 新規選手の登録順とphotoFile付きのマッピング
+          let photoIndex = 0;
+          for (let i = 0; i < newPlayers.length; i++) {
+            const p = newPlayers[i];
+            if (!p.name.trim()) continue;
+            if (p.photoFile && newPlayerIds[photoIndex]) {
+              try {
+                await uploadPlayerPhoto(
+                  p.photoFile,
+                  team.id,
+                  newPlayerIds[photoIndex]
+                );
+              } catch {
+                // 写真アップロード失敗は参加自体に影響しない
+              }
+            }
+            photoIndex++;
+          }
+        }
+      }
+
       if (data.isActive) {
         router.push("/home");
       } else {
@@ -467,6 +507,55 @@ export default function InvitePage() {
         <p className="text-xs font-medium text-gray-500">
           新規選手 {index + 1}
         </p>
+
+        {/* 写真（任意） */}
+        <div className="flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() =>
+              document.getElementById(`new-player-photo-${index}`)?.click()
+            }
+            className="relative group"
+          >
+            {player.photoPreview ? (
+              <img
+                src={player.photoPreview}
+                alt="プレビュー"
+                className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-green-100 text-green-700 font-bold flex items-center justify-center border-2 border-dashed border-gray-300 text-lg">
+                {player.name ? player.name.charAt(0) : "+"}
+              </div>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+              <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" />
+              </svg>
+            </div>
+          </button>
+          <input
+            id={`new-player-photo-${index}`}
+            type="file"
+            accept="image/jpeg,image/png,image/heic,image/heif"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const updated = [...newPlayers];
+                updated[index] = {
+                  ...updated[index],
+                  photoFile: file,
+                  photoPreview: URL.createObjectURL(file),
+                };
+                setNewPlayers(updated);
+              }
+            }}
+          />
+          <span className="text-[10px] text-gray-400">写真（任意）</span>
+        </div>
+
         <Input
           id={`new-player-name-${index}`}
           label="名前 *"

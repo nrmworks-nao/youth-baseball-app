@@ -87,7 +87,7 @@ export async function awardBadge(data: {
 export async function getAwards(teamId: string) {
   const { data, error } = await supabase
     .from("weekly_awards")
-    .select("*, players!player_id(id, name, number)")
+    .select("*, players!player_id(id, name, number, card_photo_url)")
     .eq("team_id", teamId)
     .order("awarded_at", { ascending: false });
   if (error) throw error;
@@ -296,7 +296,7 @@ export async function updateTeamChallenge(
 export async function getBestPlays(teamId: string) {
   const { data, error } = await supabase
     .from("best_plays")
-    .select("*, players!player_id(id, name, number), games!game_id(game_date, opponent_name)")
+    .select("*, players!player_id(id, name, number, card_photo_url), games!game_id(game_date, opponent_name)")
     .eq("team_id", teamId)
     .order("play_date", { ascending: false });
   if (error) throw error;

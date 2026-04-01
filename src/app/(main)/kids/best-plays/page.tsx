@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
+import { PlayerAvatar } from "@/components/features/PlayerAvatar";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { getBestPlays } from "@/lib/supabase/queries/kids";
 import type { BestPlay } from "@/types";
@@ -119,6 +120,9 @@ export default function BestPlaysPage() {
                         </div>
 
                         <div className="mt-0.5 flex items-center gap-1.5">
+                          {play.player && (
+                            <PlayerAvatar player={play.player} size="sm" />
+                          )}
                           <span className="text-xs font-medium text-orange-700">
                             {play.player?.name}
                           </span>

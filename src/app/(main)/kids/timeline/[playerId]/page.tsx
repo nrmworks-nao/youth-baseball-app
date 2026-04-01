@@ -6,9 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
+import { PlayerAvatar } from "@/components/features/PlayerAvatar";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { getMilestones, createMilestone } from "@/lib/supabase/queries/kids";
-import type { Milestone } from "@/types";
+import { getPlayer } from "@/lib/supabase/queries/players";
+import type { Milestone, Player } from "@/types";
 
 const MILESTONE_ICONS: Record<string, { icon: string; color: string }> = {
   first_hit: { icon: "⚾", color: "bg-yellow-100 border-yellow-300" },
@@ -30,6 +32,7 @@ export default function TimelinePage() {
   const params = useParams();
   const playerId = params.playerId as string;
   const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
+  const [player, setPlayer] = useState<Player | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +46,12 @@ export default function TimelinePage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getMilestones(playerId);
+      const [data, playerData] = await Promise.all([
+        getMilestones(playerId),
+        getPlayer(playerId),
+      ]);
       setMilestones(data);
+      setPlayer(playerData);
     } catch {
       setError("タイムラインの取得に失敗しました");
     } finally {
@@ -93,9 +100,14 @@ export default function TimelinePage() {
     <div className="flex flex-col">
       {/* ヘッダー */}
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
-        <div>
-          <h2 className="text-base font-bold text-gray-900">成長タイムライン</h2>
-          <p className="text-xs text-gray-500">{sortedMilestones.length}個のマイルストーン</p>
+        <div className="flex items-center gap-3">
+          {player && <PlayerAvatar player={player} size="lg" showNumber />}
+          <div>
+            <h2 className="text-base font-bold text-gray-900">成長タイムライン</h2>
+            <p className="text-xs text-gray-500">
+              {player?.name} - {sortedMilestones.length}個のマイルストーン
+            </p>
+          </div>
         </div>
         <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>
           {showAddForm ? "キャンセル" : "追加"}

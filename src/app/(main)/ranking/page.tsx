@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import { StatsBarChart } from "@/components/features/charts/BarChart";
+import { PlayerAvatar } from "@/components/features/PlayerAvatar";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import {
   getTeamAllPlayerStats,
@@ -73,10 +74,10 @@ const MEDAL_STYLES = [
 ];
 
 type StatsWithPlayer = PlayerGameStats & {
-  players: { id: string; name: string; number: number };
+  players: { id: string; name: string; number: number; card_photo_url?: string };
 };
 type FitnessWithPlayer = PlayerFitnessRecord & {
-  players: { id: string; name: string; number: number };
+  players: { id: string; name: string; number: number; card_photo_url?: string };
 };
 
 interface RankingEntry {
@@ -84,6 +85,7 @@ interface RankingEntry {
   number: number;
   value: number;
   at_bats?: number;
+  card_photo_url?: string;
 }
 
 function getSeasonRange(): { start: string; end: string } {
@@ -155,6 +157,7 @@ export default function RankingPage() {
           name: record.players.name,
           number: record.players.number,
           value: val,
+          card_photo_url: record.players.card_photo_url,
         });
       }
 
@@ -191,6 +194,7 @@ export default function RankingPage() {
       {
         name: string;
         number: number;
+        card_photo_url?: string;
         at_bats: number;
         hits: number;
         doubles: number;
@@ -220,6 +224,7 @@ export default function RankingPage() {
         playerAgg.set(pid, {
           name: s.players.name,
           number: s.players.number,
+          card_photo_url: s.players.card_photo_url,
           at_bats: s.at_bats,
           hits: s.hits,
           doubles: s.doubles,
@@ -269,6 +274,7 @@ export default function RankingPage() {
         number: agg.number,
         value,
         at_bats: agg.at_bats,
+        card_photo_url: agg.card_photo_url,
       });
     }
 
@@ -424,10 +430,16 @@ export default function RankingPage() {
                           )}
                         </td>
                         <td className="px-2 py-2">
-                          <span className="font-medium text-gray-900">
-                            {r.name}
-                          </span>
-                          <span className="ml-1 text-gray-400">#{r.number}</span>
+                          <div className="flex items-center gap-1.5">
+                            <PlayerAvatar
+                              player={{ name: r.name, card_photo_url: r.card_photo_url, number: r.number }}
+                              size="sm"
+                            />
+                            <span className="font-medium text-gray-900">
+                              {r.name}
+                            </span>
+                            <span className="text-gray-400">#{r.number}</span>
+                          </div>
                         </td>
                         <td className="px-2 py-2 text-right font-bold text-gray-900">
                           {config.format(r.value)}

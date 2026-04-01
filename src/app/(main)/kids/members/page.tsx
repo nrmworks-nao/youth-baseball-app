@@ -190,6 +190,7 @@ export default function MembersPage() {
                 number={member.number}
                 position={member.position}
                 grade={member.grade}
+                photoUrl={member.card_photo_url}
                 cardRank={member.card_rank ?? "bronze"}
                 compact
                 className="transition-transform active:scale-[0.98]"
