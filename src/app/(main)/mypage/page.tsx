@@ -6,7 +6,6 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { LoadingOverlay } from "@/components/ui/loading-spinner";
 import { PlayerAvatar } from "@/components/features/PlayerAvatar";
 import { PlayerPhotoUpload } from "@/components/features/PlayerPhotoUpload";
@@ -83,7 +82,7 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 };
 
 export default function MyPage() {
-  const { currentTeam, teams, switchTeam } = useCurrentTeam();
+  const { currentTeam, currentMembership } = useCurrentTeam();
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<User | null>(null);
   const [myTeams, setMyTeams] = useState<TeamWithRole[]>([]);
@@ -120,6 +119,11 @@ export default function MyPage() {
   // LINE連携
   const [isLinking, setIsLinking] = useState(false);
   const [linkMessage, setLinkMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // チーム退会
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   // 子供編集モーダル
   const [editingChild, setEditingChild] = useState<ChildWithTeam | null>(null);
@@ -404,6 +408,32 @@ export default function MyPage() {
       });
     } finally {
       setIsLinking(false);
+    }
+  };
+
+  // チーム退会処理
+  const handleLeaveTeam = async () => {
+    if (!userId || !currentTeam) return;
+    setIsLeaving(true);
+    setLeaveError(null);
+    try {
+      const res = await fetch("/api/teams/leave", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, teamId: currentTeam.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setLeaveError(data.error || "退会に失敗しました");
+        return;
+      }
+      // localStorage のチームIDをクリア
+      localStorage.removeItem("currentTeamId");
+      window.location.href = "/onboarding";
+    } catch {
+      setLeaveError("退会処理に失敗しました");
+    } finally {
+      setIsLeaving(false);
     }
   };
 
@@ -884,7 +914,7 @@ export default function MyPage() {
           </CardContent>
         </Card>
 
-        {/* チーム切替 */}
+        {/* 所属チーム */}
         <Card>
           <CardHeader>
             <CardTitle>所属チーム</CardTitle>
@@ -896,41 +926,22 @@ export default function MyPage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {myTeams.map((t) => {
-                  const isCurrent = currentTeam?.id === t.team.id;
-                  return (
-                    <div
-                      key={t.member_id}
-                      className={`flex items-center justify-between rounded-lg p-3 ${
-                        isCurrent
-                          ? "border border-green-200 bg-green-50"
-                          : "bg-gray-50"
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-gray-900">
-                            {t.team.name}
-                          </p>
-                          {isCurrent && <Badge variant="primary">現在</Badge>}
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          {getRoleLabel(t.permission_group)}
-                          {t.is_admin && " ⚙サイト管理者"}
-                        </p>
-                      </div>
-                      {!isCurrent && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => switchTeam(t.team.id)}
-                        >
-                          切替
-                        </Button>
-                      )}
+                {myTeams.map((t) => (
+                  <div
+                    key={t.member_id}
+                    className="flex items-center justify-between rounded-lg p-3 border border-green-200 bg-green-50"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {t.team.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {getRoleLabel(t.permission_group)}
+                        {t.is_admin && " ⚙サイト管理者"}
+                      </p>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
@@ -1033,6 +1044,57 @@ export default function MyPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* チーム退会 */}
+        {currentTeam && (
+          <div className="pt-4">
+            {!showLeaveConfirm ? (
+              <Button
+                variant="outline"
+                className="w-full border-red-300 text-red-600 hover:bg-red-50"
+                onClick={() => {
+                  setShowLeaveConfirm(true);
+                  setLeaveError(null);
+                }}
+              >
+                チームを退会する
+              </Button>
+            ) : (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="pt-4">
+                  <p className="text-sm text-red-800 mb-4">
+                    本当に「{currentTeam.name}」を退会しますか？この操作は取り消せません。
+                  </p>
+                  {leaveError && (
+                    <div className="mb-3 rounded-lg bg-red-100 p-2 text-xs text-red-700">
+                      {leaveError}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setShowLeaveConfirm(false);
+                        setLeaveError(null);
+                      }}
+                      disabled={isLeaving}
+                    >
+                      キャンセル
+                    </Button>
+                    <Button
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                      onClick={handleLeaveTeam}
+                      disabled={isLeaving}
+                    >
+                      {isLeaving ? "処理中..." : "退会する"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
 
       </div>
     </div>

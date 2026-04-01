@@ -90,20 +90,6 @@ export function useCurrentTeam() {
     fetchTeams();
   }, [fetchTeams]);
 
-  const switchTeam = useCallback(
-    (teamId: string) => {
-      const found = teams.find((t) => t.team.id === teamId);
-      if (found) {
-        setCurrentTeam(found.team);
-        setCurrentMembership(found);
-        setStoredTeamId(teamId);
-        // ページをリロードして切り替え先チームのデータを反映
-        window.location.reload();
-      }
-    },
-    [teams]
-  );
-
   const refetch = useCallback(() => {
     setIsLoading(true);
     fetchTeams();
@@ -113,7 +99,6 @@ export function useCurrentTeam() {
     currentTeam,
     currentMembership,
     teams,
-    switchTeam,
     isLoading,
     refetch,
   };
