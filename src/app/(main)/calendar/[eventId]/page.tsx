@@ -68,7 +68,7 @@ interface AttendanceRow {
   note: string | null;
   can_drive: boolean | null;
   car_capacity: number | null;
-  players: { name: string; number: number | null } | null;
+  players: { name: string; uniform_number: number | null } | null;
   users: { display_name: string; avatar_url: string | null } | null;
 }
 
@@ -80,7 +80,7 @@ export default function EventDetailPage() {
 
   const [event, setEvent] = useState<Event | null>(null);
   const [attendances, setAttendances] = useState<AttendanceRow[]>([]);
-  const [children, setChildren] = useState<{ player_id: string; players: { id: string; name: string; number: number | null } }[]>([]);
+  const [children, setChildren] = useState<{ player_id: string; players: { id: string; name: string; uniform_number: number | null } }[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -295,8 +295,8 @@ export default function EventDetailPage() {
                 <div key={player.id} className="space-y-2">
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {player.name}
-                    {player.number != null && (
-                      <span className="ml-1 text-xs text-gray-400">#{player.number}</span>
+                    {player.uniform_number != null && (
+                      <span className="ml-1 text-xs text-gray-400">#{player.uniform_number}</span>
                     )}
                   </p>
                   <div className="flex gap-2">
