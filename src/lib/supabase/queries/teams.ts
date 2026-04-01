@@ -21,7 +21,7 @@ export async function addTeamMember(data: {
   team_id: string;
   user_id: string;
   permission_group: PermissionGroup;
-  display_title: string;
+  is_admin?: boolean;
   is_active?: boolean;
 }) {
   const { data: member, error } = await supabase

@@ -25,7 +25,7 @@ const FREQ_LABELS: Record<string, string> = {
 export default function FeesPage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [fees, setFees] = useState<FeeSetting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,7 +39,7 @@ export default function FeesPage() {
   const [frequency, setFrequency] = useState("monthly");
   const [description, setDescription] = useState("");
 
-  const canManage = hasPermission(["team_admin", "treasurer"]);
+  const canManage = hasPermission(["director", "treasurer"]);
 
   const loadFees = useCallback(async () => {
     if (!currentTeam) return;

@@ -14,7 +14,7 @@ import type { TeamLineConfig } from "@/types";
 
 export default function LineSettingsPage() {
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { isAdmin } = usePermission(currentMembership?.permission_group ?? null);
+  const { isAdmin } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [config, setConfig] = useState<TeamLineConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);

@@ -41,9 +41,9 @@ export default function GamesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
-  const canCreateGame = hasPermission(["team_admin", "vice_president", "manager"]);
+  const canCreateGame = hasPermission(["director", "vice_president", "coach"]);
 
   useEffect(() => {
     if (teamLoading || !currentTeam) return;

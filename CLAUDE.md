@@ -18,8 +18,9 @@
 - 日本語コメント可
 
 ## 権限グループ方式
-system_admin / team_admin / vice_president / treasurer / manager / publicity / parent
-権限チェックは permission_group で判定、UI表示は display_title を使用
+director / president / vice_president / captain / coach / treasurer / publicity / parent
+権限チェックは permission_group で判定、UI表示は getRoleLabel(permission_group) を使用
+サイト管理者は is_admin フラグで判定（role とは独立）
 
 ## DB
 - マイグレーションは supabase/migrations/

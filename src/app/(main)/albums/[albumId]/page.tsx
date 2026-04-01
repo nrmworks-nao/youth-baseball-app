@@ -33,7 +33,8 @@ export default function AlbumDetailPage() {
   const albumId = params.albumId as string;
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
   const { isAdmin, canManagePhotos } = usePermission(
-    currentMembership?.permission_group ?? null
+    currentMembership?.permission_group ?? null,
+    currentMembership?.is_admin ?? false
   );
 
   const [album, setAlbum] = useState<(Album & { event_title: string | null }) | null>(null);

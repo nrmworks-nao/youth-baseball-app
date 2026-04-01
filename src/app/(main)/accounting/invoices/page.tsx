@@ -30,7 +30,7 @@ const STATUS_CONFIG: Record<
 export default function InvoicesPage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canManageAccounting } = usePermission(currentMembership?.permission_group ?? null);
+  const { canManageAccounting } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [invoices, setInvoices] = useState<InvoiceWithUser[]>([]);

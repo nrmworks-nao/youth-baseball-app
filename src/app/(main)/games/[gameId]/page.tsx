@@ -32,14 +32,14 @@ export default function GameDetailPage() {
   const params = useParams();
   const gameId = params.gameId as string;
   const { currentMembership } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [game, setGame] = useState<Game | null>(null);
   const [lineups, setLineups] = useState<GameLineup[]>([]);
   const [stats, setStats] = useState<PlayerGameStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const canEdit = hasPermission(["team_admin", "vice_president", "manager"]);
+  const canEdit = hasPermission(["director", "vice_president", "coach"]);
 
   useEffect(() => {
     const load = async () => {

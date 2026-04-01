@@ -72,7 +72,7 @@ function EventTypeBadge({ type }: { type: string }) {
 
 export default function CalendarPage() {
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canCreateEvent } = usePermission(currentMembership?.permission_group ?? null);
+  const { canCreateEvent } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());

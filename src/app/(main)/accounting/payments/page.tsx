@@ -28,9 +28,9 @@ const METHOD_LABELS: Record<string, string> = {
 export default function PaymentsPage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
-  const canManage = hasPermission(["team_admin", "treasurer"]);
+  const canManage = hasPermission(["director", "treasurer"]);
 
   const [payments, setPayments] = useState<PaymentWithUser[]>([]);
   const [pendingInvoices, setPendingInvoices] = useState<InvoiceWithUser[]>([]);

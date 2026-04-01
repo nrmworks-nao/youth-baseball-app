@@ -43,14 +43,14 @@ export async function getMyTeamsWithRole(
 ): Promise<TeamWithRole[]> {
   const { data, error } = await supabase
     .from("team_members")
-    .select("id, permission_group, display_title, teams(*)")
+    .select("id, permission_group, is_admin, teams(*)")
     .eq("user_id", userId)
     .eq("is_active", true);
   if (error) throw error;
   return (data || []).map((row: Record<string, unknown>) => ({
     team: row.teams,
     permission_group: row.permission_group,
-    display_title: row.display_title,
+    is_admin: row.is_admin ?? false,
     member_id: row.id,
   })) as TeamWithRole[];
 }

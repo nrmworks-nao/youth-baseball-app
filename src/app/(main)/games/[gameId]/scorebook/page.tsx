@@ -31,7 +31,7 @@ export default function ScorebookPage() {
   const gameId = params.gameId as string;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [existingImages, setExistingImages] = useState<ScorebookImage[]>([]);
   const [newImages, setNewImages] = useState<PreviewImage[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -40,7 +40,7 @@ export default function ScorebookPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
-  const canManage = hasPermission(["team_admin", "manager"]);
+  const canManage = hasPermission(["director", "coach"]);
 
   useEffect(() => {
     const load = async () => {

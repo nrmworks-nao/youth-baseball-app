@@ -33,7 +33,7 @@ const CATEGORY_OPTIONS: { value: PostCategory; label: string }[] = [
 export default function CreatePostPage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canPost } = usePermission(currentMembership?.permission_group ?? null);
+  const { canPost } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");

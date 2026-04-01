@@ -35,7 +35,7 @@ const CATEGORIES: { key: BadgeCategory; label: string }[] = [
 
 export default function BadgeManagementPage() {
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { isAdmin } = usePermission(currentMembership?.permission_group ?? null);
+  const { isAdmin } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [badges, setBadges] = useState<KidsBadge[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -152,7 +152,7 @@ export default function BadgeManagementPage() {
       {/* ヘッダー */}
       <div className="border-b border-gray-200 bg-white px-4 py-3">
         <h2 className="text-base font-bold text-gray-900">バッジ管理</h2>
-        <p className="text-xs text-gray-500">team_admin のみアクセス可能</p>
+        <p className="text-xs text-gray-500">サイト管理者のみアクセス可能</p>
       </div>
 
       <div className="space-y-4 p-4">

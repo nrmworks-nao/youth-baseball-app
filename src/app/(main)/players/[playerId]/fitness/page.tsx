@@ -30,7 +30,7 @@ export default function FitnessPage() {
   const params = useParams();
   const playerId = params.playerId as string;
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [records, setRecords] = useState<PlayerFitnessRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +65,7 @@ export default function FitnessPage() {
         setRecords(data);
 
         // 権限チェック
-        const isAdmin = hasPermission(["team_admin", "manager"]);
+        const isAdmin = hasPermission(["director", "coach"]);
         const myChildren = await getMyChildren(user.id, currentTeam.id);
         const isMyChild = myChildren.some(
           (c) => c.players?.id === playerId || c.player_id === playerId

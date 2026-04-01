@@ -76,7 +76,7 @@ export default function EventDetailPage() {
   const params = useParams();
   const eventId = params.eventId as string;
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null);
+  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [event, setEvent] = useState<Event | null>(null);
   const [attendances, setAttendances] = useState<AttendanceRow[]>([]);
@@ -90,7 +90,7 @@ export default function EventDetailPage() {
   const [myCanDrive, setMyCanDrive] = useState(false);
   const [myCarCapacity, setMyCarCapacity] = useState(0);
 
-  const canViewAll = hasPermission(["team_admin", "vice_president", "manager"]);
+  const canViewAll = hasPermission(["director", "vice_president", "coach"]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);

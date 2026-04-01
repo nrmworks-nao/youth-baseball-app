@@ -57,7 +57,7 @@ interface PostRow {
 
 export default function PostsPage() {
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canPost } = usePermission(currentMembership?.permission_group ?? null);
+  const { canPost } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [readPostIds, setReadPostIds] = useState<Set<string>>(new Set());

@@ -26,7 +26,7 @@ const STATUS_CELL: Record<string, { bg: string; text: string; label: string }> =
 export default function PaymentStatusPage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canManageAccounting } = usePermission(currentMembership?.permission_group ?? null);
+  const { canManageAccounting } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);

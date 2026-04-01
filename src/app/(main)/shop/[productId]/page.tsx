@@ -27,7 +27,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const productId = params.productId as string;
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canPinProduct } = usePermission(currentMembership?.permission_group ?? null);
+  const { canPinProduct } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [product, setProduct] = useState<ShopProduct | null>(null);
   const [pinnedData, setPinnedData] = useState<TeamPinnedProduct | null>(null);

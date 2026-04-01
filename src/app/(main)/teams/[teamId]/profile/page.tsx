@@ -20,7 +20,7 @@ export default function TeamProfilePage() {
   const params = useParams();
   const teamId = params.teamId as string;
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { isAdmin, canSendInterTeamMessage, canRequestMatch } = usePermission(currentMembership?.permission_group ?? null);
+  const { isAdmin, canSendInterTeamMessage, canRequestMatch } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [profile, setProfile] = useState<TeamProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
