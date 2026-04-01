@@ -18,6 +18,8 @@ import {
   getMyAllChildren,
   getMyTeamsWithRole,
 } from "@/lib/supabase/queries/users";
+import { initializeLiff, isLiffInitialized } from "@/lib/line/liff";
+import liff from "@line/liff";
 import type {
   User,
   TeamWithRole,
@@ -96,6 +98,13 @@ export default function MyPage() {
     relationship: "父",
     teamId: "",
   });
+
+  // LINE連携
+  const [isLinking, setIsLinking] = useState(false);
+  const [linkMessage, setLinkMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // ログアウト
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // 子供編集モーダル
   const [editingChild, setEditingChild] = useState<ChildWithTeam | null>(null);
@@ -281,6 +290,78 @@ export default function MyPage() {
       alert(err instanceof Error ? err.message : "更新に失敗しました");
     } finally {
       setIsSavingChild(false);
+    }
+  };
+
+  // LINE連携
+  const handleLinkLine = async () => {
+    if (!userId) return;
+    setIsLinking(true);
+    setLinkMessage(null);
+    try {
+      if (!isLiffInitialized()) {
+        await initializeLiff();
+      }
+
+      if (!liff.isLoggedIn()) {
+        // LINEログイン後にマイページに戻る
+        liff.login({ redirectUri: window.location.origin + "/mypage" });
+        return;
+      }
+
+      const lineProfile = await liff.getProfile();
+
+      // usersテーブルのline_idを更新
+      const res = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          line_id: lineProfile.userId,
+          line_display_name: lineProfile.displayName,
+          line_picture_url: lineProfile.pictureUrl || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "LINE連携に失敗しました");
+      }
+
+      setLinkMessage({ type: "success", text: "LINE連携が完了しました" });
+      await fetchData(userId);
+    } catch (err) {
+      setLinkMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "LINE連携に失敗しました",
+      });
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
+  // ログアウト
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+
+      // Cookie削除
+      document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+      // LIFF初期化済みの場合はLINEもログアウト
+      try {
+        if (isLiffInitialized() && liff.isLoggedIn()) {
+          liff.logout();
+        }
+      } catch {
+        // LIFFログアウト失敗は無視
+      }
+
+      window.location.href = "/login";
+    } catch {
+      setIsLoggingOut(false);
     }
   };
 
@@ -784,6 +865,59 @@ export default function MyPage() {
             </div>
           </Card>
         </Link>
+
+        {/* LINE連携 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>LINE連携</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {profile?.line_id ? (
+              <div className="flex items-center gap-2 text-sm text-green-700">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                LINE連携済み
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">
+                  LINEと連携すると、LINEからもログインできるようになります
+                </p>
+                {linkMessage && (
+                  <div
+                    className={`rounded-lg p-2 text-xs ${
+                      linkMessage.type === "success"
+                        ? "bg-green-50 text-green-700"
+                        : "bg-red-50 text-red-700"
+                    }`}
+                  >
+                    {linkMessage.text}
+                  </div>
+                )}
+                <Button
+                  variant="line"
+                  className="w-full"
+                  onClick={handleLinkLine}
+                  disabled={isLinking}
+                >
+                  {isLinking ? "連携中..." : "LINEと連携する"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ログアウト */}
+        <div className="py-4">
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="w-full text-center text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+          >
+            {isLoggingOut ? "ログアウト中..." : "ログアウト"}
+          </button>
+        </div>
       </div>
     </div>
   );

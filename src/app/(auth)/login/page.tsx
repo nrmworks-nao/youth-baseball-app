@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Loading } from "@/components/ui/loading";
 import liff from "@line/liff";
 import {
@@ -11,6 +13,7 @@ import {
   isLoggedIn as isLiffLoggedIn,
 } from "@/lib/line/liff";
 import type { LoginResult } from "@/lib/line/liff";
+import { supabase } from "@/lib/supabase/client";
 
 interface DebugInfo {
   liffStatus: string;
@@ -27,6 +30,13 @@ export default function LoginPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isLiffReady, setIsLiffReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // メール/パスワード認証
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isEmailLogging, setIsEmailLogging] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
   const [debug, setDebug] = useState<DebugInfo>({
     liffStatus: "初期化中",
     liffLoggedIn: "N/A",
@@ -67,7 +77,6 @@ export default function LoginPage() {
         }
 
         // LIFF未ログインだが認証コールバックの可能性がある場合
-        // （isLoggedIn()がfalseでもURL paramsやsessionStorageフラグで検知）
         const params = new URLSearchParams(window.location.search);
         const authAttempted =
           sessionStorage.getItem("liff_auth_started") === "1";
@@ -96,7 +105,7 @@ export default function LoginPage() {
           liffStatus: `初期化失敗: ${message}`,
           error: message,
         }));
-        setError("アプリの初期化に失敗しました");
+        // LIFF初期化失敗でもメール認証は使えるようにする
       } finally {
         setIsLoading(false);
       }
@@ -114,7 +123,6 @@ export default function LoginPage() {
         error: "",
       }));
 
-      // 画面遷移（cookieを反映するためfull reload）
       window.location.href = result.redirectTo;
     } else {
       setIsLoggingIn(false);
@@ -129,18 +137,16 @@ export default function LoginPage() {
         error: errorMsg,
       }));
 
-      // URLからコールバックパラメータをクリーン（ループ防止）
       if (window.location.search) {
         window.history.replaceState({}, "", window.location.pathname);
       }
     }
   };
 
-  const handleLogin = async () => {
+  const handleLineLogin = async () => {
     if (!isLiffReady) return;
 
     if (liff.isLoggedIn()) {
-      // 既にLINEログイン済みの場合、直接認証処理
       setIsLoggingIn(true);
       setDebug((prev) => ({
         ...prev,
@@ -158,8 +164,54 @@ export default function LoginPage() {
         setDebug((prev) => ({ ...prev, error: message }));
       }
     } else {
-      // LINEログイン画面へリダイレクト（認証後 /login に戻る）
       liff.login({ redirectUri: window.location.origin + "/login" });
+    }
+  };
+
+  // メール/パスワードでログイン
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError(null);
+
+    if (!email.trim() || !password) {
+      setEmailError("メールアドレスとパスワードを入力してください");
+      return;
+    }
+
+    setIsEmailLogging(true);
+    try {
+      const { data, error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+
+      if (signInError) {
+        setEmailError("メールアドレスまたはパスワードが正しくありません");
+        return;
+      }
+
+      // Cookie設定のためサーバーサイドで処理
+      const res = await fetch("/api/auth/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        setEmailError(result.error || "ログインに失敗しました");
+        return;
+      }
+
+      window.location.href = result.redirectTo || "/home";
+    } catch {
+      setEmailError("ログインに失敗しました。再度お試しください。");
+    } finally {
+      setIsEmailLogging(false);
     }
   };
 
@@ -191,15 +243,10 @@ export default function LoginPage() {
                   <feDropShadow dx="-2" dy="2" stdDeviation="2" floodColor="rgba(0,0,0,0.3)"/>
                 </filter>
               </defs>
-              {/* 緑の背景円 */}
               <circle cx="50" cy="50" r="48" fill="#4CAF50" filter="url(#shadow)"/>
-              {/* 野球ボール本体 */}
               <circle cx="50" cy="50" r="32" fill="url(#ball-grad)"/>
-              {/* 上側の縫い目 */}
               <path d="M30 40 C 35 30, 65 30, 70 40" fill="none" stroke="#D32F2F" strokeWidth="2.5"/>
-              {/* 下側の縫い目 */}
               <path d="M30 60 C 35 70, 65 70, 70 60" fill="none" stroke="#D32F2F" strokeWidth="2.5"/>
-              {/* 上側のステッチ */}
               <g stroke="#D32F2F" strokeWidth="1.5">
                 <line x1="28" y1="42" x2="28" y2="46"/>
                 <line x1="33" y1="39" x2="33" y2="43"/>
@@ -210,7 +257,6 @@ export default function LoginPage() {
                 <line x1="67" y1="39" x2="67" y2="43"/>
                 <line x1="72" y1="42" x2="72" y2="46"/>
               </g>
-              {/* 下側のステッチ */}
               <g stroke="#D32F2F" strokeWidth="1.5">
                 <line x1="28" y1="58" x2="28" y2="54"/>
                 <line x1="33" y1="61" x2="33" y2="57"/>
@@ -232,13 +278,60 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* ログインボタン */}
+        {/* メール/パスワードログインフォーム */}
+        <form onSubmit={handleEmailLogin} className="space-y-4">
+          <Input
+            label="メールアドレス"
+            type="email"
+            placeholder="example@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+          />
+          <Input
+            label="パスワード"
+            type="password"
+            placeholder="8文字以上"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+          {emailError && (
+            <p className="text-center text-sm text-red-600">{emailError}</p>
+          )}
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full"
+            disabled={isEmailLogging}
+          >
+            {isEmailLogging ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : null}
+            ログイン
+          </Button>
+          <p className="text-center text-sm text-gray-500">
+            アカウントをお持ちでない方は{" "}
+            <Link href="/register" className="text-green-600 hover:underline font-medium">
+              新規登録
+            </Link>
+          </p>
+        </form>
+
+        {/* 区切り線 */}
+        <div className="flex items-center gap-4">
+          <div className="h-px flex-1 bg-gray-200" />
+          <span className="text-sm text-gray-400">または</span>
+          <div className="h-px flex-1 bg-gray-200" />
+        </div>
+
+        {/* LINEログインボタン */}
         <div className="space-y-4">
           <Button
             variant="line"
             size="lg"
             className="w-full"
-            onClick={handleLogin}
+            onClick={handleLineLogin}
             disabled={!isLiffReady || isLoggingIn}
           >
             {isLoggingIn ? (
