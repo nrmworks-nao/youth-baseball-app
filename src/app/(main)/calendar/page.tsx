@@ -204,14 +204,14 @@ export default function CalendarPage() {
           </div>
           <div className="grid grid-cols-7">
             {Array.from({ length: firstDay }).map((_, i) => (
-              <div key={`empty-${i}`} className="aspect-square p-1" />
+              <div key={`empty-${i}`} className="min-h-[80px] p-1" />
             ))}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
               const dayEvents = getEventsForDay(day);
               const dayOfWeek = (firstDay + i) % 7;
               return (
-                <div key={day} className="aspect-square border-t border-gray-100 p-1 dark:border-gray-800">
+                <div key={day} className="min-h-[80px] border-t border-gray-100 p-1 dark:border-gray-800">
                   <div
                     className={cn(
                       "text-xs font-medium",
@@ -234,11 +234,11 @@ export default function CalendarPage() {
                         )}
                       >
                         <span className="block truncate">{event.title}</span>
-                        {counts && (counts.players > 0 || counts.parents > 0) && (
-                          <span className="block text-[9px] leading-3 opacity-75">
-                            {counts.players > 0 && `部員${counts.players}`}
-                            {counts.parents > 0 && `保護者${counts.parents}`}
-                          </span>
+                        {counts && counts.players > 0 && (
+                          <span className="block text-xs leading-3 opacity-75">部員{counts.players}</span>
+                        )}
+                        {counts && counts.parents > 0 && (
+                          <span className="block text-xs leading-3 opacity-75">保護者{counts.parents}</span>
                         )}
                       </Link>
                     );
