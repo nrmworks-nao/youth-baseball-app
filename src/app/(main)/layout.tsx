@@ -125,48 +125,95 @@ const SIDEBAR_ITEMS: { href: string; label: string; icon: LucideIcon; iconColor:
   { href: "/mypage", label: "マイページ", icon: User, iconColor: "text-indigo-500", bgColor: "bg-indigo-50" },
 ];
 
+function useCurrentUserDisplay() {
+  const { currentMembership } = useCurrentTeam();
+  const [displayName, setDisplayName] = useState<string>("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetch() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || cancelled) return;
+        const { data } = await supabase
+          .from("users")
+          .select("display_name")
+          .eq("id", user.id)
+          .single();
+        if (!cancelled && data?.display_name) {
+          setDisplayName(data.display_name);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetch();
+    return () => { cancelled = true; };
+  }, []);
+
+  const roleLabel = currentMembership
+    ? getRoleLabel(currentMembership.permission_group)
+    : "";
+  const isAdmin = currentMembership?.is_admin ?? false;
+
+  const userLabel = displayName
+    ? `${displayName}（${roleLabel}${isAdmin ? "・サイト管理者" : ""}）`
+    : "";
+
+  return userLabel;
+}
+
 function SidebarTeamBanner() {
   const { currentTeam } = useCurrentTeam();
   const teamName = currentTeam?.name || "";
   const initial = teamName.charAt(0);
+  const userLabel = useCurrentUserDisplay();
 
   return (
-    <div className="relative h-20 overflow-hidden">
-      {/* バナー背景 */}
-      {currentTeam?.banner_url ? (
-        <img
-          src={currentTeam.banner_url}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-green-400" />
-      )}
+    <div>
+      <div className="relative h-20 overflow-hidden">
+        {/* バナー背景 */}
+        {currentTeam?.banner_url ? (
+          <img
+            src={currentTeam.banner_url}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-green-400" />
+        )}
 
-      {/* オーバーレイ */}
-      <div className="absolute inset-0 bg-black/20" />
+        {/* オーバーレイ */}
+        <div className="absolute inset-0 bg-black/20" />
 
-      {/* コンテンツ */}
-      <div className="relative h-full flex items-center px-4">
-        <div className="flex items-center gap-3">
-          {/* ロゴ */}
-          {currentTeam?.logo_url ? (
-            <img
-              src={currentTeam.logo_url}
-              alt=""
-              className="w-8 h-8 rounded-full object-cover border-2 border-white"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-sm">
-              {initial}
-            </div>
-          )}
-          {/* チーム名 */}
-          <h1 className="text-white font-bold text-lg drop-shadow-sm truncate max-w-[160px]">
-            {teamName}
-          </h1>
+        {/* コンテンツ */}
+        <div className="relative h-full flex items-center px-4">
+          <div className="flex items-center gap-3">
+            {/* ロゴ */}
+            {currentTeam?.logo_url ? (
+              <img
+                src={currentTeam.logo_url}
+                alt=""
+                className="w-8 h-8 rounded-full object-cover border-2 border-white"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-sm">
+                {initial}
+              </div>
+            )}
+            {/* チーム名 */}
+            <h1 className="text-white font-bold text-lg drop-shadow-sm truncate max-w-[160px]">
+              {teamName}
+            </h1>
+          </div>
         </div>
       </div>
+      {/* ユーザー名・役割 */}
+      {userLabel && (
+        <div className="bg-white px-4 py-1.5">
+          <p className="text-sm text-gray-600 truncate">{userLabel}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -305,11 +352,13 @@ function TeamBrandingHeader({
   const { currentTeam } = useCurrentTeam();
   const teamName = currentTeam?.name || "";
   const initial = teamName.charAt(0);
+  const userLabel = useCurrentUserDisplay();
 
   return (
     <header className="sticky top-0 z-30 overflow-hidden">
       {/* モバイル: チームブランディングヘッダー */}
-      <div className="relative h-20 lg:hidden">
+      <div className="lg:hidden">
+      <div className="relative h-20">
         {/* バナー背景 */}
         {currentTeam?.banner_url ? (
           <img
@@ -372,6 +421,13 @@ function TeamBrandingHeader({
             )}
           </Link>
         </div>
+      </div>
+      {/* ユーザー名・役割 */}
+      {userLabel && (
+        <div className="bg-white px-4 py-1">
+          <p className="text-sm text-gray-600 text-right truncate">{userLabel}</p>
+        </div>
+      )}
       </div>
 
       {/* PC: 従来のヘッダー */}
