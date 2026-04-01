@@ -5,9 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { supabase } from "@/lib/supabase/client";
 import { getBadges, getPlayerBadges } from "@/lib/supabase/queries/kids";
+import { getMyAllChildren } from "@/lib/supabase/queries/users";
 import { getBadgeIcon } from "@/lib/supabase/badges";
-import type { KidsBadge, BadgeCategory } from "@/types";
+import type { KidsBadge, BadgeCategory, ChildWithTeam } from "@/types";
 
 const CATEGORY_LABELS: Record<BadgeCategory, string> = {
   batting: "打撃",
@@ -23,11 +25,12 @@ export default function BadgesPage() {
   const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
   const [allBadges, setAllBadges] = useState<KidsBadge[]>([]);
   const [earnedBadgeIds, setEarnedBadgeIds] = useState<Set<string>>(new Set());
+  const [children, setChildren] = useState<ChildWithTeam[]>([]);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<BadgeCategory | "all">("all");
 
-  // TODO: playerIdを実際のログインユーザーの子供IDから取得する
   const loadData = useCallback(async () => {
     if (!currentTeam) return;
     setLoading(true);
@@ -35,15 +38,40 @@ export default function BadgesPage() {
     try {
       const badges = await getBadges(currentTeam.id);
       setAllBadges(badges);
-      // TODO: 実際のplayerIdで取得する
-      // const playerBadges = await getPlayerBadges(playerId);
-      // setEarnedBadgeIds(new Set(playerBadges.map((pb) => pb.badge_id)));
+
+      // ログインユーザーの子供を取得し、現在チームの子供でバッジを表示
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (userId) {
+        const allChildren = await getMyAllChildren(userId);
+        const teamChildren = allChildren.filter(
+          (c) => c.team_id === currentTeam.id
+        );
+        setChildren(teamChildren);
+
+        const playerId = teamChildren[0]?.player?.id;
+        if (playerId) {
+          setSelectedPlayerId(playerId);
+          const playerBadges = await getPlayerBadges(playerId);
+          setEarnedBadgeIds(new Set(playerBadges.map((pb) => pb.badge_id)));
+        }
+      }
     } catch {
       setError("バッジデータの取得に失敗しました");
     } finally {
       setLoading(false);
     }
   }, [currentTeam]);
+
+  // 選手切替時にバッジを再取得
+  const loadPlayerBadges = useCallback(async (playerId: string) => {
+    try {
+      const playerBadges = await getPlayerBadges(playerId);
+      setEarnedBadgeIds(new Set(playerBadges.map((pb) => pb.badge_id)));
+    } catch {
+      // バッジ取得失敗は非致命的
+    }
+  }, []);
 
   useEffect(() => {
     if (teamLoading || !currentTeam) return;
@@ -84,6 +112,31 @@ export default function BadgesPage() {
           {earnedCount} / {allBadges.length} 獲得済み
         </p>
       </div>
+
+      {/* 選手切替（複数の子供がいる場合） */}
+      {children.length > 1 && (
+        <div className="flex gap-2 bg-white px-4 py-2 border-b border-gray-100">
+          {children.map((child) => (
+            <button
+              key={child.player?.id}
+              onClick={() => {
+                const pid = child.player?.id;
+                if (pid) {
+                  setSelectedPlayerId(pid);
+                  loadPlayerBadges(pid);
+                }
+              }}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                selectedPlayerId === child.player?.id
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {child.player?.name || "---"}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 進捗バー */}
       <div className="bg-white px-4 py-2 border-b border-gray-100">
