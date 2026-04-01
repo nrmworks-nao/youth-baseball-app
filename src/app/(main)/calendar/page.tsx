@@ -376,7 +376,9 @@ function CreateEventModal({
             <div className="flex flex-wrap gap-2">
               {([
                 { value: "practice" as EventType, label: "練習" },
-                { value: "game" as EventType, label: "試合" },
+                { value: "practice_game" as EventType, label: "練習試合" },
+                { value: "game" as EventType, label: "公式戦" },
+                { value: "joint_practice" as EventType, label: "合同練習" },
                 { value: "other" as EventType, label: "その他" },
               ]).map((opt) => (
                 <button

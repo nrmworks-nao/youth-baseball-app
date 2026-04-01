@@ -118,7 +118,7 @@ export interface Invitation {
 }
 
 // イベント種別
-export type EventType = "practice" | "game" | "other";
+export type EventType = "practice" | "practice_game" | "game" | "joint_practice" | "meeting" | "other";
 
 // イベント
 export interface Event {
@@ -130,9 +130,12 @@ export interface Event {
   location?: string;
   start_at: string;
   end_at: string;
-  is_recurring: boolean;
+  is_all_day: boolean;
+  recurrence_rule?: string;
+  parent_event_id?: string;
   created_by: string;
   created_at: string;
+  updated_at: string;
 }
 
 // 出欠ステータス
@@ -142,11 +145,17 @@ export type AttendanceStatus = "attending" | "absent" | "undecided";
 export interface EventAttendance {
   id: string;
   event_id: string;
+  team_id: string;
   player_id?: string;
   user_id: string;
   status: AttendanceStatus;
   note?: string;
+  can_drive?: boolean;
+  car_capacity?: number;
+  responded_by?: string;
+  responded_at?: string;
   created_at: string;
+  updated_at: string;
 }
 
 // 投稿の重要度
@@ -165,6 +174,7 @@ export interface Post {
   priority: PostPriority;
   category: PostCategory;
   image_urls?: string[];
+  is_pinned: boolean;
   created_at: string;
   updated_at: string;
   // 結合データ
@@ -178,10 +188,11 @@ export interface Post {
 export interface PostComment {
   id: string;
   post_id: string;
-  author_id: string;
+  user_id: string;
   body: string;
   created_at: string;
-  author?: User;
+  // 結合データ
+  users?: { display_name: string; avatar_url: string | null };
 }
 
 // リアクション
@@ -189,7 +200,7 @@ export interface PostReaction {
   id: string;
   post_id: string;
   user_id: string;
-  emoji: string;
+  reaction_type: string;
   created_at: string;
 }
 
