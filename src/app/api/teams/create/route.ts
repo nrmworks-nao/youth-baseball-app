@@ -9,13 +9,21 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, region, league, userId, displayTitle } = body as {
+    const { name, region, league, userId, permissionGroup, displayTitle } = body as {
       name: string;
       region?: string;
       league?: string;
       userId: string;
+      permissionGroup?: string;
       displayTitle: string;
     };
+
+    const validPermissionGroups = [
+      "team_admin", "vice_president", "treasurer", "manager", "publicity", "parent",
+    ];
+    const resolvedPermissionGroup = permissionGroup && validPermissionGroups.includes(permissionGroup)
+      ? permissionGroup
+      : "team_admin";
 
     // バリデーション
     if (!name || name.trim().length === 0 || name.trim().length > 100) {
@@ -81,7 +89,7 @@ export async function POST(req: Request) {
     const memberPayload = {
       team_id: team.id,
       user_id: userId,
-      permission_group: "team_admin",
+      permission_group: resolvedPermissionGroup,
       display_title: displayTitle,
       is_active: true,
     };
