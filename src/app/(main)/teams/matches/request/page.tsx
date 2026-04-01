@@ -20,7 +20,7 @@ import type { TeamProfile } from "@/types";
 export default function MatchRequestPage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { canRequestMatch } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
+  const { canManageInterTeam } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [teams, setTeams] = useState<TeamProfile[]>([]);
   const [toTeam, setToTeam] = useState("");
@@ -93,6 +93,9 @@ export default function MatchRequestPage() {
 
   if (teamLoading || isLoading) {
     return <Loading text="読み込み中..." />;
+  }
+  if (!canManageInterTeam()) {
+    return <ErrorDisplay message="権限がありません" />;
   }
 
   return (

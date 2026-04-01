@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -17,34 +17,54 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
+import { usePermission } from "@/hooks/usePermission";
 import { Loading } from "@/components/ui/loading";
 import { cn } from "@/lib/utils/cn";
 import { supabase } from "@/lib/supabase/client";
 import { isLiffInitialized } from "@/lib/line/liff";
 import liff from "@line/liff";
 
-const MENU_ITEMS: {
+type MenuItem = {
   href: string;
   label: string;
   description: string;
   icon: LucideIcon;
   iconColor: string;
   bgColor: string;
-}[] = [
-  { href: "/players", label: "選手一覧", description: "チームの選手を管理", icon: Users, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
-  { href: "/games", label: "試合", description: "試合結果・スコア", icon: Trophy, iconColor: "text-orange-500", bgColor: "bg-orange-50" },
-  { href: "/kids", label: "キッズ", description: "子ども向け機能", icon: Star, iconColor: "text-yellow-500", bgColor: "bg-yellow-50" },
-  { href: "/albums", label: "アルバム", description: "写真・アルバム管理", icon: Camera, iconColor: "text-pink-500", bgColor: "bg-pink-50" },
-  { href: "/ranking", label: "ランキング", description: "成績ランキング", icon: BarChart3, iconColor: "text-purple-500", bgColor: "bg-purple-50" },
-  { href: "/accounting", label: "会計", description: "会費・請求管理", icon: Wallet, iconColor: "text-green-500", bgColor: "bg-green-50" },
-  { href: "/shop", label: "ショップ", description: "おすすめ商品", icon: ShoppingBag, iconColor: "text-red-500", bgColor: "bg-red-50" },
-  { href: "/teams/search", label: "チーム検索", description: "他チームを探す", icon: Search, iconColor: "text-cyan-500", bgColor: "bg-cyan-50" },
-  { href: "/settings", label: "設定", description: "チーム設定・招待", icon: Settings, iconColor: "text-gray-500", bgColor: "bg-gray-50" },
-  { href: "/mypage", label: "マイページ", description: "プロフィール・通知設定", icon: User, iconColor: "text-indigo-500", bgColor: "bg-indigo-50" },
-];
+  /** 表示条件（未指定 = 全員表示） */
+  visible?: () => boolean;
+};
 
 export default function MenuPage() {
-  const { currentTeam, isLoading } = useCurrentTeam();
+  const { currentTeam, currentMembership, isLoading } = useCurrentTeam();
+  const {
+    canViewLedger,
+    canManageFees,
+    canManageInterTeam,
+    canManageSettings,
+    canManageMembersPage,
+  } = usePermission(
+    currentMembership?.permission_group ?? null,
+    currentMembership?.is_admin ?? false
+  );
+
+  const MENU_ITEMS: MenuItem[] = useMemo(() => [
+    { href: "/players", label: "選手一覧", description: "チームの選手を管理", icon: Users, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
+    { href: "/games", label: "試合", description: "試合結果・スコア", icon: Trophy, iconColor: "text-orange-500", bgColor: "bg-orange-50" },
+    { href: "/kids", label: "キッズ", description: "子ども向け機能", icon: Star, iconColor: "text-yellow-500", bgColor: "bg-yellow-50" },
+    { href: "/albums", label: "アルバム", description: "写真・アルバム管理", icon: Camera, iconColor: "text-pink-500", bgColor: "bg-pink-50" },
+    { href: "/ranking", label: "ランキング", description: "成績ランキング", icon: BarChart3, iconColor: "text-purple-500", bgColor: "bg-purple-50" },
+    { href: "/accounting", label: "会計", description: "会費・請求管理", icon: Wallet, iconColor: "text-green-500", bgColor: "bg-green-50", visible: () => canViewLedger() || canManageFees() },
+    { href: "/shop", label: "ショップ", description: "おすすめ商品", icon: ShoppingBag, iconColor: "text-red-500", bgColor: "bg-red-50" },
+    { href: "/teams/search", label: "チーム検索", description: "他チームを探す", icon: Search, iconColor: "text-cyan-500", bgColor: "bg-cyan-50", visible: () => canManageInterTeam() },
+    { href: "/settings", label: "設定", description: "チーム設定・招待", icon: Settings, iconColor: "text-gray-500", bgColor: "bg-gray-50", visible: () => canManageSettings() || canManageMembersPage() },
+    { href: "/mypage", label: "マイページ", description: "プロフィール・通知設定", icon: User, iconColor: "text-indigo-500", bgColor: "bg-indigo-50" },
+  ], [canViewLedger, canManageFees, canManageInterTeam, canManageSettings, canManageMembersPage]);
+
+  const visibleMenuItems = useMemo(
+    () => MENU_ITEMS.filter((item) => !item.visible || item.visible()),
+    [MENU_ITEMS]
+  );
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -85,7 +105,7 @@ export default function MenuPage() {
       </div>
       <div className="p-4">
         <div className="space-y-1">
-          {MENU_ITEMS.map((item) => (
+          {visibleMenuItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

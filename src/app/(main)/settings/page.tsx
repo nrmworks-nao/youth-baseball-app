@@ -75,8 +75,7 @@ export default function SettingsPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
-  const { hasPermission } = usePermission(member?.permission_group ?? null, member?.is_admin ?? false);
-  const canManage = hasPermission(["director", "vice_president"]);
+  const { canManageSettings, canManageMembersPage } = usePermission(member?.permission_group ?? null, member?.is_admin ?? false);
 
   useEffect(() => {
     async function loadData() {
@@ -216,8 +215,11 @@ export default function SettingsPage() {
 
   const teamInitial = team?.name?.charAt(0) || "T";
 
+  const canManage = canManageSettings();
+
   if (isLoading) return <Loading className="min-h-screen" />;
   if (error) return <ErrorDisplay message={error} />;
+  if (!canManageSettings() && !canManageMembersPage()) return <ErrorDisplay message="権限がありません" />;
 
   return (
     <div className="flex flex-col min-w-0">

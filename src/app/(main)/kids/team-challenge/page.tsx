@@ -12,7 +12,7 @@ import type { TeamChallenge } from "@/types";
 
 export default function TeamChallengePage() {
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
+  const { canCreateTeamChallenge } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [challenges, setChallenges] = useState<TeamChallenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export default function TeamChallengePage() {
     (c) => c.current_value >= c.target_value
   );
 
-  const canCreate = hasPermission(["director", "vice_president", "coach"]);
+  const canCreate = canCreateTeamChallenge();
 
   const handleCreate = async () => {
     if (!newTitle || !newTarget || !newEndDate || !currentTeam) return;

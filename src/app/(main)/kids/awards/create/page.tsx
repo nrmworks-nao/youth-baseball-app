@@ -25,7 +25,7 @@ interface PlayerWithLastAward extends Player {
 export default function CreateAwardPage() {
   const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { hasPermission } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
+  const { canCreateAwards } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
   const [category, setCategory] = useState<AwardCategory | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [comment, setComment] = useState("");
@@ -110,6 +110,7 @@ export default function CreateAwardPage() {
   };
 
   if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
+  if (!canCreateAwards()) return <ErrorDisplay message="権限がありません" />;
   if (error && players.length === 0) return <ErrorDisplay message={error} onRetry={loadData} />;
 
   return (
@@ -117,7 +118,7 @@ export default function CreateAwardPage() {
       {/* ヘッダー */}
       <div className="border-b border-gray-200 bg-white px-4 py-3">
         <h2 className="text-base font-bold text-gray-900">表彰作成</h2>
-        <p className="text-xs text-gray-500">サイト管理者のみ作成できます</p>
+        <p className="text-xs text-gray-500">監督・コーチが作成できます</p>
       </div>
 
       <div className="space-y-4 p-4">
