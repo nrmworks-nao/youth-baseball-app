@@ -235,10 +235,10 @@ export default function CalendarPage() {
                       >
                         <span className="block truncate">{event.title}</span>
                         {counts && counts.players > 0 && (
-                          <span className="block text-xs leading-3 opacity-75">部員{counts.players}</span>
+                          <span className="block leading-4 opacity-75">部員{counts.players}</span>
                         )}
                         {counts && counts.parents > 0 && (
-                          <span className="block text-xs leading-3 opacity-75">保護者{counts.parents}</span>
+                          <span className="block leading-4 opacity-75">保護者{counts.parents}</span>
                         )}
                       </Link>
                     );
