@@ -113,7 +113,7 @@ const SIDEBAR_ITEMS: { href: string; label: string; icon: LucideIcon; iconColor:
   { href: "/home", label: "ホーム", icon: Home, iconColor: "text-green-500", bgColor: "bg-green-50" },
   { href: "/calendar", label: "カレンダー", icon: Calendar, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
   { href: "/posts", label: "連絡", icon: MessageSquare, iconColor: "text-orange-500", bgColor: "bg-orange-50" },
-  { href: "/players", label: "選手一覧", icon: Users, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
+  { href: "/members", label: "メンバー", icon: Users, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
   { href: "/games", label: "試合", icon: Trophy, iconColor: "text-orange-500", bgColor: "bg-orange-50" },
   { href: "/kids", label: "キッズ", icon: Star, iconColor: "text-yellow-500", bgColor: "bg-yellow-50" },
   { href: "/albums", label: "アルバム", icon: Camera, iconColor: "text-pink-500", bgColor: "bg-pink-50" },

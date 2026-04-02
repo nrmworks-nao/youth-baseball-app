@@ -49,7 +49,7 @@ export default function MenuPage() {
   );
 
   const MENU_ITEMS: MenuItem[] = useMemo(() => [
-    { href: "/players", label: "選手一覧", description: "チームの選手を管理", icon: Users, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
+    { href: "/members", label: "メンバー", description: "選手・スタッフ一覧", icon: Users, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
     { href: "/games", label: "試合", description: "試合結果・スコア", icon: Trophy, iconColor: "text-orange-500", bgColor: "bg-orange-50" },
     { href: "/kids", label: "キッズ", description: "子ども向け機能", icon: Star, iconColor: "text-yellow-500", bgColor: "bg-yellow-50" },
     { href: "/albums", label: "アルバム", description: "写真・アルバム管理", icon: Camera, iconColor: "text-pink-500", bgColor: "bg-pink-50" },

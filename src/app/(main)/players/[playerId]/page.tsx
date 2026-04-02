@@ -300,7 +300,7 @@ export default function PlayerDashboardPage() {
     <div className="flex flex-col">
       {/* ヘッダー */}
       <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3">
-        <Link href="/players" className="p-1">
+        <Link href="/members" className="p-1">
           <svg
             className="h-5 w-5 text-gray-600"
             fill="none"

@@ -128,6 +128,31 @@ export async function countAdmins(teamId: string): Promise<number> {
   return count ?? 0;
 }
 
+/** parent以外のアクティブメンバー取得（スタッフ用） */
+export async function getStaffMembers(teamId: string) {
+  const { data, error } = await supabase
+    .from("team_members")
+    .select("id, team_id, user_id, permission_group, is_admin, is_active, experience, motivation, created_at")
+    .eq("team_id", teamId)
+    .eq("is_active", true)
+    .neq("permission_group", "parent")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data as TeamMember[];
+}
+
+/** スタッフプロフィール更新 */
+export async function updateStaffProfile(
+  memberId: string,
+  updates: { experience?: string; motivation?: string }
+): Promise<void> {
+  const { error } = await supabase
+    .from("team_members")
+    .update(updates)
+    .eq("id", memberId);
+  if (error) throw error;
+}
+
 /** メンバーの子供情報取得 */
 export async function getMemberChildren(userId: string, teamId: string) {
   const { data, error } = await supabase
