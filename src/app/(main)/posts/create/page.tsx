@@ -39,7 +39,7 @@ export default function CreatePostPage() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [priority, setPriority] = useState<PostPriority>("normal");
-  const [category, setCategory] = useState<PostCategory>("general");
+  const [category, setCategory] = useState<PostCategory>("other");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
