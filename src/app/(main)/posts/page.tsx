@@ -147,9 +147,9 @@ export default function PostsPage() {
     <div className="flex flex-col">
       {/* ヘッダー */}
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex items-center gap-3">
-          <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">連絡</h2>
-          <div className="flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
+        <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto">
+          <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 shrink-0">連絡</h2>
+          <div className="flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800 shrink-0">
             <button
               className={cn(
                 "rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors",
@@ -173,40 +173,36 @@ export default function PostsPage() {
               新着順
             </button>
           </div>
+          <div className="flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800 shrink-0">
+            <button
+              className={cn(
+                "rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors",
+                filterMode === "unread"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                  : "text-gray-500"
+              )}
+              onClick={() => { setFilterMode("unread"); setDisplayCount(5); }}
+            >
+              未読のみ
+            </button>
+            <button
+              className={cn(
+                "rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors",
+                filterMode === "all"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                  : "text-gray-500"
+              )}
+              onClick={() => { setFilterMode("all"); setDisplayCount(5); }}
+            >
+              すべて
+            </button>
+          </div>
         </div>
         {canPost() && (
-          <Link href="/posts/create">
+          <Link href="/posts/create" className="shrink-0">
             <Button size="sm">+ 投稿</Button>
           </Link>
         )}
-      </div>
-
-      {/* 未読フィルタ */}
-      <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
-          <button
-            className={cn(
-              "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-              filterMode === "unread"
-                ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
-                : "text-gray-500"
-            )}
-            onClick={() => { setFilterMode("unread"); setDisplayCount(5); }}
-          >
-            未読のみ
-          </button>
-          <button
-            className={cn(
-              "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-              filterMode === "all"
-                ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
-                : "text-gray-500"
-            )}
-            onClick={() => { setFilterMode("all"); setDisplayCount(5); }}
-          >
-            すべて
-          </button>
-        </div>
       </div>
 
       {/* タイムライン */}
