@@ -15,7 +15,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { supabase } from "@/lib/supabase/client";
 import { getPlayers } from "@/lib/supabase/queries/players";
 import { createGame, upsertGameLineup } from "@/lib/supabase/queries/games";
-import type { Player, GameType } from "@/types";
+import type { Player, GameType, InningScore } from "@/types";
 
 const POSITIONS = [
   "投",
@@ -121,9 +121,30 @@ export default function GameCreatePage() {
     field: "score_team" | "score_opponent",
     value: string
   ) => {
-    setInningScores((prev) =>
-      prev.map((is, i) => (i === index ? { ...is, [field]: value } : is))
+    const updated = inningScores.map((is, i) =>
+      i === index ? { ...is, [field]: value } : is
     );
+    setInningScores(updated);
+
+    // イニングスコアの合計から自動計算
+    const hasAnyScore = updated.some(
+      (is) => is.score_team !== "" || is.score_opponent !== ""
+    );
+    if (hasAnyScore) {
+      const totalTeam = updated.reduce(
+        (sum, is) => sum + (is.score_team !== "" ? parseInt(is.score_team) || 0 : 0),
+        0
+      );
+      const totalOpponent = updated.reduce(
+        (sum, is) => sum + (is.score_opponent !== "" ? parseInt(is.score_opponent) || 0 : 0),
+        0
+      );
+      setFormData((prev) => ({
+        ...prev,
+        score_team: String(totalTeam),
+        score_opponent: String(totalOpponent),
+      }));
+    }
   };
 
   const updateLineup = (
@@ -155,6 +176,18 @@ export default function GameCreatePage() {
         return;
       }
 
+      // イニングスコアを整形（入力があるもののみ）
+      const hasInningScores = inningScores.some(
+        (is) => is.score_team !== "" || is.score_opponent !== ""
+      );
+      const parsedInningScores: InningScore[] | undefined = hasInningScores
+        ? inningScores.map((is) => ({
+            inning: is.inning,
+            score_team: is.score_team !== "" ? parseInt(is.score_team) || 0 : 0,
+            score_opponent: is.score_opponent !== "" ? parseInt(is.score_opponent) || 0 : 0,
+          }))
+        : undefined;
+
       const game = await createGame({
         team_id: currentTeam.id,
         opponent_name: formData.opponent_name,
@@ -164,6 +197,7 @@ export default function GameCreatePage() {
         result: formData.result || undefined,
         score_team: formData.score_team ? parseInt(formData.score_team) : undefined,
         score_opponent: formData.score_opponent ? parseInt(formData.score_opponent) : undefined,
+        inning_scores: parsedInningScores,
         notes: formData.notes || undefined,
         created_by: user.id,
       });
