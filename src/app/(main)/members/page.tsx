@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
-import { PlayerCard } from "@/components/features/kids/PlayerCard";
+import { Search, ArrowUp, ArrowDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
 import { Badge } from "@/components/ui/badge";
@@ -16,11 +16,7 @@ import { cn } from "@/lib/utils/cn";
 import type { Player, StaffMember, PermissionGroup } from "@/types";
 
 type Tab = "players" | "staff";
-
-// ポジション一覧
-const POSITIONS = [
-  "投手", "捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手",
-];
+type SortDirection = "asc" | "desc";
 
 // スタッフ役割フィルタ一覧
 const STAFF_ROLES: PermissionGroup[] = [
@@ -42,6 +38,13 @@ const ROLE_SORT_ORDER: Record<string, number> = {
 type PlayerSortKey = "grade" | "number" | "name";
 type StaffSortKey = "role" | "name";
 
+// 学年フィルタ固定リスト
+const GRADES = [1, 2, 3, 4, 5, 6];
+
+// ポジションフィルタ2段表示
+const POSITIONS_ROW1 = ["全て", "投手", "捕手", "一塁手", "二塁手", "三塁手"];
+const POSITIONS_ROW2 = ["遊撃手", "左翼手", "中堅手", "右翼手"];
+
 export default function MembersPage() {
   const [activeTab, setActiveTab] = useState<Tab>("players");
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,11 +54,15 @@ export default function MembersPage() {
   const [filterGrade, setFilterGrade] = useState<number | null>(null);
   const [playerSort1, setPlayerSort1] = useState<PlayerSortKey>("grade");
   const [playerSort2, setPlayerSort2] = useState<PlayerSortKey>("name");
+  const [playerSort1Dir, setPlayerSort1Dir] = useState<SortDirection>("asc");
+  const [playerSort2Dir, setPlayerSort2Dir] = useState<SortDirection>("asc");
 
   // スタッフフィルタ・ソート
   const [filterRole, setFilterRole] = useState<string>("all");
   const [staffSort1, setStaffSort1] = useState<StaffSortKey>("role");
   const [staffSort2, setStaffSort2] = useState<StaffSortKey>("name");
+  const [staffSort1Dir, setStaffSort1Dir] = useState<SortDirection>("asc");
+  const [staffSort2Dir, setStaffSort2Dir] = useState<SortDirection>("asc");
 
   // データ
   const [players, setPlayers] = useState<Player[]>([]);
@@ -119,23 +126,19 @@ export default function MembersPage() {
     loadData();
   }, [currentTeam, teamLoading, loadData]);
 
-  // 学年の動的リスト
-  const grades = useMemo(() => {
-    const set = new Set(players.map((p) => p.grade).filter(Boolean));
-    return (Array.from(set) as number[]).sort((a, b) => a - b);
-  }, [players]);
-
   // 選手ソート関数
-  const sortPlayers = useCallback((a: Player, b: Player, key: PlayerSortKey): number => {
-    if (key === "grade") return (a.grade ?? 0) - (b.grade ?? 0);
-    if (key === "number") return (a.number ?? 999) - (b.number ?? 999);
-    return a.name.localeCompare(b.name, "ja");
+  const sortPlayers = useCallback((a: Player, b: Player, key: PlayerSortKey, dir: SortDirection): number => {
+    const mul = dir === "asc" ? 1 : -1;
+    if (key === "grade") return mul * ((a.grade ?? 0) - (b.grade ?? 0));
+    if (key === "number") return mul * ((a.number ?? 999) - (b.number ?? 999));
+    return mul * a.name.localeCompare(b.name, "ja");
   }, []);
 
   // スタッフソート関数
-  const sortStaff = useCallback((a: StaffMember, b: StaffMember, key: StaffSortKey): number => {
-    if (key === "role") return (ROLE_SORT_ORDER[a.permission_group] ?? 99) - (ROLE_SORT_ORDER[b.permission_group] ?? 99);
-    return a.display_name.localeCompare(b.display_name, "ja");
+  const sortStaff = useCallback((a: StaffMember, b: StaffMember, key: StaffSortKey, dir: SortDirection): number => {
+    const mul = dir === "asc" ? 1 : -1;
+    if (key === "role") return mul * ((ROLE_SORT_ORDER[a.permission_group] ?? 99) - (ROLE_SORT_ORDER[b.permission_group] ?? 99));
+    return mul * a.display_name.localeCompare(b.display_name, "ja");
   }, []);
 
   // フィルタ・ソート済み選手
@@ -152,11 +155,11 @@ export default function MembersPage() {
       list = list.filter((p) => p.grade === filterGrade);
     }
     list.sort((a, b) => {
-      const c = sortPlayers(a, b, playerSort1);
-      return c !== 0 ? c : sortPlayers(a, b, playerSort2);
+      const c = sortPlayers(a, b, playerSort1, playerSort1Dir);
+      return c !== 0 ? c : sortPlayers(a, b, playerSort2, playerSort2Dir);
     });
     return list;
-  }, [players, searchQuery, filterPosition, filterGrade, playerSort1, playerSort2, sortPlayers]);
+  }, [players, searchQuery, filterPosition, filterGrade, playerSort1, playerSort2, playerSort1Dir, playerSort2Dir, sortPlayers]);
 
   // フィルタ・ソート済みスタッフ
   const filteredStaff = useMemo(() => {
@@ -169,11 +172,11 @@ export default function MembersPage() {
       list = list.filter((s) => s.permission_group === filterRole);
     }
     list.sort((a, b) => {
-      const c = sortStaff(a, b, staffSort1);
-      return c !== 0 ? c : sortStaff(a, b, staffSort2);
+      const c = sortStaff(a, b, staffSort1, staffSort1Dir);
+      return c !== 0 ? c : sortStaff(a, b, staffSort2, staffSort2Dir);
     });
     return list;
-  }, [staffMembers, searchQuery, filterRole, staffSort1, staffSort2, sortStaff]);
+  }, [staffMembers, searchQuery, filterRole, staffSort1, staffSort2, staffSort1Dir, staffSort2Dir, sortStaff]);
 
   if (teamLoading || isLoading) return <Loading className="min-h-screen" />;
   if (error) return <ErrorDisplay message={error} onRetry={loadData} />;
@@ -231,7 +234,7 @@ export default function MembersPage() {
           {/* フィルタ・ソート */}
           <div className="space-y-2 bg-white px-4 py-3 border-b border-gray-100">
             {/* ソート */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="flex-shrink-0 text-xs text-gray-500">第1ソート:</span>
               <select
                 value={playerSort1}
@@ -242,6 +245,22 @@ export default function MembersPage() {
                 <option value="number">背番号</option>
                 <option value="name">名前</option>
               </select>
+              <Button
+                variant={playerSort1Dir === "asc" ? "default" : "outline"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setPlayerSort1Dir("asc")}
+              >
+                <ArrowUp className="h-3 w-3" />
+              </Button>
+              <Button
+                variant={playerSort1Dir === "desc" ? "default" : "outline"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setPlayerSort1Dir("desc")}
+              >
+                <ArrowDown className="h-3 w-3" />
+              </Button>
               <span className="flex-shrink-0 text-xs text-gray-500">第2ソート:</span>
               <select
                 value={playerSort2}
@@ -252,27 +271,50 @@ export default function MembersPage() {
                 <option value="grade">学年</option>
                 <option value="number">背番号</option>
               </select>
+              <Button
+                variant={playerSort2Dir === "asc" ? "default" : "outline"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setPlayerSort2Dir("asc")}
+              >
+                <ArrowUp className="h-3 w-3" />
+              </Button>
+              <Button
+                variant={playerSort2Dir === "desc" ? "default" : "outline"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setPlayerSort2Dir("desc")}
+              >
+                <ArrowDown className="h-3 w-3" />
+              </Button>
             </div>
 
-            {/* ポジションフィルター */}
-            <div className="flex items-center gap-2 overflow-x-auto">
-              <span className="flex-shrink-0 text-xs text-gray-500">ポジション:</span>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => setFilterPosition("all")}
-                  className={cn(
-                    "flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                    filterPosition === "all" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
-                  )}
-                >
-                  全て
-                </button>
-                {POSITIONS.map((pos) => (
+            {/* ポジションフィルター（2段表示） */}
+            <div className="space-y-1">
+              <span className="text-xs text-gray-500">ポジション:</span>
+              <div className="flex gap-1 flex-wrap">
+                {POSITIONS_ROW1.map((pos) => (
+                  <button
+                    key={pos}
+                    onClick={() => setFilterPosition(pos === "全て" ? "all" : pos)}
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                      (pos === "全て" ? filterPosition === "all" : filterPosition === pos)
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-100 text-gray-600"
+                    )}
+                  >
+                    {pos}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-1 flex-wrap">
+                {POSITIONS_ROW2.map((pos) => (
                   <button
                     key={pos}
                     onClick={() => setFilterPosition(pos)}
                     className={cn(
-                      "flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                      "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
                       filterPosition === pos ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
                     )}
                   >
@@ -282,35 +324,33 @@ export default function MembersPage() {
               </div>
             </div>
 
-            {/* 学年フィルター */}
-            {grades.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="flex-shrink-0 text-xs text-gray-500">学年:</span>
-                <div className="flex gap-1">
+            {/* 学年フィルター（固定1〜6年） */}
+            <div className="flex items-center gap-2">
+              <span className="flex-shrink-0 text-xs text-gray-500">学年:</span>
+              <div className="flex gap-1 flex-wrap">
+                <button
+                  onClick={() => setFilterGrade(null)}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                    filterGrade === null ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
+                  )}
+                >
+                  全て
+                </button>
+                {GRADES.map((g) => (
                   <button
-                    onClick={() => setFilterGrade(null)}
+                    key={g}
+                    onClick={() => setFilterGrade(g)}
                     className={cn(
                       "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                      filterGrade === null ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
+                      filterGrade === g ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
                     )}
                   >
-                    全て
+                    {g}年
                   </button>
-                  {grades.map((g) => (
-                    <button
-                      key={g}
-                      onClick={() => setFilterGrade(g)}
-                      className={cn(
-                        "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                        filterGrade === g ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
-                      )}
-                    >
-                      {g}年
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
-            )}
+            </div>
           </div>
 
           {/* 選手カード一覧 */}
@@ -323,16 +363,43 @@ export default function MembersPage() {
             <div className="grid grid-cols-1 gap-3 p-4">
               {filteredPlayers.map((player) => (
                 <Link key={player.id} href={`/players/${player.id}`}>
-                  <PlayerCard
-                    name={player.name}
-                    number={player.number}
-                    position={player.position}
-                    grade={player.grade}
-                    photoUrl={player.card_photo_url}
-                    cardRank={player.card_rank ?? "bronze"}
-                    compact
-                    className="transition-transform active:scale-[0.98]"
-                  />
+                  <div className="relative overflow-hidden rounded-xl border-2 border-gray-200 bg-white p-3 transition-transform active:scale-[0.98]">
+                    <div className="flex items-center gap-3">
+                      {/* 顔写真 */}
+                      <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 border-gray-100 bg-gray-200 shadow-sm">
+                        {player.card_photo_url ? (
+                          <img
+                            src={player.card_photo_url}
+                            alt={player.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-gray-400">
+                            {player.number ?? "?"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-bold text-gray-900 truncate block">
+                          {player.name}
+                        </span>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          {player.number !== undefined && <span>#{player.number}</span>}
+                          {player.position && <span>{player.position}</span>}
+                          {player.grade && <span>{player.grade}年</span>}
+                        </div>
+                      </div>
+                      <svg
+                        className="h-4 w-4 flex-shrink-0 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2}
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                      </svg>
+                    </div>
+                  </div>
                 </Link>
               ))}
             </div>
@@ -346,7 +413,7 @@ export default function MembersPage() {
           {/* フィルタ・ソート */}
           <div className="space-y-2 bg-white px-4 py-3 border-b border-gray-100">
             {/* ソート */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="flex-shrink-0 text-xs text-gray-500">第1ソート:</span>
               <select
                 value={staffSort1}
@@ -356,6 +423,22 @@ export default function MembersPage() {
                 <option value="role">役割</option>
                 <option value="name">名前</option>
               </select>
+              <Button
+                variant={staffSort1Dir === "asc" ? "default" : "outline"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setStaffSort1Dir("asc")}
+              >
+                <ArrowUp className="h-3 w-3" />
+              </Button>
+              <Button
+                variant={staffSort1Dir === "desc" ? "default" : "outline"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setStaffSort1Dir("desc")}
+              >
+                <ArrowDown className="h-3 w-3" />
+              </Button>
               <span className="flex-shrink-0 text-xs text-gray-500">第2ソート:</span>
               <select
                 value={staffSort2}
@@ -365,6 +448,22 @@ export default function MembersPage() {
                 <option value="name">名前</option>
                 <option value="role">役割</option>
               </select>
+              <Button
+                variant={staffSort2Dir === "asc" ? "default" : "outline"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setStaffSort2Dir("asc")}
+              >
+                <ArrowUp className="h-3 w-3" />
+              </Button>
+              <Button
+                variant={staffSort2Dir === "desc" ? "default" : "outline"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setStaffSort2Dir("desc")}
+              >
+                <ArrowDown className="h-3 w-3" />
+              </Button>
             </div>
 
             {/* 役割フィルター */}
