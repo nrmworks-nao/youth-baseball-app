@@ -59,6 +59,38 @@ export async function getPosts(teamId: string) {
   }));
 }
 
+/** 直近の投稿取得（分割クエリ：ホーム画面用） */
+export async function getLatestPosts(teamId: string, limit = 3) {
+  // 1. posts を取得（新着順、件数制限）
+  const { data: posts, error } = await supabase
+    .from("posts")
+    .select("*")
+    .eq("team_id", teamId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  if (!posts || posts.length === 0) return [];
+
+  // 2. 著者情報を取得
+  const authorIds = [...new Set(posts.map((p: any) => p.author_id).filter(Boolean))];
+  let usersMap: Record<string, { display_name: string; avatar_url: string | null }> = {};
+  if (authorIds.length > 0) {
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, display_name, avatar_url")
+      .in("id", authorIds);
+    if (users) {
+      usersMap = Object.fromEntries(users.map((u: any) => [u.id, { display_name: u.display_name, avatar_url: u.avatar_url }]));
+    }
+  }
+
+  // 3. マージ
+  return posts.map((p: any) => ({
+    ...p,
+    users: usersMap[p.author_id] || null,
+  }));
+}
+
 /** 投稿詳細取得（分割クエリ：リレーション構文回避） */
 export async function getPost(postId: string) {
   // 1. post を取得
