@@ -72,6 +72,8 @@ export default function PostsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<"priority" | "date">("priority");
+  const [filterMode, setFilterMode] = useState<"all" | "unread">("all");
+  const [displayCount, setDisplayCount] = useState(5);
 
   const fetchPosts = useCallback(async () => {
     if (!currentTeam) return;
@@ -117,8 +119,13 @@ export default function PostsPage() {
     return <ErrorDisplay title="チーム未選択" message="チームを選択してください。" />;
   }
 
+  // フィルタリング（未読のみ）
+  const filteredPosts = filterMode === "unread"
+    ? posts.filter((post) => !readPostIds.has(post.id))
+    : posts;
+
   // ピン留め投稿を先頭に、その後ソート
-  const sortedPosts = [...posts].sort((a, b) => {
+  const sortedPosts = [...filteredPosts].sort((a, b) => {
     // ピン留めを先頭
     if (a.is_pinned && !b.is_pinned) return -1;
     if (!a.is_pinned && b.is_pinned) return 1;
@@ -131,6 +138,10 @@ export default function PostsPage() {
     }
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
+
+  // ページネーション
+  const visiblePosts = sortedPosts.slice(0, displayCount);
+  const hasMore = sortedPosts.length > displayCount;
 
   return (
     <div className="flex flex-col">
@@ -170,12 +181,42 @@ export default function PostsPage() {
         )}
       </div>
 
+      {/* 未読フィルタ */}
+      <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
+          <button
+            className={cn(
+              "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+              filterMode === "unread"
+                ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                : "text-gray-500"
+            )}
+            onClick={() => { setFilterMode("unread"); setDisplayCount(5); }}
+          >
+            未読のみ
+          </button>
+          <button
+            className={cn(
+              "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+              filterMode === "all"
+                ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                : "text-gray-500"
+            )}
+            onClick={() => { setFilterMode("all"); setDisplayCount(5); }}
+          >
+            すべて
+          </button>
+        </div>
+      </div>
+
       {/* タイムライン */}
       <div className="space-y-2 p-4">
         {sortedPosts.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-400">連絡はありません</p>
+          <p className="py-8 text-center text-sm text-gray-400">
+            {filterMode === "unread" ? "未読の連絡はありません" : "連絡はありません"}
+          </p>
         ) : (
-          sortedPosts.map((post) => {
+          visiblePosts.map((post) => {
             const priority = (post.priority || "normal") as PostPriority;
             const priorityConfig = PRIORITY_CONFIG[priority];
             const isRead = readPostIds.has(post.id);
@@ -246,6 +287,14 @@ export default function PostsPage() {
               </Link>
             );
           })
+        )}
+        {hasMore && (
+          <button
+            className="w-full rounded-lg border border-gray-200 py-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+            onClick={() => setDisplayCount((prev) => prev + 5)}
+          >
+            もっと見る
+          </button>
         )}
       </div>
     </div>

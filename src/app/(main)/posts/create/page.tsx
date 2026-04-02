@@ -24,9 +24,10 @@ const PRIORITY_OPTIONS: { value: PostPriority; label: string; description: strin
 ];
 
 const CATEGORY_OPTIONS: { value: PostCategory; label: string }[] = [
-  { value: "general", label: "一般" },
-  { value: "schedule", label: "スケジュール" },
-  { value: "report", label: "報告" },
+  { value: "practice", label: "練習" },
+  { value: "game", label: "試合" },
+  { value: "admin", label: "事務連絡" },
+  { value: "accounting", label: "会計" },
   { value: "other", label: "その他" },
 ];
 
@@ -38,7 +39,7 @@ export default function CreatePostPage() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [priority, setPriority] = useState<PostPriority>("normal");
-  const [category, setCategory] = useState<PostCategory>("general");
+  const [category, setCategory] = useState<PostCategory>("other");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<string[]>([]);

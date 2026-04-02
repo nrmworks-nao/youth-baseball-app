@@ -162,7 +162,7 @@ export interface EventAttendance {
 export type PostPriority = "normal" | "important" | "urgent";
 
 // 投稿カテゴリ
-export type PostCategory = "general" | "schedule" | "report" | "other";
+export type PostCategory = "practice" | "game" | "admin" | "accounting" | "other";
 
 // 投稿
 export interface Post {
