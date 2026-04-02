@@ -231,74 +231,50 @@ export default function MembersPage() {
       {activeTab === "players" && (
         <>
           {/* フィルタ・ソート */}
-          <div className="space-y-2 bg-white px-4 py-3 border-b border-gray-100">
-            {/* ソート */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="flex-shrink-0 text-[10px] text-gray-500">第1ソート:</span>
-                <select
-                  value={playerSort1}
-                  onChange={(e) => setPlayerSort1(e.target.value as PlayerSortKey)}
-                  className="h-8 rounded-lg border border-gray-300 bg-white px-2 py-0.5 text-[10px] focus:border-green-500 focus:outline-none"
-                >
-                  <option value="grade">学年</option>
-                  <option value="number">背番号</option>
-                  <option value="name">名前</option>
-                </select>
-                <Button
-                  variant={playerSort1Dir === "asc" ? "default" : "outline"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setPlayerSort1Dir("asc")}
-                >
-                  <ArrowUp className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant={playerSort1Dir === "desc" ? "default" : "outline"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setPlayerSort1Dir("desc")}
-                >
-                  <ArrowDown className="h-3 w-3" />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="flex-shrink-0 text-[10px] text-gray-500">第2ソート:</span>
-                <select
-                  value={playerSort2}
-                  onChange={(e) => setPlayerSort2(e.target.value as PlayerSortKey)}
-                  className="h-8 rounded-lg border border-gray-300 bg-white px-2 py-0.5 text-[10px] focus:border-green-500 focus:outline-none"
-                >
-                  <option value="name">名前</option>
-                  <option value="grade">学年</option>
-                  <option value="number">背番号</option>
-                </select>
-                <Button
-                  variant={playerSort2Dir === "asc" ? "default" : "outline"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setPlayerSort2Dir("asc")}
-                >
-                  <ArrowUp className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant={playerSort2Dir === "desc" ? "default" : "outline"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setPlayerSort2Dir("desc")}
-                >
-                  <ArrowDown className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-
-            {/* ポジションフィルター */}
-            <div className="flex items-center gap-2">
-              <span className="flex-shrink-0 text-[10px] text-gray-500">ポジション:</span>
+          <div className="space-y-1 bg-white px-4 py-2 border-b border-gray-100">
+            {/* ソート + ポジション（1行） */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="flex-shrink-0 text-[11px] text-gray-500">1st</span>
+              <select
+                value={playerSort1}
+                onChange={(e) => setPlayerSort1(e.target.value as PlayerSortKey)}
+                className="h-7 rounded-lg border border-gray-300 bg-white px-1.5 py-0 text-[11px] focus:border-green-500 focus:outline-none"
+              >
+                <option value="grade">学年</option>
+                <option value="number">背番号</option>
+                <option value="name">名前</option>
+              </select>
+              <Button
+                variant={playerSort1Dir === "asc" ? "default" : "outline"}
+                size="sm"
+                className="h-7 w-7 text-[11px] p-0"
+                onClick={() => setPlayerSort1Dir(playerSort1Dir === "asc" ? "desc" : "asc")}
+              >
+                {playerSort1Dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+              </Button>
+              <span className="flex-shrink-0 text-[11px] text-gray-500 ml-1">2nd</span>
+              <select
+                value={playerSort2}
+                onChange={(e) => setPlayerSort2(e.target.value as PlayerSortKey)}
+                className="h-7 rounded-lg border border-gray-300 bg-white px-1.5 py-0 text-[11px] focus:border-green-500 focus:outline-none"
+              >
+                <option value="name">名前</option>
+                <option value="grade">学年</option>
+                <option value="number">背番号</option>
+              </select>
+              <Button
+                variant={playerSort2Dir === "asc" ? "default" : "outline"}
+                size="sm"
+                className="h-7 w-7 text-[11px] p-0"
+                onClick={() => setPlayerSort2Dir(playerSort2Dir === "asc" ? "desc" : "asc")}
+              >
+                {playerSort2Dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+              </Button>
+              <span className="flex-shrink-0 text-[11px] text-gray-500 ml-1">ポジション:</span>
               <select
                 value={filterPosition}
                 onChange={(e) => setFilterPosition(e.target.value)}
-                className="h-8 rounded-lg border border-gray-300 bg-white px-2 py-0.5 text-[10px] focus:border-green-500 focus:outline-none"
+                className="h-7 rounded-lg border border-gray-300 bg-white px-1.5 py-0 text-[11px] focus:border-green-500 focus:outline-none"
               >
                 <option value="all">全て</option>
                 {POSITIONS.map((pos) => (
@@ -310,13 +286,13 @@ export default function MembersPage() {
             </div>
 
             {/* 学年フィルター（固定1〜6年） */}
-            <div className="flex items-center gap-2">
-              <span className="flex-shrink-0 text-xs text-gray-500">学年:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="flex-shrink-0 text-[11px] text-gray-500">学年:</span>
               <div className="flex gap-1 flex-wrap">
                 <button
                   onClick={() => setFilterGrade(null)}
                   className={cn(
-                    "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                    "rounded-full h-7 px-2 text-[11px] font-medium transition-colors",
                     filterGrade === null ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
                   )}
                 >
@@ -327,7 +303,7 @@ export default function MembersPage() {
                     key={g}
                     onClick={() => setFilterGrade(g)}
                     className={cn(
-                      "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                      "rounded-full h-7 px-2 text-[11px] font-medium transition-colors",
                       filterGrade === g ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
                     )}
                   >
@@ -396,73 +372,53 @@ export default function MembersPage() {
       {activeTab === "staff" && (
         <>
           {/* フィルタ・ソート */}
-          <div className="space-y-2 bg-white px-4 py-3 border-b border-gray-100">
-            {/* ソート */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="flex-shrink-0 text-[10px] text-gray-500">第1ソート:</span>
-                <select
-                  value={staffSort1}
-                  onChange={(e) => setStaffSort1(e.target.value as StaffSortKey)}
-                  className="h-8 rounded-lg border border-gray-300 bg-white px-2 py-0.5 text-[10px] focus:border-green-500 focus:outline-none"
-                >
-                  <option value="role">役割</option>
-                  <option value="name">名前</option>
-                </select>
-                <Button
-                  variant={staffSort1Dir === "asc" ? "default" : "outline"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setStaffSort1Dir("asc")}
-                >
-                  <ArrowUp className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant={staffSort1Dir === "desc" ? "default" : "outline"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setStaffSort1Dir("desc")}
-                >
-                  <ArrowDown className="h-3 w-3" />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="flex-shrink-0 text-[10px] text-gray-500">第2ソート:</span>
-                <select
-                  value={staffSort2}
-                  onChange={(e) => setStaffSort2(e.target.value as StaffSortKey)}
-                  className="h-8 rounded-lg border border-gray-300 bg-white px-2 py-0.5 text-[10px] focus:border-green-500 focus:outline-none"
-                >
-                  <option value="name">名前</option>
-                  <option value="role">役割</option>
-                </select>
-                <Button
-                  variant={staffSort2Dir === "asc" ? "default" : "outline"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setStaffSort2Dir("asc")}
-                >
-                  <ArrowUp className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant={staffSort2Dir === "desc" ? "default" : "outline"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setStaffSort2Dir("desc")}
-                >
-                  <ArrowDown className="h-3 w-3" />
-                </Button>
-              </div>
+          <div className="space-y-1 bg-white px-4 py-2 border-b border-gray-100">
+            {/* ソート（1行） */}
+            <div className="flex items-center gap-2">
+              <span className="flex-shrink-0 text-[11px] text-gray-500">1st</span>
+              <select
+                value={staffSort1}
+                onChange={(e) => setStaffSort1(e.target.value as StaffSortKey)}
+                className="h-7 rounded-lg border border-gray-300 bg-white px-1.5 py-0 text-[11px] focus:border-green-500 focus:outline-none"
+              >
+                <option value="role">役割</option>
+                <option value="name">名前</option>
+              </select>
+              <Button
+                variant={staffSort1Dir === "asc" ? "default" : "outline"}
+                size="sm"
+                className="h-7 w-7 text-[11px] p-0"
+                onClick={() => setStaffSort1Dir(staffSort1Dir === "asc" ? "desc" : "asc")}
+              >
+                {staffSort1Dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+              </Button>
+              <span className="flex-shrink-0 text-[11px] text-gray-500 ml-1">2nd</span>
+              <select
+                value={staffSort2}
+                onChange={(e) => setStaffSort2(e.target.value as StaffSortKey)}
+                className="h-7 rounded-lg border border-gray-300 bg-white px-1.5 py-0 text-[11px] focus:border-green-500 focus:outline-none"
+              >
+                <option value="name">名前</option>
+                <option value="role">役割</option>
+              </select>
+              <Button
+                variant={staffSort2Dir === "asc" ? "default" : "outline"}
+                size="sm"
+                className="h-7 w-7 text-[11px] p-0"
+                onClick={() => setStaffSort2Dir(staffSort2Dir === "asc" ? "desc" : "asc")}
+              >
+                {staffSort2Dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+              </Button>
             </div>
 
             {/* 役割フィルター */}
-            <div className="flex items-center gap-2 overflow-x-auto">
-              <span className="flex-shrink-0 text-xs text-gray-500">役割:</span>
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              <span className="flex-shrink-0 text-[11px] text-gray-500">役割:</span>
               <div className="flex gap-1">
                 <button
                   onClick={() => setFilterRole("all")}
                   className={cn(
-                    "flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                    "flex-shrink-0 rounded-full h-7 px-2 text-[11px] font-medium transition-colors",
                     filterRole === "all" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
                   )}
                 >
@@ -473,7 +429,7 @@ export default function MembersPage() {
                     key={role}
                     onClick={() => setFilterRole(role)}
                     className={cn(
-                      "flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                      "flex-shrink-0 rounded-full h-7 px-2 text-[11px] font-medium transition-colors",
                       filterRole === role ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
                     )}
                   >
