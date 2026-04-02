@@ -9,31 +9,6 @@ import { getLatestPosts, getUnreadCount } from "@/lib/supabase/queries/posts";
 import { supabase } from "@/lib/supabase/client";
 import type { PostPriority } from "@/types";
 
-// デモデータ
-const UPCOMING_EVENTS = [
-  {
-    id: "1",
-    title: "通常練習",
-    event_type: "practice" as const,
-    start_at: "2026-04-05T09:00:00",
-    location: "中央公園グラウンド",
-  },
-  {
-    id: "2",
-    title: "練習試合 vs 東チーム",
-    event_type: "game" as const,
-    start_at: "2026-04-06T10:00:00",
-    location: "市民球場",
-  },
-  {
-    id: "3",
-    title: "通常練習",
-    event_type: "practice" as const,
-    start_at: "2026-04-12T09:00:00",
-    location: "中央公園グラウンド",
-  },
-];
-
 const TEAM_CHALLENGE = {
   title: "チーム全員で100本ノック達成！",
   current: 67,
@@ -89,29 +64,54 @@ function formatPostDate(dateStr: string) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  practice: "練習",
+  practice_game: "練習試合",
+  game: "公式戦",
+  joint_practice: "合同練習",
+  meeting: "会議",
+  other: "その他",
+};
+
 function EventTypeBadge({ type }: { type: string }) {
-  if (type === "game") return <Badge variant="game">試合</Badge>;
-  if (type === "practice") return <Badge variant="practice">練習</Badge>;
-  return <Badge>その他</Badge>;
+  const label = EVENT_TYPE_LABELS[type] || "その他";
+  if (type === "game") return <Badge variant="game">{label}</Badge>;
+  if (type === "practice") return <Badge variant="practice">{label}</Badge>;
+  return <Badge>{label}</Badge>;
 }
 
 export default function HomePage() {
   const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
   const [latestPosts, setLatestPosts] = useState<LatestPost[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [upcomingEvents, setUpcomingEvents] = useState<{
+    id: string;
+    title: string;
+    event_type: string;
+    start_at: string;
+    location: string | null;
+  }[]>([]);
 
-  const fetchPosts = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!currentTeam) return;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [posts, count] = await Promise.all([
+      const [posts, count, eventsResult] = await Promise.all([
         getLatestPosts(currentTeam.id, 3),
         getUnreadCount(currentTeam.id, user.id),
+        supabase
+          .from('events')
+          .select('id, title, event_type, start_at, location')
+          .eq('team_id', currentTeam.id)
+          .gte('start_at', new Date().toISOString())
+          .order('start_at', { ascending: true })
+          .limit(3),
       ]);
       setLatestPosts(posts as unknown as LatestPost[]);
       setUnreadCount(count);
+      setUpcomingEvents(eventsResult.data ?? []);
     } catch {
       // ホーム画面ではエラーを静かに処理
     }
@@ -119,9 +119,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!teamLoading && currentTeam) {
-      fetchPosts();
+      fetchData();
     }
-  }, [teamLoading, currentTeam, fetchPosts]);
+  }, [teamLoading, currentTeam, fetchData]);
 
   return (
     <div className="space-y-6 p-4">
@@ -140,43 +140,49 @@ export default function HomePage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {UPCOMING_EVENTS.map((event) => (
-              <Link
-                key={event.id}
-                href={`/calendar/${event.id}`}
-                className="flex items-start gap-3 rounded-lg p-2 transition-colors hover:bg-gray-50"
-              >
-                <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-green-50">
-                  <svg
-                    className="h-5 w-5 text-green-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
-                    />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <EventTypeBadge type={event.event_type} />
-                    <span className="truncate text-sm font-medium text-gray-900">
-                      {event.title}
-                    </span>
+            {upcomingEvents.length === 0 ? (
+              <p className="py-4 text-center text-sm text-gray-400">
+                予定はありません
+              </p>
+            ) : (
+              upcomingEvents.map((event) => (
+                <Link
+                  key={event.id}
+                  href={`/calendar/${event.id}`}
+                  className="flex items-start gap-3 rounded-lg p-2 transition-colors hover:bg-gray-50"
+                >
+                  <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-green-50">
+                    <svg
+                      className="h-5 w-5 text-green-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
+                      />
+                    </svg>
                   </div>
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    {formatDate(event.start_at)}
-                  </p>
-                  {event.location && (
-                    <p className="text-xs text-gray-400">{event.location}</p>
-                  )}
-                </div>
-              </Link>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <EventTypeBadge type={event.event_type} />
+                      <span className="truncate text-sm font-medium text-gray-900">
+                        {event.title}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {formatDate(event.start_at)}
+                    </p>
+                    {event.location && (
+                      <p className="text-xs text-gray-400">{event.location}</p>
+                    )}
+                  </div>
+                </Link>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
