@@ -11,7 +11,7 @@ import { ErrorDisplay } from "@/components/ui/error-display";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { usePermission } from "@/hooks/usePermission";
 import { getGame, getGameLineups, getGameStats } from "@/lib/supabase/queries/games";
-import type { Game, GameLineup, PlayerGameStats, GameType, GameResult } from "@/types";
+import type { Game, GameLineup, PlayerGameStats, GameType, GameResult, InningScore } from "@/types";
 
 const GAME_TYPE_LABEL: Record<GameType, string> = {
   practice: "練習試合",
@@ -137,6 +137,60 @@ export default function GameDetailPage() {
             {game.venue && (
               <div className="text-center text-xs text-gray-400">
                 {game.venue}
+              </div>
+            )}
+
+            {/* イニングスコア */}
+            {game.inning_scores && game.inning_scores.length > 0 && (
+              <div className="mt-4 overflow-x-auto border-t border-gray-100 pt-3">
+                <table className="w-full text-center text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="px-2 py-1.5 text-left font-medium text-gray-500">
+                        &nbsp;
+                      </th>
+                      {game.inning_scores.map((is: InningScore) => (
+                        <th
+                          key={is.inning}
+                          className="min-w-[24px] px-1 py-1.5 font-medium text-gray-500"
+                        >
+                          {is.inning}
+                        </th>
+                      ))}
+                      <th className="min-w-[32px] px-2 py-1.5 font-bold text-gray-700">
+                        計
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-gray-100">
+                      <td className="whitespace-nowrap px-2 py-1.5 text-left text-xs font-medium text-gray-700">
+                        自チーム
+                      </td>
+                      {game.inning_scores.map((is: InningScore) => (
+                        <td key={is.inning} className="px-1 py-1.5 text-gray-900">
+                          {is.score_team}
+                        </td>
+                      ))}
+                      <td className="px-2 py-1.5 font-bold text-gray-900">
+                        {game.score_team ?? game.inning_scores.reduce((sum: number, is: InningScore) => sum + is.score_team, 0)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="whitespace-nowrap px-2 py-1.5 text-left text-xs font-medium text-gray-700">
+                        {game.opponent_name}
+                      </td>
+                      {game.inning_scores.map((is: InningScore) => (
+                        <td key={is.inning} className="px-1 py-1.5 text-gray-900">
+                          {is.score_opponent}
+                        </td>
+                      ))}
+                      <td className="px-2 py-1.5 font-bold text-gray-900">
+                        {game.score_opponent ?? game.inning_scores.reduce((sum: number, is: InningScore) => sum + is.score_opponent, 0)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             )}
           </CardContent>

@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase/client";
 import type {
   Game,
   GameLineup,
+  InningScore,
   PlayerGameStats,
   ScorebookImage,
 } from "@/types";
@@ -38,6 +39,7 @@ export async function createGame(data: {
   result?: string;
   score_team?: number;
   score_opponent?: number;
+  inning_scores?: InningScore[];
   notes?: string;
   created_by: string;
 }) {
@@ -61,6 +63,7 @@ export async function updateGame(
     result: string;
     score_team: number;
     score_opponent: number;
+    inning_scores: InningScore[];
     notes: string;
   }>
 ) {
