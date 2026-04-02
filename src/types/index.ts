@@ -68,9 +68,24 @@ export interface TeamMember {
   permission_group: PermissionGroup;
   is_admin: boolean;
   is_active: boolean;
+  experience?: string | null;
+  motivation?: string | null;
   created_at: string;
   // 結合データ
   users?: User;
+}
+
+// スタッフメンバー（team_member + user情報マージ済み）
+export interface StaffMember {
+  id: string;
+  team_id: string;
+  user_id: string;
+  permission_group: PermissionGroup;
+  is_admin: boolean;
+  experience?: string | null;
+  motivation?: string | null;
+  display_name: string;
+  avatar_url?: string;
 }
 
 // 選手
