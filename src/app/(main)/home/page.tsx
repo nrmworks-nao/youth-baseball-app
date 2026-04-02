@@ -35,15 +35,6 @@ const TEAM_CHALLENGE = {
   target: 100,
 };
 
-const RECOMMENDED_PRODUCTS = [
-  {
-    id: "1",
-    product_name: "ミズノ 少年軟式グローブ",
-    comment: "初心者におすすめ！軽くて使いやすいです。",
-    image_url: null,
-  },
-];
-
 function formatDate(dateStr: string) {
   const date = new Date(dateStr);
   const month = date.getMonth() + 1;
@@ -187,46 +178,6 @@ export default function HomePage() {
         </CardContent>
       </Card>
 
-      {/* おすすめ商品 */}
-      {RECOMMENDED_PRODUCTS.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>おすすめ</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {RECOMMENDED_PRODUCTS.map((product) => (
-              <div
-                key={product.id}
-                className="flex items-start gap-3 rounded-lg"
-              >
-                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100">
-                  <svg
-                    className="h-6 w-6 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    {product.product_name}
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    {product.comment}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
