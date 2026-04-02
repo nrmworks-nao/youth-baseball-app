@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -189,8 +190,8 @@ export default function PostDetailPage() {
 
   return (
     <div className="flex flex-col">
-      {/* 戻るリンク */}
-      <div className="border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
+      {/* ヘッダー */}
+      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
         <Link
           href="/posts"
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
@@ -200,6 +201,16 @@ export default function PostDetailPage() {
           </svg>
           連絡一覧
         </Link>
+        {/* 編集ボタン（投稿者本人 or サイト管理者） */}
+        {userId && (post.author_id === userId || currentMembership?.is_admin) && (
+          <Link
+            href={`/posts/${postId}/edit`}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800"
+          >
+            <Pencil className="h-4 w-4" />
+            編集
+          </Link>
+        )}
       </div>
 
       <div className="space-y-4 p-4">
