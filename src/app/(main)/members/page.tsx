@@ -232,8 +232,8 @@ export default function MembersPage() {
         <>
           {/* フィルタ・ソート */}
           <div className="space-y-1 bg-white px-4 py-2 border-b border-gray-100">
-            {/* ソート + ポジション（1行） */}
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* ソート（1行目） */}
+            <div className="flex items-center gap-2">
               <span className="flex-shrink-0 text-[11px] text-gray-500">1st</span>
               <select
                 value={playerSort1}
@@ -270,7 +270,11 @@ export default function MembersPage() {
               >
                 {playerSort2Dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
               </Button>
-              <span className="flex-shrink-0 text-[11px] text-gray-500 ml-1">ポジション:</span>
+            </div>
+
+            {/* ポジション（2行目） */}
+            <div className="flex items-center gap-2">
+              <span className="flex-shrink-0 text-[11px] text-gray-500">ポジション:</span>
               <select
                 value={filterPosition}
                 onChange={(e) => setFilterPosition(e.target.value)}
