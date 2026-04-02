@@ -137,6 +137,27 @@ export async function createPost(data: {
   return post as Post;
 }
 
+/** 投稿更新 */
+export async function updatePost(
+  postId: string,
+  data: {
+    title?: string;
+    body?: string;
+    priority?: PostPriority;
+    category?: PostCategory;
+    image_urls?: string[] | null;
+  }
+) {
+  const { data: post, error } = await supabase
+    .from("posts")
+    .update(data)
+    .eq("id", postId)
+    .select()
+    .single();
+  if (error) throw error;
+  return post as Post;
+}
+
 /** コメント一覧取得（分割クエリ：リレーション構文回避） */
 export async function getComments(postId: string) {
   // 1. コメントを取得
