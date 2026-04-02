@@ -15,6 +15,14 @@ import { supabase } from "@/lib/supabase/client";
 import { getErrorMessage } from "@/lib/supabase/error-handler";
 import type { PostPriority } from "@/types";
 
+const CATEGORY_CONFIG: Record<string, { label: string; className: string }> = {
+  practice: { label: "練習", className: "bg-green-100 text-green-700" },
+  game: { label: "試合", className: "bg-orange-100 text-orange-700" },
+  admin: { label: "事務連絡", className: "bg-blue-100 text-blue-700" },
+  accounting: { label: "会計", className: "bg-purple-100 text-purple-700" },
+  other: { label: "その他", className: "bg-gray-100 text-gray-700" },
+};
+
 const PRIORITY_CONFIG: Record<
   PostPriority,
   { label: string; variant: "default" | "important" | "urgent"; borderColor: string }
@@ -190,6 +198,11 @@ export default function PostsPage() {
                           <Badge variant={priorityConfig.variant}>
                             {priorityConfig.label}
                           </Badge>
+                        )}
+                        {post.category && CATEGORY_CONFIG[post.category] && (
+                          <span className={cn("text-xs px-2 py-0.5 rounded-full", CATEGORY_CONFIG[post.category].className)}>
+                            {CATEGORY_CONFIG[post.category].label}
+                          </span>
                         )}
                         <h3 className="text-sm font-medium text-gray-900 line-clamp-2 dark:text-gray-100">
                           {post.title}
