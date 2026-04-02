@@ -13,13 +13,6 @@ import { getStaffMembers } from "@/lib/supabase/queries/members";
 import { getRoleLabel } from "@/lib/utils/roles";
 import { supabase } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { Player, StaffMember, PermissionGroup } from "@/types";
 
 type Tab = "players" | "staff";
@@ -302,19 +295,18 @@ export default function MembersPage() {
             {/* ポジションフィルター */}
             <div className="flex items-center gap-2">
               <span className="flex-shrink-0 text-xs text-gray-500">ポジション:</span>
-              <Select value={filterPosition} onValueChange={setFilterPosition}>
-                <SelectTrigger className="h-7 w-auto min-w-[100px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全て</SelectItem>
-                  {POSITIONS.map((pos) => (
-                    <SelectItem key={pos} value={pos}>
-                      {pos}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={filterPosition}
+                onChange={(e) => setFilterPosition(e.target.value)}
+                className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs focus:border-green-500 focus:outline-none"
+              >
+                <option value="all">全て</option>
+                {POSITIONS.map((pos) => (
+                  <option key={pos} value={pos}>
+                    {pos}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* 学年フィルター（固定1〜6年） */}
