@@ -98,7 +98,7 @@ export async function createPost(data: {
 }) {
   const { data: post, error } = await supabase
     .from("posts")
-    .insert({ priority: "normal", category: "general", ...data })
+    .insert({ priority: "normal", category: "other", ...data })
     .select()
     .single();
   if (error) throw error;
