@@ -52,6 +52,17 @@ export async function deleteShopCategory(id: string) {
 
 // === 商品 ===
 
+/** Supabaseのリレーション名をShopProduct型のプロパティ名にマッピング */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapProductRelations(row: any): ShopProduct {
+  const { shop_product_images, shop_product_links, ...rest } = row;
+  return {
+    ...rest,
+    images: shop_product_images ?? undefined,
+    links: shop_product_links ?? undefined,
+  } as ShopProduct;
+}
+
 /** 商品一覧取得（公開のみ） */
 export async function getShopProducts(categoryId?: string) {
   let query = supabase
@@ -64,7 +75,7 @@ export async function getShopProducts(categoryId?: string) {
   }
   const { data, error } = await query;
   if (error) throw error;
-  return data as ShopProduct[];
+  return (data ?? []).map(mapProductRelations);
 }
 
 /** 全商品取得（管理者用・公開/非公開問わず） */
@@ -74,7 +85,7 @@ export async function getAllShopProducts() {
     .select("*, shop_categories(name, slug), shop_product_images(id, image_url, sort_order)")
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data as ShopProduct[];
+  return (data ?? []).map(mapProductRelations);
 }
 
 /** 商品詳細取得 */
@@ -87,7 +98,7 @@ export async function getShopProduct(productId: string) {
     .eq("id", productId)
     .single();
   if (error) throw error;
-  return data as ShopProduct;
+  return mapProductRelations(data);
 }
 
 /** 商品作成 */
@@ -250,7 +261,15 @@ export async function getTeamPinnedProducts(teamId: string) {
     .eq("team_id", teamId)
     .order("sort_order", { ascending: true });
   if (error) throw error;
-  return data as TeamPinnedProduct[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((row: any) => {
+    const { shop_products, users, ...rest } = row;
+    return {
+      ...rest,
+      product: shop_products ? mapProductRelations(shop_products) : undefined,
+      pinner: users ?? undefined,
+    } as TeamPinnedProduct;
+  });
 }
 
 /** おすすめ追加 */

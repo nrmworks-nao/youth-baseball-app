@@ -418,7 +418,7 @@ export default function AdminShopPage() {
             <div className="space-y-2">
               {products.map((product) => {
                 const catName = (product as unknown as { shop_categories?: { name: string } }).shop_categories?.name;
-                const thumbUrl = (product as unknown as { shop_product_images?: { image_url: string }[] }).shop_product_images?.[0]?.image_url;
+                const thumbUrl = product.images?.[0]?.image_url;
                 return (
                   <Card key={product.id} className="p-3">
                     <div className="flex items-center gap-3">
