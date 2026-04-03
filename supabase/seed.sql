@@ -180,7 +180,7 @@ INSERT INTO shop_products (id, category_id, name, description, price, is_active)
 ON CONFLICT (id) DO NOTHING;
 
 -- ECサイトリンク
-INSERT INTO shop_product_links (product_id, site_name, url) VALUES
+INSERT INTO shop_product_links (product_id, store_name, url) VALUES
   (v_product1_id, 'Amazon', 'https://www.amazon.co.jp/dp/example1'),
   (v_product1_id, '楽天市場', 'https://item.rakuten.co.jp/example1'),
   (v_product2_id, 'Amazon', 'https://www.amazon.co.jp/dp/example2'),
