@@ -36,6 +36,17 @@ const METHOD_LABELS: Record<string, string> = {
   other: "その他",
 };
 
+/** タイムスタンプや日付文字列を YYYY/MM/DD 形式にフォーマット */
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return value;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}/${m}/${day}`;
+}
+
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -132,9 +143,9 @@ export default function InvoiceDetailPage() {
             </p>
             <div className="space-y-1 text-sm text-gray-600">
               <p>対象者: {userName}</p>
-              {invoice.due_date && <p>支払期限: {invoice.due_date}</p>}
-              <p>発行日: {invoice.issued_at ?? invoice.created_at?.split("T")[0]}</p>
-              {invoice.paid_at && <p>支払日: {invoice.paid_at.split("T")[0]}</p>}
+              {invoice.due_date && <p>支払期限: {formatDate(invoice.due_date)}</p>}
+              <p>発行日: {formatDate(invoice.issued_at ?? invoice.created_at)}</p>
+              {invoice.paid_at && <p>支払日: {formatDate(invoice.paid_at)}</p>}
             </div>
             {invoice.notes && (
               <div className="rounded-lg bg-gray-50 p-3">
@@ -191,7 +202,7 @@ export default function InvoiceDetailPage() {
                           {payment.confirmed_by && <Badge variant="primary">確認済</Badge>}
                         </div>
                         <p className="text-xs text-gray-500">
-                          {payment.payment_method ? METHOD_LABELS[payment.payment_method] ?? payment.payment_method : ""} · {payment.paid_at}
+                          {payment.payment_method ? METHOD_LABELS[payment.payment_method] ?? payment.payment_method : ""} · {formatDate(payment.paid_at)}
                         </p>
                       </div>
                       <p className="text-sm font-bold text-green-600">
