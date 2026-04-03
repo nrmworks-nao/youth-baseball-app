@@ -236,28 +236,36 @@ export default function ProductDetailPage() {
         {links.length > 0 && (
           <div className="space-y-2">
             <h3 className="text-sm font-medium text-gray-900">購入する</h3>
-            {links.map((link) => (
-              <a
-                key={link.id}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                <Button
-                  className={`w-full text-white ${STORE_COLORS[link.store_name] ?? "bg-gray-600 hover:bg-gray-700"}`}
-                  size="lg"
+            {links.map((link) =>
+              link.url.trimStart().startsWith("<") ? (
+                <div
+                  key={link.id}
+                  className="flex justify-center"
+                  dangerouslySetInnerHTML={{ __html: link.url }}
+                />
+              ) : (
+                <a
+                  key={link.id}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
                 >
-                  <span className="flex items-center justify-between w-full">
-                    <span className="flex items-center gap-1.5">
-                      {link.store_name}で購入
-                      <ExternalLink className="h-4 w-4" />
+                  <Button
+                    className={`w-full text-white ${STORE_COLORS[link.store_name] ?? "bg-gray-600 hover:bg-gray-700"}`}
+                    size="lg"
+                  >
+                    <span className="flex items-center justify-between w-full">
+                      <span className="flex items-center gap-1.5">
+                        {link.store_name}で購入
+                        <ExternalLink className="h-4 w-4" />
+                      </span>
+                      {link.price != null && <span className="font-bold">¥{link.price.toLocaleString()}</span>}
                     </span>
-                    {link.price != null && <span className="font-bold">¥{link.price.toLocaleString()}</span>}
-                  </span>
-                </Button>
-              </a>
-            ))}
+                  </Button>
+                </a>
+              )
+            )}
           </div>
         )}
       </div>

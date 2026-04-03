@@ -32,7 +32,8 @@ import { getErrorMessage } from "@/lib/supabase/error-handler";
 import type { ShopCategory, ShopProduct, ShopProductImage } from "@/types";
 
 type Tab = "products" | "categories";
-type ProductLinkForm = { store_name: string; url: string };
+type LinkMode = "url" | "html";
+type ProductLinkForm = { store_name: string; url: string; mode: LinkMode };
 
 const EC_SITE_OPTIONS = ["Amazon", "楽天市場", "Yahoo!ショッピング", "その他"] as const;
 
@@ -125,7 +126,12 @@ export default function AdminShopPage() {
         price_max: priceMax ? Number(priceMax) : undefined,
       };
 
-      const validLinks = productLinkForms.filter((l: ProductLinkForm) => l.store_name && l.url.trim());
+      const validLinks = productLinkForms
+        .filter((l: ProductLinkForm) => l.mode === "html" ? l.url.trim() : l.store_name && l.url.trim())
+        .map((l) => ({
+          store_name: l.mode === "html" ? "楽天市場（HTML）" : l.store_name,
+          url: l.url.trim(),
+        }));
 
       let productId: string;
       if (editingProductId) {
@@ -190,7 +196,11 @@ export default function AdminShopPage() {
       ]);
       // 非同期fetch中に別の商品の編集が開始された場合、古い結果を無視
       if (editSessionRef.current !== sessionId) return;
-      setProductLinkForms(links.map((l) => ({ store_name: l.store_name, url: l.url })));
+      setProductLinkForms(links.map((l) => ({
+        store_name: l.store_name,
+        url: l.url,
+        mode: (l.url.trimStart().startsWith("<") ? "html" : "url") as LinkMode,
+      })));
       setExistingImages(images);
     } catch {
       if (editSessionRef.current !== sessionId) return;
@@ -366,51 +376,104 @@ export default function AdminShopPage() {
                   </div>
                   <div>
                     <h4 className="mb-2 text-xs font-medium text-gray-700">購入リンク</h4>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {productLinkForms.map((link, index) => (
-                        <div key={index} className="flex items-start gap-2">
-                          <div className="flex-1 space-y-1">
-                            <Select
-                              label=""
-                              value={link.store_name}
-                              onChange={(e) => {
-                                const updated = [...productLinkForms];
-                                updated[index] = { ...updated[index], store_name: e.target.value };
-                                setProductLinkForms(updated);
-                              }}
+                        <div key={index} className="rounded-lg border border-gray-200 p-3">
+                          <div className="mb-2 flex items-center justify-between">
+                            {/* モード切替タブ */}
+                            <div className="flex rounded-md border border-gray-300 text-xs">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = [...productLinkForms];
+                                  updated[index] = { ...updated[index], mode: "url", url: "" };
+                                  setProductLinkForms(updated);
+                                }}
+                                className={`rounded-l-md px-3 py-1 ${link.mode === "url" ? "bg-green-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                              >
+                                URLリンク
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = [...productLinkForms];
+                                  updated[index] = { ...updated[index], mode: "html", store_name: "楽天市場（HTML）", url: "" };
+                                  setProductLinkForms(updated);
+                                }}
+                                className={`rounded-r-md px-3 py-1 ${link.mode === "html" ? "bg-green-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                              >
+                                HTMLソース
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setProductLinkForms(productLinkForms.filter((_, i) => i !== index))}
+                              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500"
                             >
-                              <option value="">ECサイトを選択...</option>
-                              {EC_SITE_OPTIONS.map((opt) => (
-                                <option key={opt} value={opt}>{opt}</option>
-                              ))}
-                            </Select>
-                            <Input
-                              label=""
-                              placeholder="https://..."
-                              value={link.url}
-                              onChange={(e) => {
-                                const updated = [...productLinkForms];
-                                updated[index] = { ...updated[index], url: e.target.value };
-                                setProductLinkForms(updated);
-                              }}
-                            />
+                              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                              </svg>
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setProductLinkForms(productLinkForms.filter((_, i) => i !== index))}
-                            className="mt-1 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500"
-                          >
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                            </svg>
-                          </button>
+
+                          {link.mode === "url" ? (
+                            <div className="space-y-1">
+                              <Select
+                                label=""
+                                value={link.store_name}
+                                onChange={(e) => {
+                                  const updated = [...productLinkForms];
+                                  updated[index] = { ...updated[index], store_name: e.target.value };
+                                  setProductLinkForms(updated);
+                                }}
+                              >
+                                <option value="">ECサイトを選択...</option>
+                                {EC_SITE_OPTIONS.map((opt) => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </Select>
+                              <Input
+                                label=""
+                                placeholder="https://..."
+                                value={link.url}
+                                onChange={(e) => {
+                                  const updated = [...productLinkForms];
+                                  updated[index] = { ...updated[index], url: e.target.value };
+                                  setProductLinkForms(updated);
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <Textarea
+                                label=""
+                                placeholder="楽天アフィリエイトのHTMLソースを貼り付け..."
+                                value={link.url}
+                                onChange={(e) => {
+                                  const updated = [...productLinkForms];
+                                  updated[index] = { ...updated[index], url: e.target.value };
+                                  setProductLinkForms(updated);
+                                }}
+                                rows={5}
+                              />
+                              {link.url.trim() && (
+                                <div>
+                                  <p className="mb-1 text-xs font-medium text-gray-500">プレビュー:</p>
+                                  <div
+                                    className="rounded border border-gray-200 bg-white p-2"
+                                    dangerouslySetInnerHTML={{ __html: link.url }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setProductLinkForms([...productLinkForms, { store_name: "", url: "" }])}
+                        onClick={() => setProductLinkForms([...productLinkForms, { store_name: "", url: "", mode: "url" }])}
                       >
                         + リンク追加
                       </Button>
