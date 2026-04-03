@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
-import type { ShopCategory, ShopProduct, TeamPinnedProduct } from "@/types";
+import type { ShopCategory, ShopProduct, ShopProductImage, TeamPinnedProduct } from "@/types";
 
 // === カテゴリ ===
 
@@ -175,6 +175,67 @@ export async function upsertProductLinks(
       .insert(linksData);
     if (insertError) throw insertError;
   }
+}
+
+// === 商品画像 ===
+
+/** 商品の画像一覧を取得 */
+export async function getProductImages(productId: string) {
+  const { data, error } = await supabase
+    .from("shop_product_images")
+    .select("*")
+    .eq("product_id", productId)
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data as ShopProductImage[];
+}
+
+/** 画像をStorageにアップロードし、shop_product_imagesにレコード追加 */
+export async function uploadProductImage(productId: string, file: File) {
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `shop/${productId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("team-assets")
+    .upload(path, file);
+  if (uploadError) throw uploadError;
+
+  const { data: urlData } = supabase.storage
+    .from("team-assets")
+    .getPublicUrl(path);
+
+  // 現在の画像数を取得して sort_order を決定
+  const { count } = await supabase
+    .from("shop_product_images")
+    .select("id", { count: "exact", head: true })
+    .eq("product_id", productId);
+
+  const { data: image, error: insertError } = await supabase
+    .from("shop_product_images")
+    .insert({
+      product_id: productId,
+      image_url: urlData.publicUrl,
+      sort_order: count ?? 0,
+    })
+    .select()
+    .single();
+  if (insertError) throw insertError;
+  return image as ShopProductImage;
+}
+
+/** 画像レコード削除 + Storageから削除 */
+export async function deleteProductImage(imageId: string, imageUrl: string) {
+  // StorageパスをURLから抽出
+  const bucketPath = imageUrl.split("/team-assets/")[1];
+  if (bucketPath) {
+    await supabase.storage.from("team-assets").remove([bucketPath]);
+  }
+
+  const { error } = await supabase
+    .from("shop_product_images")
+    .delete()
+    .eq("id", imageId);
+  if (error) throw error;
 }
 
 // === チームおすすめ ===
