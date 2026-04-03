@@ -214,18 +214,31 @@ export default function PaymentsPage() {
                 {pendingInvoices.map((inv) => {
                   const userName = inv.users?.display_name ?? "";
                   return (
-                    <div key={inv.id} className="flex items-center justify-between rounded-lg bg-yellow-50 p-3">
+                    <button
+                      key={inv.id}
+                      className="flex w-full items-center justify-between rounded-lg bg-yellow-50 p-3 text-left transition-colors hover:bg-yellow-100 active:bg-yellow-200"
+                      onClick={() => {
+                        setSelectedInvoice(inv.id);
+                        setAmount(String(inv.total_amount));
+                        setShowForm(true);
+                      }}
+                    >
                       <div>
                         <p className="text-sm font-medium text-gray-900">{inv.title}</p>
                         <p className="text-xs text-gray-500">{userName}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-gray-900">¥{inv.total_amount.toLocaleString()}</p>
-                        <Badge variant={inv.status === "overdue" ? "danger" : "warning"}>
-                          {inv.status === "overdue" ? "未納" : "未払い"}
-                        </Badge>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-gray-900">¥{inv.total_amount.toLocaleString()}</p>
+                          <Badge variant={inv.status === "overdue" ? "danger" : "warning"}>
+                            {inv.status === "overdue" ? "未納" : "未払い"}
+                          </Badge>
+                        </div>
+                        <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                        </svg>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

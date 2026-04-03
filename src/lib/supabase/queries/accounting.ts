@@ -127,6 +127,73 @@ export async function createInvoice(data: {
   return invoice as Invoice;
 }
 
+/** 請求更新 */
+export async function updateInvoice(
+  invoiceId: string,
+  data: {
+    title?: string;
+    total_amount?: number;
+    due_date?: string | null;
+    notes?: string | null;
+    items?: { description: string; amount: number; quantity: number }[];
+  }
+) {
+  const { items, ...invoiceData } = data;
+  const { data: invoice, error } = await supabase
+    .from("invoices")
+    .update(invoiceData)
+    .eq("id", invoiceId)
+    .select()
+    .single();
+  if (error) throw error;
+
+  if (items) {
+    // 既存明細を削除して再作成
+    const { error: deleteError } = await supabase
+      .from("invoice_items")
+      .delete()
+      .eq("invoice_id", invoiceId);
+    if (deleteError) throw deleteError;
+
+    if (items.length > 0) {
+      const itemsData = items.map((item) => ({
+        ...item,
+        invoice_id: invoiceId,
+        team_id: invoice.team_id,
+      }));
+      const { error: insertError } = await supabase
+        .from("invoice_items")
+        .insert(itemsData);
+      if (insertError) throw insertError;
+    }
+  }
+
+  return invoice as Invoice;
+}
+
+/** 請求キャンセル */
+export async function cancelInvoice(invoiceId: string) {
+  const { data, error } = await supabase
+    .from("invoices")
+    .update({ status: "cancelled" })
+    .eq("id", invoiceId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Invoice;
+}
+
+/** 請求に紐づく入金履歴取得 */
+export async function getInvoicePayments(invoiceId: string) {
+  const { data, error } = await supabase
+    .from("payments")
+    .select("*, users!payments_payer_user_id_fkey(display_name)")
+    .eq("invoice_id", invoiceId)
+    .order("paid_at", { ascending: false });
+  if (error) throw error;
+  return data as Payment[];
+}
+
 /** 請求ステータス更新 */
 export async function updateInvoiceStatus(invoiceId: string, status: InvoiceStatus) {
   const updateData: Record<string, unknown> = { status };

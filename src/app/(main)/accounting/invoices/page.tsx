@@ -113,27 +113,34 @@ export default function InvoicesPage() {
           const statusCfg = STATUS_CONFIG[invoice.status] ?? STATUS_CONFIG.pending;
           const userName = invoice.users?.display_name ?? "";
           return (
-            <Card key={invoice.id} className="p-4 transition-colors hover:bg-gray-50">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-medium text-gray-900">
-                      {invoice.title}
-                    </h3>
-                    <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
+            <Link key={invoice.id} href={`/accounting/invoices/${invoice.id}`}>
+              <Card className="p-4 transition-colors hover:bg-gray-50">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-medium text-gray-900">
+                        {invoice.title}
+                      </h3>
+                      <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">{userName}</p>
+                    {invoice.due_date && (
+                      <p className="mt-0.5 text-xs text-gray-400">
+                        期限: {invoice.due_date}
+                      </p>
+                    )}
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">{userName}</p>
-                  {invoice.due_date && (
-                    <p className="mt-0.5 text-xs text-gray-400">
-                      期限: {invoice.due_date}
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-gray-900">
+                      ¥{invoice.total_amount.toLocaleString()}
                     </p>
-                  )}
+                    <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </div>
                 </div>
-                <p className="text-sm font-bold text-gray-900">
-                  ¥{invoice.total_amount.toLocaleString()}
-                </p>
-              </div>
-            </Card>
+              </Card>
+            </Link>
           );
         })}
         {filteredInvoices.length === 0 && (
