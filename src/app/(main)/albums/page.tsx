@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Construction } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,9 @@ import { ErrorDisplay, EmptyState } from "@/components/ui/error-display";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { getAlbums } from "@/lib/supabase/queries/albums";
 import type { Album } from "@/types";
+
+// アルバム機能の有効/無効フラグ（サーバー容量の懸念により一時的に無効化）
+const ALBUM_ENABLED = false;
 
 type AlbumWithMeta = Album & { event_title: string | null; photo_count: number };
 type ViewMode = "event" | "month";
@@ -22,6 +26,25 @@ function formatMonth(monthStr: string) {
 
 function getMonth(dateStr: string) {
   return dateStr.slice(0, 7); // "2026-03"
+}
+
+function AlbumUnderConstruction() {
+  return (
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+        <h2 className="text-base font-bold text-gray-900">アルバム</h2>
+      </div>
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-24">
+        <Construction className="h-16 w-16 text-gray-300" />
+        <p className="mt-4 text-lg font-semibold text-gray-700">
+          アルバム機能は現在作成中です
+        </p>
+        <p className="mt-2 text-sm text-gray-500">
+          今後のアップデートをお待ちください
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export default function AlbumsPage() {
@@ -47,10 +70,14 @@ export default function AlbumsPage() {
   }, [currentTeam]);
 
   useEffect(() => {
-    if (!teamLoading) {
+    if (!teamLoading && ALBUM_ENABLED) {
       fetchAlbums();
     }
   }, [teamLoading, fetchAlbums]);
+
+  if (!ALBUM_ENABLED) {
+    return <AlbumUnderConstruction />;
+  }
 
   // 月別グルーピング
   const albumsByMonth = albums.reduce<Record<string, AlbumWithMeta[]>>(

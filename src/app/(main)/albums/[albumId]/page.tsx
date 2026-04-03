@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,25 @@ type PhotoWithMeta = AlbumPhoto & {
   is_liked: boolean;
 };
 
+// アルバム機能の有効/無効フラグ（サーバー容量の懸念により一時的に無効化）
+const ALBUM_ENABLED = false;
+
 export default function AlbumDetailPage() {
+  const router = useRouter();
   const params = useParams();
   const albumId = params.albumId as string;
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
+
+  // アルバム機能が無効の場合はアルバム一覧にリダイレクト
+  useEffect(() => {
+    if (!ALBUM_ENABLED) {
+      router.replace("/albums");
+    }
+  }, [router]);
+
+  if (!ALBUM_ENABLED) {
+    return null;
+  }
   const { isAdmin, canManagePhotos } = usePermission(
     currentMembership?.permission_group ?? null,
     currentMembership?.is_admin ?? false

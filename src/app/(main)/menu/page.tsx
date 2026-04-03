@@ -119,7 +119,14 @@ export default function MenuPage() {
                   <item.icon className={cn("w-6 h-6", item.iconColor)} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">{item.label}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{item.label}</p>
+                    {item.href === "/albums" && (
+                      <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                        準備中
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">{item.description}</p>
                 </div>
               </div>
