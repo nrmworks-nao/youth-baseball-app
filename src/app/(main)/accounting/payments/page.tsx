@@ -13,7 +13,7 @@ import { ErrorDisplay } from "@/components/ui/error-display";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import { usePermission } from "@/hooks/usePermission";
 import { supabase } from "@/lib/supabase/client";
-import { getPayments, getInvoices, createPayment, updateInvoiceStatus } from "@/lib/supabase/queries/accounting";
+import { getPayments, getInvoices, createPayment, createLedgerEntry, updateInvoiceStatus } from "@/lib/supabase/queries/accounting";
 import type { Payment, Invoice } from "@/types";
 
 type InvoiceWithUser = Invoice & { users?: { display_name: string } };
@@ -84,7 +84,7 @@ export default function PaymentsPage() {
         : null;
       const payerUserId = invoice ? invoice.target_user_id : user.id;
 
-      await createPayment({
+      const payment = await createPayment({
         team_id: currentTeam.id,
         invoice_id: selectedInvoice || undefined,
         payer_user_id: payerUserId,
@@ -93,6 +93,22 @@ export default function PaymentsPage() {
         paid_at: paidAt,
         confirmed_by: user.id,
         notes: notes || undefined,
+      });
+
+      // 収支台帳に入金を自動計上
+      const payerName = invoice?.users?.display_name ?? "";
+      const description = invoice
+        ? `${invoice.title}${payerName ? ` (${payerName})` : ""}`
+        : `入金${payerName ? ` (${payerName})` : ""}`;
+      await createLedgerEntry({
+        team_id: currentTeam.id,
+        entry_type: "income",
+        category: "会費",
+        description,
+        amount: parseInt(amount),
+        entry_date: paidAt,
+        payment_id: payment.id,
+        recorded_by: user.id,
       });
 
       // 消込処理: 請求に紐づけた場合、ステータスを更新
