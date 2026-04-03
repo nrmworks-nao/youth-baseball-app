@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Pencil } from "lucide-react";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay } from "@/components/ui/error-display";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
@@ -40,6 +41,7 @@ export default function GameDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const canEdit = hasPermission(["director", "vice_president", "coach"]);
+  const canEditGame = hasPermission(["director", "coach"]);
 
   useEffect(() => {
     const load = async () => {
@@ -96,6 +98,14 @@ export default function GameDetailPage() {
           </Link>
           <h2 className="text-base font-bold text-gray-900">試合詳細</h2>
         </div>
+        {canEditGame && (
+          <Link href={`/games/${gameId}/edit`}>
+            <Button variant="ghost" size="sm" className="gap-1 text-xs">
+              <Pencil className="h-4 w-4" />
+              編集
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="space-y-4 p-4">
