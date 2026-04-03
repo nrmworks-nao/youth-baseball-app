@@ -146,6 +146,15 @@ export async function upsertPlayerGameStats(data: {
   if (error) throw error;
 }
 
+/** 試合ラインナップ削除（試合単位） */
+export async function deleteGameLineups(gameId: string) {
+  const { error } = await supabase
+    .from("game_lineups")
+    .delete()
+    .eq("game_id", gameId);
+  if (error) throw error;
+}
+
 /** スコアブック画像一覧取得 */
 export async function getScorebookImages(gameId: string) {
   const { data, error } = await supabase
