@@ -490,6 +490,7 @@ export default function MainLayout({
                   pathname === item.href ||
                   pathname.startsWith(item.href + "/");
                 const showBadge = item.href === "/posts" && unreadPostCount > 0;
+                const showComingSoon = item.href === "/albums";
                 return (
                   <li key={item.href}>
                     <Link
@@ -506,6 +507,11 @@ export default function MainLayout({
                           <item.icon className={cn("h-5 w-5", item.iconColor)} />
                         </div>
                         {item.label}
+                        {showComingSoon && (
+                          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                            準備中
+                          </span>
+                        )}
                       </div>
                       {showBadge && (
                         <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">

@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+
+// アルバム機能の有効/無効フラグ（サーバー容量の懸念により一時的に無効化）
+const ALBUM_ENABLED = false;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -83,6 +86,17 @@ export default function AlbumUploadPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedAlbumId = searchParams.get("albumId");
+
+  // アルバム機能が無効の場合はアルバム一覧にリダイレクト
+  useEffect(() => {
+    if (!ALBUM_ENABLED) {
+      router.replace("/albums");
+    }
+  }, [router]);
+
+  if (!ALBUM_ENABLED) {
+    return null;
+  }
 
   const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
   const [albums, setAlbums] = useState<Album[]>([]);
