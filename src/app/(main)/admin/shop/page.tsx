@@ -362,7 +362,7 @@ export default function AdminShopPage() {
                     {existingImages.length < 5 && (
                       <input
                         type="file"
-                        accept="image/jpeg,image/png"
+                        accept="image/jpeg,image/png,image/webp"
                         multiple
                         onChange={handleImageFileChange}
                         className="text-sm text-gray-500"
