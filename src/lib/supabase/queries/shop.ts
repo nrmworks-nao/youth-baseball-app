@@ -174,6 +174,15 @@ export async function upsertProductLinks(
     .eq("product_id", productId);
   if (deleteError) throw deleteError;
 
+  // RLSでDELETEが静かに失敗する場合に備え、残存リンクを確認
+  const { data: remaining } = await supabase
+    .from("shop_product_links")
+    .select("id")
+    .eq("product_id", productId);
+  if (remaining && remaining.length > 0) {
+    throw new Error("購入リンクの削除に失敗しました。権限を確認してください。");
+  }
+
   if (links.length > 0) {
     const linksData = links.map((link, i) => ({
       product_id: productId,

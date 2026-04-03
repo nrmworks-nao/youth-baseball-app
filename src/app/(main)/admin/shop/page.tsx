@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -62,6 +62,9 @@ export default function AdminShopPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // 編集中の商品IDを追跡（非同期fetch結果が古い場合に上書きを防ぐ）
+  const editSessionRef = useRef<string | null>(null);
+
   // カテゴリフォーム
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
@@ -106,6 +109,7 @@ export default function AdminShopPage() {
     setExistingImages([]);
     setNewImageFiles([]);
     setEditingProductId(null);
+    editSessionRef.current = null;
   };
 
   const handleSaveProduct = async () => {
@@ -169,6 +173,8 @@ export default function AdminShopPage() {
 
   const handleEditProduct = async (product: ShopProduct) => {
     resetProductForm();
+    const sessionId = product.id;
+    editSessionRef.current = sessionId;
     setEditingProductId(product.id);
     setProductName(product.name);
     setProductBrand(product.brand ?? "");
@@ -182,9 +188,12 @@ export default function AdminShopPage() {
         getProductLinks(product.id),
         getProductImages(product.id),
       ]);
+      // 非同期fetch中に別の商品の編集が開始された場合、古い結果を無視
+      if (editSessionRef.current !== sessionId) return;
       setProductLinkForms(links.map((l) => ({ store_name: l.store_name, url: l.url })));
       setExistingImages(images);
     } catch {
+      if (editSessionRef.current !== sessionId) return;
       setProductLinkForms([]);
       setExistingImages([]);
     }
