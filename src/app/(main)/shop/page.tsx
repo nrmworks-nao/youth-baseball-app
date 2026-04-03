@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { Settings } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Loading } from "@/components/ui/loading";
 import { ErrorDisplay } from "@/components/ui/error-display";
@@ -28,7 +29,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function ShopPage() {
-  const { currentTeam, isLoading: teamLoading } = useCurrentTeam();
+  const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
   const [activeCategory, setActiveCategory] = useState("all");
   const [categories, setCategories] = useState<ShopCategory[]>([]);
   const [products, setProducts] = useState<ShopProduct[]>([]);
@@ -84,8 +85,17 @@ export default function ShopPage() {
 
   return (
     <div className="flex flex-col">
-      <div className="border-b border-gray-200 bg-white px-4 py-3">
+      <div className="border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
         <h2 className="text-base font-bold text-gray-900">買い物</h2>
+        {currentMembership?.is_admin && (
+          <Link
+            href="/admin/shop"
+            className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-200"
+          >
+            <Settings className="h-3.5 w-3.5" />
+            商品管理
+          </Link>
+        )}
       </div>
 
       {/* おすすめ商品 */}
