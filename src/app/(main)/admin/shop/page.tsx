@@ -22,12 +22,16 @@ import {
   createShopCategory,
   updateShopCategory,
   deleteShopCategory,
+  getProductLinks,
+  upsertProductLinks,
 } from "@/lib/supabase/queries/shop";
-import { supabase } from "@/lib/supabase/client";
 import { getErrorMessage } from "@/lib/supabase/error-handler";
 import type { ShopCategory, ShopProduct } from "@/types";
 
 type Tab = "products" | "categories";
+type ProductLinkForm = { store_name: string; url: string };
+
+const EC_SITE_OPTIONS = ["Amazon", "楽天市場", "Yahoo!ショッピング", "その他"] as const;
 
 export default function AdminShopPage() {
   const router = useRouter();
@@ -49,7 +53,7 @@ export default function AdminShopPage() {
   const [productDescription, setProductDescription] = useState("");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
-  const [productLinks, setProductLinks] = useState<Record<string, string>>({});
+  const [productLinkForms, setProductLinkForms] = useState<ProductLinkForm[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // カテゴリフォーム
@@ -92,7 +96,7 @@ export default function AdminShopPage() {
     setProductDescription("");
     setPriceMin("");
     setPriceMax("");
-    setProductLinks({});
+    setProductLinkForms([]);
     setEditingProductId(null);
   };
 
@@ -109,20 +113,15 @@ export default function AdminShopPage() {
         price_max: priceMax ? Number(priceMax) : undefined,
       };
 
+      const validLinks = productLinkForms.filter((l: ProductLinkForm) => l.store_name && l.url.trim());
+
       if (editingProductId) {
         await updateShopProduct(editingProductId, data);
+        await upsertProductLinks(editingProductId, validLinks);
       } else {
         const newProduct = await createShopProduct(data);
-        // 購入リンクを追加
-        const linkEntries = Object.entries(productLinks).filter(([, url]) => (url as string).trim());
-        if (linkEntries.length > 0) {
-          const linksData = linkEntries.map(([store, url], i) => ({
-            product_id: newProduct.id,
-            store_name: store,
-            url: (url as string).trim(),
-            sort_order: i,
-          }));
-          await supabase.from("shop_product_links").insert(linksData);
+        if (validLinks.length > 0) {
+          await upsertProductLinks(newProduct.id, validLinks);
         }
       }
 
@@ -146,7 +145,7 @@ export default function AdminShopPage() {
     }
   };
 
-  const handleEditProduct = (product: ShopProduct) => {
+  const handleEditProduct = async (product: ShopProduct) => {
     setEditingProductId(product.id);
     setProductName(product.name);
     setProductBrand(product.brand ?? "");
@@ -155,6 +154,12 @@ export default function AdminShopPage() {
     setPriceMin(product.price_min?.toString() ?? "");
     setPriceMax(product.price_max?.toString() ?? "");
     setShowProductForm(true);
+    try {
+      const links = await getProductLinks(product.id);
+      setProductLinkForms(links.map((l) => ({ store_name: l.store_name, url: l.url })));
+    } catch {
+      setProductLinkForms([]);
+    }
   };
 
   const handleToggleActive = async (product: ShopProduct) => {
@@ -267,25 +272,63 @@ export default function AdminShopPage() {
                     <Input label="最高価格" type="number" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} />
                   </div>
                   {!editingProductId && (
-                    <>
-                      <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">商品画像</label>
-                        <input type="file" accept="image/*" multiple className="text-sm text-gray-500" />
-                      </div>
-                      <h4 className="text-xs font-medium text-gray-700">ECサイトリンク</h4>
-                      <div className="space-y-2">
-                        {["Amazon", "楽天市場", "Yahoo!ショッピング"].map((store) => (
-                          <Input
-                            key={store}
-                            label={store}
-                            placeholder={`${store}の商品URL`}
-                            value={productLinks[store] ?? ""}
-                            onChange={(e) => setProductLinks({ ...productLinks, [store]: e.target.value })}
-                          />
-                        ))}
-                      </div>
-                    </>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">商品画像</label>
+                      <input type="file" accept="image/*" multiple className="text-sm text-gray-500" />
+                    </div>
                   )}
+                  <div>
+                    <h4 className="mb-2 text-xs font-medium text-gray-700">購入リンク</h4>
+                    <div className="space-y-2">
+                      {productLinkForms.map((link, index) => (
+                        <div key={index} className="flex items-start gap-2">
+                          <div className="flex-1 space-y-1">
+                            <Select
+                              label=""
+                              value={link.store_name}
+                              onChange={(e) => {
+                                const updated = [...productLinkForms];
+                                updated[index] = { ...updated[index], store_name: e.target.value };
+                                setProductLinkForms(updated);
+                              }}
+                            >
+                              <option value="">ECサイトを選択...</option>
+                              {EC_SITE_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </Select>
+                            <Input
+                              label=""
+                              placeholder="https://..."
+                              value={link.url}
+                              onChange={(e) => {
+                                const updated = [...productLinkForms];
+                                updated[index] = { ...updated[index], url: e.target.value };
+                                setProductLinkForms(updated);
+                              }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setProductLinkForms(productLinkForms.filter((_, i) => i !== index))}
+                            className="mt-1 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500"
+                          >
+                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setProductLinkForms([...productLinkForms, { store_name: "", url: "" }])}
+                      >
+                        + リンク追加
+                      </Button>
+                    </div>
+                  </div>
                   <Button className="w-full" onClick={handleSaveProduct} disabled={isSaving || !productName.trim()}>
                     {isSaving ? "保存中..." : editingProductId ? "更新" : "登録"}
                   </Button>
