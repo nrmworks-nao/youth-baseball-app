@@ -24,9 +24,12 @@ import {
   deleteShopCategory,
   getProductLinks,
   upsertProductLinks,
+  getProductImages,
+  uploadProductImage,
+  deleteProductImage,
 } from "@/lib/supabase/queries/shop";
 import { getErrorMessage } from "@/lib/supabase/error-handler";
-import type { ShopCategory, ShopProduct } from "@/types";
+import type { ShopCategory, ShopProduct, ShopProductImage } from "@/types";
 
 type Tab = "products" | "categories";
 type ProductLinkForm = { store_name: string; url: string };
@@ -54,6 +57,9 @@ export default function AdminShopPage() {
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [productLinkForms, setProductLinkForms] = useState<ProductLinkForm[]>([]);
+  const [existingImages, setExistingImages] = useState<ShopProductImage[]>([]);
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // カテゴリフォーム
@@ -97,6 +103,8 @@ export default function AdminShopPage() {
     setPriceMin("");
     setPriceMax("");
     setProductLinkForms([]);
+    setExistingImages([]);
+    setNewImageFiles([]);
     setEditingProductId(null);
   };
 
@@ -115,13 +123,27 @@ export default function AdminShopPage() {
 
       const validLinks = productLinkForms.filter((l: ProductLinkForm) => l.store_name && l.url.trim());
 
+      let productId: string;
       if (editingProductId) {
         await updateShopProduct(editingProductId, data);
         await upsertProductLinks(editingProductId, validLinks);
+        productId = editingProductId;
       } else {
         const newProduct = await createShopProduct(data);
         if (validLinks.length > 0) {
           await upsertProductLinks(newProduct.id, validLinks);
+        }
+        productId = newProduct.id;
+      }
+
+      // 新規画像をアップロード
+      if (newImageFiles.length > 0) {
+        const totalImages = existingImages.length + newImageFiles.length;
+        if (totalImages > 5) {
+          throw new Error("画像は最大5枚までです");
+        }
+        for (const file of newImageFiles) {
+          await uploadProductImage(productId, file);
         }
       }
 
@@ -146,6 +168,7 @@ export default function AdminShopPage() {
   };
 
   const handleEditProduct = async (product: ShopProduct) => {
+    resetProductForm();
     setEditingProductId(product.id);
     setProductName(product.name);
     setProductBrand(product.brand ?? "");
@@ -155,11 +178,33 @@ export default function AdminShopPage() {
     setPriceMax(product.price_max?.toString() ?? "");
     setShowProductForm(true);
     try {
-      const links = await getProductLinks(product.id);
+      const [links, images] = await Promise.all([
+        getProductLinks(product.id),
+        getProductImages(product.id),
+      ]);
       setProductLinkForms(links.map((l) => ({ store_name: l.store_name, url: l.url })));
+      setExistingImages(images);
     } catch {
       setProductLinkForms([]);
+      setExistingImages([]);
     }
+  };
+
+  const handleDeleteImage = async (image: ShopProductImage) => {
+    try {
+      await deleteProductImage(image.id, image.image_url);
+      setExistingImages((prev) => prev.filter((img) => img.id !== image.id));
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const totalAllowed = 5 - existingImages.length;
+    const selected = Array.from(files).slice(0, totalAllowed);
+    setNewImageFiles(selected);
   };
 
   const handleToggleActive = async (product: ShopProduct) => {
@@ -271,12 +316,45 @@ export default function AdminShopPage() {
                     <Input label="最低価格" type="number" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} />
                     <Input label="最高価格" type="number" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} />
                   </div>
-                  {!editingProductId && (
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-gray-700">商品画像</label>
-                      <input type="file" accept="image/*" multiple className="text-sm text-gray-500" />
-                    </div>
-                  )}
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      商品画像（最大5枚）
+                    </label>
+                    {/* 既存画像サムネイル */}
+                    {existingImages.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {existingImages.map((img) => (
+                          <div key={img.id} className="relative h-16 w-16 overflow-hidden rounded-lg border">
+                            <img src={img.image_url} alt="" className="h-full w-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteImage(img)}
+                              className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow"
+                            >
+                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* 新規ファイル選択 */}
+                    {existingImages.length < 5 && (
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        multiple
+                        onChange={handleImageFileChange}
+                        className="text-sm text-gray-500"
+                      />
+                    )}
+                    {newImageFiles.length > 0 && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        {newImageFiles.length}件の画像を選択中（保存時にアップロード）
+                      </p>
+                    )}
+                  </div>
                   <div>
                     <h4 className="mb-2 text-xs font-medium text-gray-700">購入リンク</h4>
                     <div className="space-y-2">
@@ -340,30 +418,42 @@ export default function AdminShopPage() {
             <div className="space-y-2">
               {products.map((product) => {
                 const catName = (product as unknown as { shop_categories?: { name: string } }).shop_categories?.name;
+                const thumbUrl = (product as unknown as { shop_product_images?: { image_url: string }[] }).shop_product_images?.[0]?.image_url;
                 return (
                   <Card key={product.id} className="p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-medium text-gray-900">{product.name}</h4>
-                          <Badge variant={product.is_active ? "primary" : "default"}>
-                            {product.is_active ? "公開" : "非公開"}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          {product.brand}{catName ? ` · ${catName}` : ""}{product.price_min != null ? ` · ¥${product.price_min.toLocaleString()}〜` : ""}
-                        </p>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
+                        {thumbUrl ? (
+                          <img src={thumbUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <svg className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+                          </svg>
+                        )}
                       </div>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => handleToggleActive(product)}>
-                          {product.is_active ? "非公開" : "公開"}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleEditProduct(product)}>
-                          編集
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleDeleteProduct(product.id)}>
-                          削除
-                        </Button>
+                      <div className="flex flex-1 items-center justify-between min-w-0">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="truncate text-sm font-medium text-gray-900">{product.name}</h4>
+                            <Badge variant={product.is_active ? "primary" : "default"}>
+                              {product.is_active ? "公開" : "非公開"}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            {product.brand}{catName ? ` · ${catName}` : ""}{product.price_min != null ? ` · ¥${product.price_min.toLocaleString()}〜` : ""}
+                          </p>
+                        </div>
+                        <div className="flex flex-shrink-0 gap-1">
+                          <Button size="sm" variant="outline" onClick={() => handleToggleActive(product)}>
+                            {product.is_active ? "非公開" : "公開"}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleEditProduct(product)}>
+                            編集
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleDeleteProduct(product.id)}>
+                            削除
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </Card>
