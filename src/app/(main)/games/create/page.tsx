@@ -126,25 +126,20 @@ export default function GameCreatePage() {
     );
     setInningScores(updated);
 
-    // イニングスコアの合計から自動計算
-    const hasAnyScore = updated.some(
-      (is) => is.score_team !== "" || is.score_opponent !== ""
+    // イニングスコアの合計を自動計算
+    const totalTeam = updated.reduce(
+      (sum, is) => sum + (is.score_team !== "" ? parseInt(is.score_team) || 0 : 0),
+      0
     );
-    if (hasAnyScore) {
-      const totalTeam = updated.reduce(
-        (sum, is) => sum + (is.score_team !== "" ? parseInt(is.score_team) || 0 : 0),
-        0
-      );
-      const totalOpponent = updated.reduce(
-        (sum, is) => sum + (is.score_opponent !== "" ? parseInt(is.score_opponent) || 0 : 0),
-        0
-      );
-      setFormData((prev) => ({
-        ...prev,
-        score_team: String(totalTeam),
-        score_opponent: String(totalOpponent),
-      }));
-    }
+    const totalOpponent = updated.reduce(
+      (sum, is) => sum + (is.score_opponent !== "" ? parseInt(is.score_opponent) || 0 : 0),
+      0
+    );
+    setFormData((prev) => ({
+      ...prev,
+      score_team: String(totalTeam),
+      score_opponent: String(totalOpponent),
+    }));
   };
 
   const updateLineup = (
@@ -195,8 +190,8 @@ export default function GameCreatePage() {
         venue: formData.venue || undefined,
         game_type: formData.game_type,
         result: formData.result || undefined,
-        score_team: formData.score_team ? parseInt(formData.score_team) : undefined,
-        score_opponent: formData.score_opponent ? parseInt(formData.score_opponent) : undefined,
+        score_team: parseInt(formData.score_team) || 0,
+        score_opponent: parseInt(formData.score_opponent) || 0,
         inning_scores: parsedInningScores,
         notes: formData.notes || undefined,
         created_by: user.id,
@@ -216,8 +211,10 @@ export default function GameCreatePage() {
       }
 
       router.push(`/games/${game.id}`);
-    } catch {
-      setError("試合の登録に失敗しました");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "不明なエラー";
+      console.error("試合登録エラー:", err);
+      setError(`試合の登録に失敗しました: ${message}`);
     } finally {
       setIsSaving(false);
     }
@@ -314,24 +311,18 @@ export default function GameCreatePage() {
               ]}
             />
             <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="自チーム得点"
-                type="number"
-                min="0"
-                value={formData.score_team}
-                onChange={(e) =>
-                  setFormData({ ...formData, score_team: e.target.value })
-                }
-              />
-              <Input
-                label="相手チーム得点"
-                type="number"
-                min="0"
-                value={formData.score_opponent}
-                onChange={(e) =>
-                  setFormData({ ...formData, score_opponent: e.target.value })
-                }
-              />
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">自チーム得点</label>
+                <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-bold text-gray-900">
+                  {formData.score_team || "0"}
+                </p>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">相手チーム得点</label>
+                <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-bold text-gray-900">
+                  {formData.score_opponent || "0"}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -375,6 +366,7 @@ export default function GameCreatePage() {
                         {is.inning}
                       </th>
                     ))}
+                    <th className="px-1 py-1.5 font-medium text-gray-500">計</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -387,7 +379,7 @@ export default function GameCreatePage() {
                         <input
                           type="number"
                           min="0"
-                          className="w-8 rounded border border-gray-200 px-1 py-0.5 text-center text-xs"
+                          className="w-12 rounded border border-gray-200 px-1 py-1 text-center text-sm"
                           value={is.score_team}
                           onChange={(e) =>
                             updateInningScore(i, "score_team", e.target.value)
@@ -395,6 +387,9 @@ export default function GameCreatePage() {
                         />
                       </td>
                     ))}
+                    <td className="px-1 py-1 text-center text-sm font-bold text-gray-900">
+                      {formData.score_team || "0"}
+                    </td>
                   </tr>
                   <tr>
                     <td className="px-2 py-1 text-left text-xs font-medium text-gray-700">
@@ -405,7 +400,7 @@ export default function GameCreatePage() {
                         <input
                           type="number"
                           min="0"
-                          className="w-8 rounded border border-gray-200 px-1 py-0.5 text-center text-xs"
+                          className="w-12 rounded border border-gray-200 px-1 py-1 text-center text-sm"
                           value={is.score_opponent}
                           onChange={(e) =>
                             updateInningScore(
@@ -417,6 +412,9 @@ export default function GameCreatePage() {
                         />
                       </td>
                     ))}
+                    <td className="px-1 py-1 text-center text-sm font-bold text-gray-900">
+                      {formData.score_opponent || "0"}
+                    </td>
                   </tr>
                 </tbody>
               </table>
