@@ -139,6 +139,44 @@ export async function deleteShopProduct(id: string) {
   if (error) throw error;
 }
 
+// === 購入リンク ===
+
+/** 商品の購入リンク取得 */
+export async function getProductLinks(productId: string) {
+  const { data, error } = await supabase
+    .from("shop_product_links")
+    .select("id, product_id, store_name, url, sort_order")
+    .eq("product_id", productId)
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data as { id: string; product_id: string; store_name: string; url: string; sort_order: number }[];
+}
+
+/** 購入リンク一括更新（DELETE → INSERT） */
+export async function upsertProductLinks(
+  productId: string,
+  links: { store_name: string; url: string }[]
+) {
+  const { error: deleteError } = await supabase
+    .from("shop_product_links")
+    .delete()
+    .eq("product_id", productId);
+  if (deleteError) throw deleteError;
+
+  if (links.length > 0) {
+    const linksData = links.map((link, i) => ({
+      product_id: productId,
+      store_name: link.store_name,
+      url: link.url.trim(),
+      sort_order: i,
+    }));
+    const { error: insertError } = await supabase
+      .from("shop_product_links")
+      .insert(linksData);
+    if (insertError) throw insertError;
+  }
+}
+
 // === チームおすすめ ===
 
 /** チームのおすすめ商品一覧 */

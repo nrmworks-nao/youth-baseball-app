@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { ShopProduct, TeamPinnedProduct } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ExternalLink } from "lucide-react";
 
 const STORE_COLORS: Record<string, string> = {
   Amazon: "bg-orange-500 hover:bg-orange-600",
@@ -248,7 +249,10 @@ export default function ProductDetailPage() {
                   size="lg"
                 >
                   <span className="flex items-center justify-between w-full">
-                    <span>{link.store_name}で購入</span>
+                    <span className="flex items-center gap-1.5">
+                      {link.store_name}で購入
+                      <ExternalLink className="h-4 w-4" />
+                    </span>
                     {link.price != null && <span className="font-bold">¥{link.price.toLocaleString()}</span>}
                   </span>
                 </Button>
