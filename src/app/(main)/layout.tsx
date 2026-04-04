@@ -538,7 +538,7 @@ export default function MainLayout({
           />
 
           {/* メインコンテンツ */}
-          <main className="flex-1 pb-20 lg:pb-6">
+          <main className="flex-1 pb-20 lg:pb-6 overflow-x-hidden max-w-[100vw]">
             <div className="app-container">{children}</div>
           </main>
 
