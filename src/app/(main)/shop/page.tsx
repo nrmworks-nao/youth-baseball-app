@@ -114,7 +114,7 @@ export default function ShopPage() {
               const imageUrl = product?.images?.[0]?.image_url;
               return (
                 <Link key={pin.id} href={`/shop/${pin.product_id}`}>
-                  <Card className="p-3 transition-colors hover:bg-gray-50">
+                  <Card className="overflow-hidden p-3 transition-colors hover:bg-gray-50">
                     <div className="flex gap-3">
                       <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 overflow-hidden">
                         {imageUrl ? (
@@ -200,9 +200,9 @@ export default function ShopPage() {
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-1 flex-col justify-center min-w-0">
+                    <div className="flex flex-1 flex-col justify-center min-w-0 overflow-hidden">
                       <p className="line-clamp-2 text-sm font-medium text-gray-900">{product.name}</p>
-                      <p className="text-xs text-gray-500">{product.brand}</p>
+                      <p className="truncate text-xs text-gray-500">{product.brand}</p>
                       <span className="mt-1 text-xs font-medium text-gray-900">
                         ¥{product.price_min?.toLocaleString()}〜
                       </span>
@@ -219,9 +219,9 @@ export default function ShopPage() {
                         </svg>
                       )}
                     </div>
-                    <div className="p-2">
+                    <div className="overflow-hidden p-2">
                       <p className="line-clamp-2 text-sm font-medium text-gray-900">{product.name}</p>
-                      <p className="text-xs text-gray-500">{product.brand}</p>
+                      <p className="truncate text-xs text-gray-500">{product.brand}</p>
                       <div className="mt-1 flex items-center justify-between">
                         <span className="text-xs font-medium text-gray-900">
                           ¥{product.price_min?.toLocaleString()}〜
