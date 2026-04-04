@@ -486,8 +486,8 @@ export default function AdminShopPage() {
               </Card>
             )}
 
-            {/* 商品一覧 */}
-            <div className="space-y-2">
+            {/* 商品一覧（フォーム表示中は非表示） */}
+            {!showProductForm && <div className="space-y-2">
               {products.map((product) => {
                 const catName = (product as unknown as { shop_categories?: { name: string } }).shop_categories?.name;
                 const thumbUrl = product.images?.[0]?.image_url;
@@ -531,7 +531,7 @@ export default function AdminShopPage() {
                   </Card>
                 );
               })}
-            </div>
+            </div>}
           </>
         ) : (
           <>
