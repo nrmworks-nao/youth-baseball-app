@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* ライトモード強制固定: スマホのダークモードONでも白背景・黒文字で表示 */
+html {
+  color-scheme: light !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  html, body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+}
+
 /* ライトモード */
 :root {
   --background: #ffffff;
@@ -17,22 +29,7 @@
   --destructive-foreground: #ffffff;
 }
 
-/* ダークモード */
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --card: #171717;
-  --card-foreground: #ededed;
-  --muted: #262626;
-  --muted-foreground: #a3a3a3;
-  --border: #262626;
-  --input: #262626;
-  --ring: #22c55e;
-  --primary: #22c55e;
-  --primary-foreground: #0a0a0a;
-  --destructive: #ef4444;
-  --destructive-foreground: #ededed;
-}
+/* ダークモードは無効化済み（ライトモード固定） */
 
 @theme inline {
   --color-background: var(--background);

@@ -146,15 +146,15 @@ export default function PostsPage() {
   return (
     <div className="flex flex-col">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
         <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto">
-          <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 shrink-0">連絡</h2>
-          <div className="flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800 shrink-0">
+          <h2 className="text-base font-bold text-gray-900 shrink-0">連絡</h2>
+          <div className="flex rounded-lg bg-gray-100 p-0.5 shrink-0">
             <button
               className={cn(
                 "rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors",
                 sortMode === "priority"
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                  ? "bg-white text-gray-900 shadow-sm"
                   : "text-gray-500"
               )}
               onClick={() => setSortMode("priority")}
@@ -165,7 +165,7 @@ export default function PostsPage() {
               className={cn(
                 "rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors",
                 sortMode === "date"
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                  ? "bg-white text-gray-900 shadow-sm"
                   : "text-gray-500"
               )}
               onClick={() => setSortMode("date")}
@@ -173,12 +173,12 @@ export default function PostsPage() {
               新着順
             </button>
           </div>
-          <div className="flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800 shrink-0">
+          <div className="flex rounded-lg bg-gray-100 p-0.5 shrink-0">
             <button
               className={cn(
                 "rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors",
                 filterMode === "unread"
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                  ? "bg-white text-gray-900 shadow-sm"
                   : "text-gray-500"
               )}
               onClick={() => { setFilterMode("unread"); setDisplayCount(5); }}
@@ -189,7 +189,7 @@ export default function PostsPage() {
               className={cn(
                 "rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors",
                 filterMode === "all"
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                  ? "bg-white text-gray-900 shadow-sm"
                   : "text-gray-500"
               )}
               onClick={() => { setFilterMode("all"); setDisplayCount(5); }}
@@ -223,7 +223,7 @@ export default function PostsPage() {
             return (
               <Link key={post.id} href={`/posts/${post.id}`}>
                 <Card
-                  className={`p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 ${priorityConfig.borderColor} ${!isRead ? "bg-green-50/50 dark:bg-green-900/10" : ""}`}
+                  className={`p-4 transition-colors hover:bg-gray-50 ${priorityConfig.borderColor} ${!isRead ? "bg-green-50/50" : ""}`}
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -241,7 +241,7 @@ export default function PostsPage() {
                             {CATEGORY_CONFIG[post.category].label}
                           </span>
                         )}
-                        <h3 className="text-sm font-medium text-gray-900 line-clamp-2 dark:text-gray-100">
+                        <h3 className="text-sm font-medium text-gray-900 line-clamp-2">
                           {post.title}
                         </h3>
                       </div>
@@ -286,7 +286,7 @@ export default function PostsPage() {
         )}
         {hasMore && (
           <button
-            className="w-full rounded-lg border border-gray-200 py-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+            className="w-full rounded-lg border border-gray-200 py-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
             onClick={() => setDisplayCount((prev) => prev + 5)}
           >
             もっと見る

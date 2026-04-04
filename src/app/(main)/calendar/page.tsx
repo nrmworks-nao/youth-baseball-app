@@ -145,15 +145,15 @@ export default function CalendarPage() {
   return (
     <div className="flex flex-col">
       {/* ビュー切り替え + 新規作成 */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
+      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
+        <div className="flex rounded-lg bg-gray-100 p-0.5">
           {(["month", "week", "list"] as ViewMode[]).map((mode) => (
             <button
               key={mode}
               className={cn(
                 "rounded-md px-3 py-1 text-xs font-medium transition-colors",
                 viewMode === mode
-                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                  ? "bg-white text-gray-900 shadow-sm"
                   : "text-gray-500"
               )}
               onClick={() => setViewMode(mode)}
@@ -170,16 +170,16 @@ export default function CalendarPage() {
       </div>
 
       {/* 月ナビゲーション */}
-      <div className="flex items-center justify-between bg-white px-4 py-3 dark:bg-gray-900">
-        <button onClick={prevMonth} className="p-1 text-gray-600 dark:text-gray-400">
+      <div className="flex items-center justify-between bg-white px-4 py-3">
+        <button onClick={prevMonth} className="p-1 text-gray-600">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
           </svg>
         </button>
-        <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+        <h2 className="text-base font-bold text-gray-900">
           {year}年{month + 1}月
         </h2>
-        <button onClick={nextMonth} className="p-1 text-gray-600 dark:text-gray-400">
+        <button onClick={nextMonth} className="p-1 text-gray-600">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
           </svg>
@@ -188,7 +188,7 @@ export default function CalendarPage() {
 
       {/* 月表示 */}
       {viewMode === "month" && (
-        <div className="bg-white px-2 pb-4 dark:bg-gray-900">
+        <div className="bg-white px-2 pb-4">
           <div className="grid grid-cols-7 text-center">
             {WEEKDAYS.map((day, i) => (
               <div
@@ -211,11 +211,11 @@ export default function CalendarPage() {
               const dayEvents = getEventsForDay(day);
               const dayOfWeek = (firstDay + i) % 7;
               return (
-                <div key={day} className="min-h-[80px] border-t border-gray-100 p-1 dark:border-gray-800">
+                <div key={day} className="min-h-[80px] border-t border-gray-100 p-1">
                   <div
                     className={cn(
                       "text-xs font-medium",
-                      dayOfWeek === 0 ? "text-red-500" : dayOfWeek === 6 ? "text-blue-500" : "text-gray-700 dark:text-gray-300"
+                      dayOfWeek === 0 ? "text-red-500" : dayOfWeek === 6 ? "text-blue-500" : "text-gray-700"
                     )}
                   >
                     {day}
@@ -265,13 +265,13 @@ export default function CalendarPage() {
               const counts = attendanceCounts[event.id];
               return (
                 <Link key={event.id} href={`/calendar/${event.id}`}>
-                  <Card className={cn("p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800", past && "opacity-50")}>
+                  <Card className={cn("p-3 transition-colors hover:bg-gray-50", past && "opacity-50")}>
                     <div className="flex items-start gap-3">
                       <div className={cn("mt-0.5 h-2 w-2 flex-shrink-0 rounded-full", colors.dot)} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <EventTypeBadge type={event.event_type} />
-                          <span className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                          <span className="truncate text-sm font-medium text-gray-900">
                             {event.title}
                           </span>
                         </div>
@@ -370,9 +370,9 @@ function CreateEventModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
-      <div className="w-full max-w-lg rounded-t-2xl bg-white p-6 sm:rounded-2xl dark:bg-gray-900">
+      <div className="w-full max-w-lg rounded-t-2xl bg-white p-6 sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">イベント作成</h2>
+          <h2 className="text-lg font-bold text-gray-900">イベント作成</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -382,9 +382,9 @@ function CreateEventModal({
 
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">タイトル</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">タイトル</label>
             <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
               placeholder="例: 通常練習"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -392,7 +392,7 @@ function CreateEventModal({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">種別</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">種別</label>
             <div className="flex flex-wrap gap-2">
               {([
                 { value: "practice" as EventType, label: "練習" },
@@ -407,7 +407,7 @@ function CreateEventModal({
                     "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
                     eventType === opt.value
                       ? "bg-green-600 text-white"
-                      : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                      : "bg-gray-100 text-gray-600"
                   )}
                   onClick={() => setEventType(opt.value)}
                 >
@@ -418,10 +418,10 @@ function CreateEventModal({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">日付</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">日付</label>
             <input
               type="date"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
@@ -429,19 +429,19 @@ function CreateEventModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">開始時間</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">開始時間</label>
               <input
                 type="time"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">終了時間</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">終了時間</label>
               <input
                 type="time"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
               />
@@ -449,9 +449,9 @@ function CreateEventModal({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">場所</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">場所</label>
             <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
               placeholder="例: 中央公園グラウンド"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
@@ -459,9 +459,9 @@ function CreateEventModal({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">メモ（任意）</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">メモ（任意）</label>
             <textarea
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
               rows={2}
               placeholder="補足事項があれば入力"
               value={description}

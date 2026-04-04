@@ -220,10 +220,10 @@ export default function AttendancePage() {
         イベント詳細に戻る
       </Link>
 
-      <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">出欠回答</h1>
+      <h1 className="text-lg font-bold text-gray-900">出欠回答</h1>
 
       {isRsvpClosed && (
-        <div className="rounded-lg bg-yellow-50 p-2 text-center text-sm font-medium text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400">
+        <div className="rounded-lg bg-yellow-50 p-2 text-center text-sm font-medium text-yellow-700">
           出欠回答は締め切りました
         </div>
       )}
@@ -233,7 +233,7 @@ export default function AttendancePage() {
         <CardContent className="space-y-5 pt-4">
           {/* 保護者自身の出欠 */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">保護者の出欠回答</h3>
+            <h3 className="text-sm font-semibold text-gray-900">保護者の出欠回答</h3>
             <div className="flex gap-2">
               {(["attending", "absent", "undecided"] as const).map((status) => (
                 <Button
@@ -254,8 +254,8 @@ export default function AttendancePage() {
             </div>
 
             {/* 車出し */}
-            <div className="space-y-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <div className="space-y-2 rounded-lg bg-gray-50 p-3">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
                   className="rounded border-gray-300"
@@ -272,7 +272,7 @@ export default function AttendancePage() {
                     type="number"
                     min={0}
                     max={10}
-                    className="w-16 rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                    className="w-16 rounded border border-gray-300 px-2 py-1 text-sm"
                     value={myCarCapacity}
                     onChange={(e) => setMyCarCapacity(Number(e.target.value))}
                     disabled={isRsvpClosed}
@@ -283,7 +283,7 @@ export default function AttendancePage() {
             </div>
 
             <textarea
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
               rows={2}
               placeholder="コメント（任意）"
               value={myNote}
@@ -295,14 +295,14 @@ export default function AttendancePage() {
           {/* 子供の出欠登録 */}
           {children.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">お子さんの出欠回答</h3>
+              <h3 className="text-sm font-semibold text-gray-900">お子さんの出欠回答</h3>
               {children.map((child) => {
                 const player = child.players;
                 if (!player) return null;
                 const childStatus = childLocalStatuses[player.id] ?? null;
                 return (
                   <div key={player.id} className="space-y-2">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <p className="text-sm font-medium text-gray-700">
                       {player.name}
                       {player.number != null && (
                         <span className="ml-1 text-xs text-gray-400">（背番号{player.number}）</span>
@@ -346,7 +346,7 @@ export default function AttendancePage() {
                 {isSubmitting ? "登録中..." : "回答を登録"}
               </Button>
               {submitMessage && (
-                <p className="text-center text-sm font-medium text-green-600 dark:text-green-400">
+                <p className="text-center text-sm font-medium text-green-600">
                   {submitMessage}
                 </p>
               )}

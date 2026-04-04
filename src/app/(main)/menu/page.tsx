@@ -97,8 +97,8 @@ export default function MenuPage() {
 
   return (
     <div className="flex flex-col">
-      <div className="border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
-        <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">メニュー</h2>
+      <div className="border-b border-gray-200 bg-white px-4 py-3">
+        <h2 className="text-base font-bold text-gray-900">メニュー</h2>
         {currentTeam && (
           <p className="text-xs text-muted-foreground">{currentTeam.name}</p>
         )}
@@ -144,7 +144,7 @@ export default function MenuPage() {
         </div>
 
         {/* セパレーター */}
-        <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
+        <div className="my-2 border-t border-gray-200" />
 
         {/* ログアウト */}
         <button
@@ -152,15 +152,15 @@ export default function MenuPage() {
           disabled={isLoggingOut}
           className={cn(
             "flex w-full items-center rounded-lg px-4 py-3 transition-colors",
-            "hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50"
+            "hover:bg-red-50 disabled:opacity-50"
           )}
         >
           <div className="flex items-center gap-3">
-            <div className="rounded-full bg-red-50 p-2 dark:bg-red-950">
+            <div className="rounded-full bg-red-50 p-2">
               <LogOut className="h-6 w-6 text-red-500" />
             </div>
             <div>
-              <p className="text-sm font-medium text-red-600 dark:text-red-400">
+              <p className="text-sm font-medium text-red-600">
                 {isLoggingOut ? "ログアウト中..." : "ログアウト"}
               </p>
             </div>

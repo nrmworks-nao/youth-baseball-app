@@ -191,7 +191,7 @@ export default function PostDetailPage() {
   return (
     <div className="flex flex-col">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
         <Link
           href="/posts"
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
@@ -205,7 +205,7 @@ export default function PostDetailPage() {
         {userId && (post.author_id === userId || currentMembership?.is_admin) && (
           <Link
             href={`/posts/${postId}/edit`}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700"
           >
             <Pencil className="h-4 w-4" />
             編集
@@ -225,17 +225,17 @@ export default function PostDetailPage() {
                 <Badge variant="important">重要</Badge>
               )}
             </div>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{post.title}</h1>
+            <h1 className="text-lg font-bold text-gray-900">{post.title}</h1>
 
             <div className="flex items-center gap-2 text-xs text-gray-500">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium dark:bg-gray-700">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium">
                 {authorName.charAt(0)}
               </div>
               <span>{authorName}</span>
               <span>{formatDateTime(post.created_at)}</span>
             </div>
 
-            <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 dark:text-gray-300">
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
               {post.body}
             </div>
 
@@ -254,7 +254,7 @@ export default function PostDetailPage() {
             )}
 
             {/* いいねボタン */}
-            <div className="flex items-center gap-4 border-t border-gray-100 pt-3 dark:border-gray-800">
+            <div className="flex items-center gap-4 border-t border-gray-100 pt-3">
               <button
                 className={cn(
                   "flex items-center gap-1 text-sm transition-colors",
@@ -294,7 +294,7 @@ export default function PostDetailPage() {
                 className="flex w-full items-center justify-between text-sm"
                 onClick={() => setShowReadStatus(!showReadStatus)}
               >
-                <span className="font-medium text-gray-700 dark:text-gray-300">
+                <span className="font-medium text-gray-700">
                   既読状況: {readStatuses.length}/{teamMemberCount}人 既読
                 </span>
                 <svg
@@ -318,7 +318,7 @@ export default function PostDetailPage() {
                           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-100 text-[9px] font-medium text-green-700">
                             ✓
                           </div>
-                          <span className="text-gray-600 dark:text-gray-400">
+                          <span className="text-gray-600">
                             {rs.users?.display_name || "不明"}
                           </span>
                         </div>
@@ -334,7 +334,7 @@ export default function PostDetailPage() {
 
         {/* コメント一覧 */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">コメント</h2>
+          <h2 className="text-sm font-semibold text-gray-900">コメント</h2>
           {comments.length === 0 ? (
             <p className="py-2 text-center text-xs text-gray-400">まだコメントはありません</p>
           ) : (
@@ -342,19 +342,19 @@ export default function PostDetailPage() {
               const commentAuthor = comment.users?.display_name || "不明";
               return (
                 <div key={comment.id} className="flex gap-2">
-                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-medium text-gray-600">
                     {commentAuthor.charAt(0)}
                   </div>
-                  <div className="flex-1 rounded-xl bg-gray-100 px-3 py-2 dark:bg-gray-800">
+                  <div className="flex-1 rounded-xl bg-gray-100 px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      <span className="text-xs font-medium text-gray-700">
                         {commentAuthor}
                       </span>
                       <span className="text-[10px] text-gray-400">
                         {formatDateTime(comment.created_at)}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-sm text-gray-700 dark:text-gray-300">{comment.body}</p>
+                    <p className="mt-0.5 text-sm text-gray-700">{comment.body}</p>
                   </div>
                 </div>
               );
@@ -363,9 +363,9 @@ export default function PostDetailPage() {
         </div>
 
         {/* コメント入力 */}
-        <div className="sticky bottom-20 flex gap-2 rounded-xl bg-white p-2 shadow-lg dark:bg-gray-900">
+        <div className="sticky bottom-20 flex gap-2 rounded-xl bg-white p-2 shadow-lg">
           <input
-            className="flex-1 rounded-full border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            className="flex-1 rounded-full border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none"
             placeholder="コメントを入力..."
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
