@@ -16,7 +16,7 @@ import { supabase } from "@/lib/supabase/client";
 import type { ShopProduct, TeamPinnedProduct } from "@/types";
 
 import { Textarea } from "@/components/ui/textarea";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 
 const STORE_COLORS: Record<string, string> = {
   Amazon: "bg-orange-500 hover:bg-orange-600",
@@ -35,6 +35,9 @@ export default function ProductDetailPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ライトボックス
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // おすすめコメント追加フォーム
   const [showPinForm, setShowPinForm] = useState(false);
@@ -119,6 +122,27 @@ export default function ProductDetailPage() {
 
   return (
     <div className="flex flex-col">
+      {/* ライトボックス */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 text-white"
+          >
+            <X className="h-8 w-8" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt={product.name}
+            className="max-w-[90vw] max-h-[80vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       {/* ヘッダー */}
       <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3">
         <Link href="/shop" className="text-gray-400">
@@ -129,14 +153,14 @@ export default function ProductDetailPage() {
         <h2 className="text-base font-bold text-gray-900">商品詳細</h2>
       </div>
 
-      <div className="space-y-4 p-4">
+      <div className="space-y-4 px-4 py-4">
         {/* 商品情報 */}
         <div>
           {categoryName && <Badge variant="default">{categoryName}</Badge>}
-          <h1 className="mt-2 text-lg font-bold text-gray-900">{product.name}</h1>
+          <h1 className="mt-2 text-lg font-bold text-gray-900 break-words">{product.name}</h1>
           <p className="text-sm text-gray-500">{product.brand}</p>
           {product.price_min != null && (
-            <p className="mt-1 text-lg font-bold text-green-700">
+            <p className="mt-1 text-base sm:text-lg font-bold text-green-700">
               ¥{product.price_min.toLocaleString()}
               {product.price_max != null && ` 〜 ¥${product.price_max.toLocaleString()}`}
             </p>
@@ -147,7 +171,7 @@ export default function ProductDetailPage() {
         {product.description && (
           <Card>
             <CardContent className="py-3">
-              <p className="text-sm text-gray-700">{product.description}</p>
+              <p className="text-sm text-gray-700 break-words">{product.description}</p>
             </CardContent>
           </Card>
         )}
@@ -216,7 +240,7 @@ export default function ProductDetailPage() {
               link.url.trimStart().startsWith("<") ? (
                 <div
                   key={link.id}
-                  className="flex justify-center"
+                  className="flex justify-center overflow-x-auto max-w-full [&_table]:max-w-full [&_img]:max-w-full [&_img]:h-auto"
                   dangerouslySetInnerHTML={{ __html: link.url }}
                 />
               ) : (
@@ -252,13 +276,18 @@ export default function ProductDetailPage() {
             <div className="mt-2 flex flex-wrap gap-2">
               {images.map((img) => (
                 img.image_url && (
-                  <a key={img.id} href={img.image_url} target="_blank" rel="noopener noreferrer">
+                  <button
+                    key={img.id}
+                    type="button"
+                    onClick={() => setLightboxUrl(img.image_url!)}
+                    className="cursor-pointer"
+                  >
                     <img
                       src={img.image_url}
                       alt={product.name}
-                      className="h-24 w-24 rounded-lg object-cover"
+                      className="h-20 w-20 sm:h-24 sm:w-24 rounded-lg object-cover"
                     />
-                  </a>
+                  </button>
                 )
               ))}
             </div>
