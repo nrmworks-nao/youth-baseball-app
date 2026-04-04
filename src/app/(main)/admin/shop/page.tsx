@@ -275,7 +275,7 @@ export default function AdminShopPage() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col w-full max-w-full overflow-hidden">
       <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3">
         <Link href="/shop" className="text-gray-400">
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -317,11 +317,11 @@ export default function AdminShopPage() {
             </Button>
 
             {showProductForm && (
-              <Card className="p-4">
+              <Card className="p-4 max-w-full">
                 <h3 className="mb-3 text-sm font-medium text-gray-900">
                   {editingProductId ? "商品編集" : "商品登録"}
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-3 max-w-full">
                   <Input label="商品名" value={productName} onChange={(e) => setProductName(e.target.value)} />
                   <Input label="ブランド" value={productBrand} onChange={(e) => setProductBrand(e.target.value)} />
                   <Select label="カテゴリ" value={productCategory} onChange={(e) => setProductCategory(e.target.value)}>
@@ -341,7 +341,7 @@ export default function AdminShopPage() {
                     </label>
                     {/* 既存画像サムネイル */}
                     {existingImages.length > 0 && (
-                      <div className="mb-2 flex flex-wrap gap-2">
+                      <div className="mb-2 flex flex-wrap gap-2 max-w-full">
                         {existingImages.map((img) => (
                           <div key={img.id} className="relative h-16 w-16 overflow-hidden rounded-lg border">
                             <img src={img.image_url} alt="" className="h-full w-full object-cover" />
@@ -503,15 +503,15 @@ export default function AdminShopPage() {
                           </svg>
                         )}
                       </div>
-                      <div className="flex flex-1 items-center justify-between min-w-0">
-                        <div className="min-w-0">
+                      <div className="flex flex-1 items-center justify-between min-w-0 overflow-hidden">
+                        <div className="min-w-0 overflow-hidden">
                           <div className="flex items-center gap-2">
                             <h4 className="truncate text-sm font-medium text-gray-900">{product.name}</h4>
                             <Badge variant={product.is_active ? "primary" : "default"}>
                               {product.is_active ? "公開" : "非公開"}
                             </Badge>
                           </div>
-                          <p className="text-xs text-gray-500">
+                          <p className="truncate text-xs text-gray-500">
                             {product.brand}{catName ? ` · ${catName}` : ""}{product.price_min != null ? ` · ¥${product.price_min.toLocaleString()}〜` : ""}
                           </p>
                         </div>

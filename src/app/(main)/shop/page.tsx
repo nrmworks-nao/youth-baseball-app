@@ -84,7 +84,7 @@ export default function ShopPage() {
   }
 
   return (
-    <div className="flex flex-col overflow-x-hidden">
+    <div className="flex flex-col w-full max-w-full overflow-hidden">
       <div className="border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
         <h2 className="text-base font-bold text-gray-900">買い物</h2>
         {currentMembership?.is_admin && (

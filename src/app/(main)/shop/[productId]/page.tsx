@@ -121,7 +121,7 @@ export default function ProductDetailPage() {
     : "";
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col w-full max-w-full overflow-hidden">
       {/* ライトボックス */}
       {lightboxUrl && (
         <div
@@ -240,7 +240,7 @@ export default function ProductDetailPage() {
               link.url.trimStart().startsWith("<") ? (
                 <div
                   key={link.id}
-                  className="flex justify-center overflow-x-auto max-w-full [&_table]:max-w-full [&_img]:max-w-full [&_img]:h-auto"
+                  className="flex justify-center overflow-x-auto max-w-full [&_table]:max-w-full [&_div]:max-w-full [&_img]:max-w-full [&_img]:h-auto [&_td]:break-words"
                   dangerouslySetInnerHTML={{ __html: link.url }}
                 />
               ) : (
