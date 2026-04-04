@@ -143,7 +143,7 @@ export default function MembersPage() {
         イベント詳細に戻る
       </Link>
 
-      <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">参加者リスト</h1>
+      <h1 className="text-lg font-bold text-gray-900">参加者リスト</h1>
 
       {/* 部員セクション */}
       <Card>
@@ -236,7 +236,7 @@ function PlayerRow({ attendance, status }: { attendance: AttendanceRow; status: 
           showNumber
         />
         <div>
-          <span className="text-sm text-gray-700 dark:text-gray-300">{displayName}</span>
+          <span className="text-sm text-gray-700">{displayName}</span>
           {player?.number != null && (
             <span className="ml-1 text-xs text-gray-400">#{player.number}</span>
           )}
@@ -254,11 +254,11 @@ function ParentRow({ attendance, status }: { attendance: AttendanceRow; status: 
   return (
     <div className={cn("flex items-center justify-between rounded-lg px-2 py-1.5", isInactive && "opacity-50")}>
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-600">
           {displayName.charAt(0)}
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-sm text-gray-700 dark:text-gray-300">{displayName}</span>
+          <span className="text-sm text-gray-700">{displayName}</span>
           {attendance.can_drive && (
             <span className="text-xs text-blue-600" title={`乗車${attendance.car_capacity}人`}>
               🚗{attendance.car_capacity}人

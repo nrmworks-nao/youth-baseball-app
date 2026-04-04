@@ -143,14 +143,14 @@ export default function EditPostPage() {
   return (
     <div className="flex flex-col">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
         <Link
           href={`/posts/${postId}`}
           className="text-sm text-gray-500 hover:text-gray-700"
         >
           キャンセル
         </Link>
-        <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">投稿を編集</h2>
+        <h2 className="text-base font-bold text-gray-900">投稿を編集</h2>
         <Button
           size="sm"
           onClick={handleSubmit}
@@ -163,7 +163,7 @@ export default function EditPostPage() {
       <div className="space-y-5 p-4">
         {/* 重要度 */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             重要度
           </label>
           <div className="flex gap-2">
@@ -178,7 +178,7 @@ export default function EditPostPage() {
                       : opt.value === "important"
                         ? "border-orange-400 bg-orange-50 text-orange-700"
                         : "border-green-500 bg-green-50 text-green-700"
-                    : "border-gray-200 text-gray-500 dark:border-gray-600"
+                    : "border-gray-200 text-gray-500"
                 )}
                 onClick={() => setPriority(opt.value)}
               >
@@ -191,7 +191,7 @@ export default function EditPostPage() {
 
         {/* カテゴリ */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
             カテゴリ
           </label>
           <div className="flex flex-wrap gap-2">
@@ -202,7 +202,7 @@ export default function EditPostPage() {
                   "rounded-full px-3 py-1 text-xs font-medium transition-colors",
                   category === opt.value
                     ? "bg-green-600 text-white"
-                    : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    : "bg-gray-100 text-gray-600"
                 )}
                 onClick={() => setCategory(opt.value)}
               >
@@ -249,7 +249,7 @@ export default function EditPostPage() {
         )}
 
         {/* 画像添付 */}
-        <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 py-4 text-sm text-gray-400 transition-colors hover:border-gray-400 hover:text-gray-500 dark:border-gray-600">
+        <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 py-4 text-sm text-gray-400 transition-colors hover:border-gray-400 hover:text-gray-500">
           <input
             type="file"
             accept="image/*"

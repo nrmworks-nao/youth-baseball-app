@@ -84,7 +84,7 @@ export default function ShopPage() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col overflow-x-hidden">
       <div className="border-b border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
         <h2 className="text-base font-bold text-gray-900">買い物</h2>
         {currentMembership?.is_admin && (
@@ -118,7 +118,7 @@ export default function ShopPage() {
                     <div className="flex gap-3">
                       <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 overflow-hidden">
                         {imageUrl ? (
-                          <img src={imageUrl} alt={product?.name} className="h-full w-full object-cover" />
+                          <img src={imageUrl} alt={product?.name} className="h-full w-full max-w-full object-cover" />
                         ) : (
                           <svg className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
@@ -178,7 +178,7 @@ export default function ShopPage() {
       </div>
 
       {/* 商品一覧 */}
-      <div className="grid grid-cols-2 gap-3 p-4">
+      <div className="grid grid-cols-2 gap-3 p-4 max-w-full">
         {products.length === 0 ? (
           <p className="col-span-2 py-8 text-center text-sm text-gray-400">商品が登録されていません</p>
         ) : (
@@ -189,7 +189,7 @@ export default function ShopPage() {
                 <Card className="overflow-hidden transition-colors hover:bg-gray-50">
                   <div className="flex h-28 items-center justify-center bg-gray-100 overflow-hidden">
                     {imageUrl ? (
-                      <img src={imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                      <img src={imageUrl} alt={product.name} className="h-full w-full max-w-full object-cover" />
                     ) : (
                       <svg className="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
@@ -197,7 +197,7 @@ export default function ShopPage() {
                     )}
                   </div>
                   <div className="p-2">
-                    <p className="truncate text-sm font-medium text-gray-900">{product.name}</p>
+                    <p className="line-clamp-2 text-sm font-medium text-gray-900">{product.name}</p>
                     <p className="text-xs text-gray-500">{product.brand}</p>
                     <div className="mt-1 flex items-center justify-between">
                       <span className="text-xs font-medium text-gray-900">
