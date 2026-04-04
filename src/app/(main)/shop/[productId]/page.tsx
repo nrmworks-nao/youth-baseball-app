@@ -14,7 +14,7 @@ import { getShopProduct, getTeamPinnedProducts, pinProduct, unpinProduct } from 
 import { getErrorMessage } from "@/lib/supabase/error-handler";
 import { supabase } from "@/lib/supabase/client";
 import type { ShopProduct, TeamPinnedProduct } from "@/types";
-import { Input } from "@/components/ui/input";
+
 import { Textarea } from "@/components/ui/textarea";
 import { ExternalLink } from "lucide-react";
 
@@ -32,7 +32,7 @@ export default function ProductDetailPage() {
 
   const [product, setProduct] = useState<ShopProduct | null>(null);
   const [pinnedData, setPinnedData] = useState<TeamPinnedProduct | null>(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -127,30 +127,6 @@ export default function ProductDetailPage() {
           </svg>
         </Link>
         <h2 className="text-base font-bold text-gray-900">商品詳細</h2>
-      </div>
-
-      {/* 画像スライダー */}
-      <div className="relative">
-        <div className="flex h-64 items-center justify-center bg-gray-100 overflow-hidden">
-          {images.length > 0 && images[currentSlide]?.image_url ? (
-            <img src={images[currentSlide].image_url} alt={product.name} className="h-full w-full object-cover" />
-          ) : (
-            <svg className="h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
-            </svg>
-          )}
-        </div>
-        {images.length > 1 && (
-          <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
-            {images.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentSlide(i)}
-                className={`h-2 w-2 rounded-full ${i === currentSlide ? "bg-white" : "bg-white/50"}`}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="space-y-4 p-4">
@@ -266,6 +242,26 @@ export default function ProductDetailPage() {
                 </a>
               )
             )}
+          </div>
+        )}
+
+        {/* 商品画像 */}
+        {images.length > 0 && (
+          <div>
+            <h3 className="text-sm font-medium text-gray-900">商品画像</h3>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {images.map((img) => (
+                img.image_url && (
+                  <a key={img.id} href={img.image_url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={img.image_url}
+                      alt={product.name}
+                      className="h-24 w-24 rounded-lg object-cover"
+                    />
+                  </a>
+                )
+              ))}
+            </div>
           </div>
         )}
       </div>
