@@ -135,6 +135,9 @@ export default function TeamSearchPage() {
     }
   }, [userId, favoriteTeamIds, togglingFavorite, results]);
 
+  // タブ切り替え state
+  const [activeTab, setActiveTab] = useState<"search" | "favorites">("search");
+
   const myTeamId = currentMembership?.team.id;
 
   const renderTeamCard = (profile: TeamProfile, showFavoriteButton: boolean) => (
@@ -213,14 +216,6 @@ export default function TeamSearchPage() {
         <h2 className="text-base font-bold text-gray-900">チーム検索</h2>
       </div>
 
-      {/* お気に入りチームセクション */}
-      {favoriteProfiles.length > 0 && (
-        <div className="space-y-2 p-4 pb-0">
-          <h3 className="text-sm font-bold text-gray-700">お気に入りチーム</h3>
-          {favoriteProfiles.map((profile) => renderTeamCard(profile, true))}
-        </div>
-      )}
-
       {/* 検索フィルター */}
       <div className="space-y-2 bg-white px-4 py-3">
         <Input
@@ -248,17 +243,58 @@ export default function TeamSearchPage() {
         </Button>
       </div>
 
+      {/* タブ切り替えボタン */}
+      <div className="flex gap-2 px-4 pt-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab("search")}
+          className={`flex-1 rounded-lg py-2 text-sm font-bold transition-colors ${
+            activeTab === "search"
+              ? "bg-green-600 text-white"
+              : "bg-gray-100 text-gray-700"
+          }`}
+        >
+          検索結果
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("favorites")}
+          className={`flex-1 rounded-lg py-2 text-sm font-bold transition-colors ${
+            activeTab === "favorites"
+              ? "bg-green-600 text-white"
+              : "bg-gray-100 text-gray-700"
+          }`}
+        >
+          お気に入り ({favoriteTeamIds.size})
+        </button>
+      </div>
+
       {/* 結果 */}
       {error && <ErrorDisplay message={error} onRetry={handleSearch} />}
 
-      {isLoading && <Loading text="チームを検索中..." />}
+      {isLoading && activeTab === "search" && <Loading text="チームを検索中..." />}
 
-      {!isLoading && !error && (
+      {activeTab === "search" && !isLoading && !error && (
         <div className="space-y-2 p-4">
           {hasSearched && (
             <p className="text-xs text-gray-500">{results.length}チームが見つかりました</p>
           )}
           {results.map((profile) => renderTeamCard(profile, true))}
+        </div>
+      )}
+
+      {activeTab === "favorites" && (
+        <div className="space-y-2 p-4">
+          {favoriteProfiles.length > 0 ? (
+            <>
+              <p className="text-xs text-gray-500">{favoriteProfiles.length}チームをお気に入り登録中</p>
+              {favoriteProfiles.map((profile) => renderTeamCard(profile, true))}
+            </>
+          ) : (
+            <p className="py-8 text-center text-sm text-gray-500">
+              お気に入りチームはまだありません。検索結果からハートをタップして追加しましょう。
+            </p>
+          )}
         </div>
       )}
     </div>
