@@ -241,6 +241,76 @@ export async function updateMatchRequestStatus(
   }
 }
 
+// === お気に入りチーム ===
+
+/** お気に入りチーム一覧取得（team_idの配列を返す） */
+export async function getFavoriteTeams(
+  userId: string
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("team_favorites")
+    .select("team_id")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return (data ?? []).map((row) => row.team_id);
+}
+
+/** お気に入り追加 */
+export async function addFavoriteTeam(
+  userId: string,
+  teamId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("team_favorites")
+    .upsert({ user_id: userId, team_id: teamId }, { onConflict: "user_id,team_id" });
+  if (error) throw error;
+}
+
+/** お気に入り削除 */
+export async function removeFavoriteTeam(
+  userId: string,
+  teamId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("team_favorites")
+    .delete()
+    .eq("user_id", userId)
+    .eq("team_id", teamId);
+  if (error) throw error;
+}
+
+/** お気に入りチームのプロフィール取得（分割クエリパターン） */
+export async function getFavoriteTeamProfiles(
+  teamIds: string[]
+): Promise<TeamProfile[]> {
+  if (teamIds.length === 0) return [];
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from("team_profiles")
+    .select("*")
+    .in("team_id", teamIds);
+  if (profilesError) throw profilesError;
+  if (!profiles || profiles.length === 0) return [];
+
+  const { data: teams, error: teamsError } = await supabase
+    .from("teams")
+    .select("id, name, region, league, logo_url")
+    .in("id", teamIds);
+  if (teamsError) throw teamsError;
+
+  const teamsMap = new Map<string, { id: string; name: string; region?: string; league?: string; logo_url?: string }>();
+  for (const t of teams ?? []) {
+    teamsMap.set(t.id, t);
+  }
+
+  return profiles
+    .map((p) => ({
+      ...p,
+      team: teamsMap.get(p.team_id) ?? undefined,
+    }))
+    .filter((p) => p.team !== undefined) as TeamProfile[];
+}
+
 // === 対戦成績 ===
 
 /** 対戦成績一覧 */
