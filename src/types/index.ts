@@ -55,7 +55,7 @@ export interface Team {
   logo_url?: string;
   banner_url?: string;
   invite_code?: string;
-  invite_expires_at?: string;
+  invite_expires_at?: string | null;
   require_approval: boolean;
   created_at: string;
 }
