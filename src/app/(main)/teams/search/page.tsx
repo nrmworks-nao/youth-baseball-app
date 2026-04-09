@@ -47,7 +47,7 @@ export default function TeamSearchPage() {
         keyword: keyword.trim() || undefined,
         region: region || undefined,
         league: league || undefined,
-        excludeTeamId: currentMembership?.team_id,
+        excludeTeamId: currentMembership?.team.id,
       });
       setResults(data);
       setHasSearched(true);
@@ -56,7 +56,7 @@ export default function TeamSearchPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, region, league, currentMembership?.team_id]);
+  }, [keyword, region, league, currentMembership?.team.id]);
 
   if (teamLoading) return <Loading className="min-h-screen" />;
   if (!canManageInterTeam()) return <ErrorDisplay message="権限がありません" />;
