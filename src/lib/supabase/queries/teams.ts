@@ -80,14 +80,11 @@ export async function generateInviteCode(teamId: string): Promise<string> {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
 
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
-
   const { error } = await supabase
     .from("teams")
     .update({
       invite_code: code,
-      invite_expires_at: expiresAt.toISOString(),
+      invite_expires_at: null,
     })
     .eq("id", teamId);
   if (error) throw error;

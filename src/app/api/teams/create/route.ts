@@ -51,9 +51,6 @@ export async function POST(req: Request) {
     for (let i = 0; i < 10; i++) {
       inviteCode += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    const inviteExpiresAt = new Date();
-    inviteExpiresAt.setDate(inviteExpiresAt.getDate() + 7);
-
     // チーム作成
     console.log("チーム作成開始:", { name: name.trim(), userId });
     const { data: team, error: teamError } = await supabaseAdmin
@@ -64,7 +61,7 @@ export async function POST(req: Request) {
         league: league?.trim() || null,
         created_by: userId,
         invite_code: inviteCode,
-        invite_expires_at: inviteExpiresAt.toISOString(),
+        invite_expires_at: null,
       })
       .select()
       .single();

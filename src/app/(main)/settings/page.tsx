@@ -152,12 +152,10 @@ export default function SettingsPage() {
     setIsGenerating(true);
     try {
       const code = await generateInviteCode(team.id);
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
       setTeam({
         ...team,
         invite_code: code,
-        invite_expires_at: expiresAt.toISOString(),
+        invite_expires_at: null,
       });
     } catch {
       // エラー処理
@@ -208,7 +206,7 @@ export default function SettingsPage() {
   };
 
   const isExpired =
-    team?.invite_expires_at && new Date(team.invite_expires_at) < new Date();
+    team?.invite_expires_at != null && new Date(team.invite_expires_at) < new Date();
   const inviteUrl = team?.invite_code
     ? `${getAppUrl()}/invite/${team.invite_code}`
     : null;
@@ -398,14 +396,14 @@ export default function SettingsPage() {
                         {copied ? "コピー済み" : "コピー"}
                       </Button>
                     </div>
-                    {team?.invite_expires_at && (
-                      <p className="text-xs text-gray-500">
-                        有効期限:{" "}
-                        {new Date(team.invite_expires_at).toLocaleDateString(
-                          "ja-JP"
-                        )}
-                      </p>
-                    )}
+                    <p className="text-xs text-gray-500">
+                      有効期限:{" "}
+                      {team?.invite_expires_at
+                        ? new Date(team.invite_expires_at).toLocaleDateString(
+                            "ja-JP"
+                          )
+                        : "なし"}
+                    </p>
                     <div className="flex items-center justify-center rounded-lg border border-gray-200 p-4 sm:p-6">
                       <QRCodeSVG value={inviteUrl} size={160} className="max-w-full h-auto" />
                     </div>
