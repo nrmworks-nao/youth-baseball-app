@@ -238,7 +238,7 @@ export default function TeamSearchPage() {
             ))}
           </Select>
         </div>
-        <Button className="w-full" onClick={handleSearch} disabled={isLoading}>
+        <Button className="w-full bg-green-100 text-green-700 border border-green-300 hover:bg-green-200" onClick={handleSearch} disabled={isLoading}>
           {isLoading ? "検索中..." : "検索"}
         </Button>
       </div>
