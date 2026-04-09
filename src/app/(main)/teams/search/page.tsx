@@ -238,7 +238,7 @@ export default function TeamSearchPage() {
             ))}
           </Select>
         </div>
-        <Button className="w-full bg-green-100 text-green-700 border border-green-300 hover:bg-green-200" onClick={handleSearch} disabled={isLoading}>
+        <Button className="w-full bg-green-600 text-white hover:bg-green-700" onClick={handleSearch} disabled={isLoading}>
           {isLoading ? "検索中..." : "検索"}
         </Button>
       </div>
@@ -250,8 +250,8 @@ export default function TeamSearchPage() {
           onClick={() => setActiveTab("search")}
           className={`flex-1 rounded-lg py-2 text-sm font-bold transition-colors ${
             activeTab === "search"
-              ? "bg-green-600 text-white"
-              : "bg-gray-100 text-gray-700"
+              ? "bg-green-100 text-green-700 border border-green-300"
+              : "bg-gray-100 text-gray-600"
           }`}
         >
           検索結果
@@ -261,8 +261,8 @@ export default function TeamSearchPage() {
           onClick={() => setActiveTab("favorites")}
           className={`flex-1 rounded-lg py-2 text-sm font-bold transition-colors ${
             activeTab === "favorites"
-              ? "bg-green-600 text-white"
-              : "bg-gray-100 text-gray-700"
+              ? "bg-green-100 text-green-700 border border-green-300"
+              : "bg-gray-100 text-gray-600"
           }`}
         >
           お気に入り ({favoriteTeamIds.size})
