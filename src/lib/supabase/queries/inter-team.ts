@@ -9,37 +9,91 @@ import type {
 
 // === チームプロフィール ===
 
-/** 公開チーム検索 */
-export async function searchTeams(params?: { region?: string; league?: string; keyword?: string }) {
-  let query = supabase
+/** 公開チーム検索（分割クエリパターン） */
+export async function searchTeams(params?: {
+  region?: string;
+  league?: string;
+  keyword?: string;
+  excludeTeamId?: string;
+}) {
+  // 1. team_profiles から is_public = true のレコードを取得
+  const { data: profiles, error: profilesError } = await supabase
     .from("team_profiles")
-    .select("*, teams(id, name, region, league)")
+    .select("*")
     .eq("is_public", true);
+  if (profilesError) throw profilesError;
+  if (!profiles || profiles.length === 0) return [];
 
-  if (params?.region) {
-    query = query.eq("teams.region", params.region);
+  // 2. team_id リストで teams テーブルから情報を取得
+  const teamIds = profiles.map((p) => p.team_id);
+  let teamsQuery = supabase
+    .from("teams")
+    .select("id, name, region, league, logo_url")
+    .in("id", teamIds);
+
+  const { data: teams, error: teamsError } = await teamsQuery;
+  if (teamsError) throw teamsError;
+
+  // 3. teams を Map 化
+  const teamsMap = new Map<string, { id: string; name: string; region?: string; league?: string; logo_url?: string }>();
+  for (const t of teams ?? []) {
+    teamsMap.set(t.id, t);
   }
-  if (params?.league) {
-    query = query.eq("teams.league", params.league);
+
+  // 4. JavaScript でマージ＆フィルタ
+  let results: TeamProfile[] = profiles
+    .map((p) => ({
+      ...p,
+      team: teamsMap.get(p.team_id) ?? undefined,
+    }))
+    .filter((p) => p.team !== undefined) as TeamProfile[];
+
+  // 自チーム除外
+  if (params?.excludeTeamId) {
+    results = results.filter((p) => p.team_id !== params.excludeTeamId);
   }
+
+  // キーワード検索: チーム名・紹介文・ホームグラウンドで部分一致
   if (params?.keyword) {
-    query = query.or(`introduction.ilike.%${params.keyword}%,home_ground.ilike.%${params.keyword}%`);
+    const kw = params.keyword.toLowerCase();
+    results = results.filter((p) => {
+      const name = p.team?.name?.toLowerCase() ?? "";
+      const intro = p.introduction?.toLowerCase() ?? "";
+      const ground = p.home_ground?.toLowerCase() ?? "";
+      return name.includes(kw) || intro.includes(kw) || ground.includes(kw);
+    });
   }
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return data as TeamProfile[];
+  // 地域フィルタ: 前方一致（例: 「栃木県」で「栃木県真岡市」もヒット）
+  if (params?.region) {
+    results = results.filter((p) => p.team?.region?.startsWith(params.region!) ?? false);
+  }
+
+  // リーグフィルタ: 完全一致
+  if (params?.league) {
+    results = results.filter((p) => p.team?.league === params.league);
+  }
+
+  return results;
 }
 
-/** チームプロフィール取得 */
+/** チームプロフィール取得（分割クエリパターン） */
 export async function getTeamProfile(teamId: string) {
-  const { data, error } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("team_profiles")
-    .select("*, teams(id, name, region, league)")
+    .select("*")
     .eq("team_id", teamId)
     .single();
-  if (error) throw error;
-  return data as TeamProfile;
+  if (profileError) throw profileError;
+
+  const { data: team, error: teamError } = await supabase
+    .from("teams")
+    .select("id, name, region, league, logo_url")
+    .eq("id", teamId)
+    .single();
+  if (teamError) throw teamError;
+
+  return { ...profile, team } as TeamProfile;
 }
 
 /** チームプロフィール作成/更新 */

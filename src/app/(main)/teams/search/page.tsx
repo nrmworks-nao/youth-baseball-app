@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,16 @@ import { searchTeams } from "@/lib/supabase/queries/inter-team";
 import { getErrorMessage } from "@/lib/supabase/error-handler";
 import type { TeamProfile } from "@/types";
 
-const REGIONS = ["", "東京都", "埼玉県", "神奈川県", "千葉県"];
+const PREFECTURES = [
+  '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
+  '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
+  '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県',
+  '岐阜県', '静岡県', '愛知県', '三重県',
+  '滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県',
+  '鳥取県', '島根県', '岡山県', '広島県', '山口県',
+  '徳島県', '香川県', '愛媛県', '高知県',
+  '福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県',
+];
 const LEAGUES = ["", "少年野球連盟A", "少年野球連盟B", "少年野球連盟C"];
 
 export default function TeamSearchPage() {
@@ -37,6 +47,7 @@ export default function TeamSearchPage() {
         keyword: keyword.trim() || undefined,
         region: region || undefined,
         league: league || undefined,
+        excludeTeamId: currentMembership?.team_id,
       });
       setResults(data);
       setHasSearched(true);
@@ -45,7 +56,7 @@ export default function TeamSearchPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, region, league]);
+  }, [keyword, region, league, currentMembership?.team_id]);
 
   if (teamLoading) return <Loading className="min-h-screen" />;
   if (!canManageInterTeam()) return <ErrorDisplay message="権限がありません" />;
@@ -67,7 +78,7 @@ export default function TeamSearchPage() {
         <div className="grid grid-cols-2 gap-2">
           <Select label="" value={region} onChange={(e) => setRegion(e.target.value)}>
             <option value="">地域を選択</option>
-            {REGIONS.filter(Boolean).map((r) => (
+            {PREFECTURES.map((r) => (
               <option key={r} value={r}>{r}</option>
             ))}
           </Select>
@@ -93,30 +104,48 @@ export default function TeamSearchPage() {
           {hasSearched && (
             <p className="text-xs text-gray-500">{results.length}チームが見つかりました</p>
           )}
-          {results.map((profile) => {
-            const team = (profile as unknown as { teams?: { id: string; name: string; region?: string; league?: string } }).teams;
-            return (
+          {results.map((profile) => (
               <Link key={profile.team_id} href={`/teams/${profile.team_id}/profile`}>
                 <Card className="p-4 transition-colors hover:bg-gray-50">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-900">{team?.name ?? "チーム"}</h3>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {team?.region && <Badge variant="default">{team.region}</Badge>}
-                        {team?.league && <Badge variant="practice">{team.league}</Badge>}
+                  <div className="flex items-start gap-3">
+                    {profile.team?.logo_url ? (
+                      <Image
+                        src={profile.team.logo_url}
+                        alt={profile.team?.name ?? "チームロゴ"}
+                        width={48}
+                        height={48}
+                        className="shrink-0 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-lg text-gray-400">
+                        ⚾
                       </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between">
+                        <h3 className="text-sm font-bold text-gray-900">{profile.team?.name ?? "チーム"}</h3>
+                        {profile.member_count != null && (
+                          <span className="shrink-0 text-xs text-gray-400">{profile.member_count}名</span>
+                        )}
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {profile.team?.region && <Badge variant="default">{profile.team.region}</Badge>}
+                        {profile.team?.league && <Badge variant="practice">{profile.team.league}</Badge>}
+                      </div>
+                      {profile.introduction && (
+                        <p className="mt-1 line-clamp-2 text-xs text-gray-600">{profile.introduction}</p>
+                      )}
                       {profile.home_ground && (
-                        <p className="mt-1 text-xs text-gray-500">{profile.home_ground}</p>
+                        <p className="mt-1 text-xs text-gray-500">📍 {profile.home_ground}</p>
+                      )}
+                      {profile.practice_schedule && (
+                        <p className="mt-1 text-xs text-gray-500">📅 {profile.practice_schedule}</p>
                       )}
                     </div>
-                    {profile.member_count != null && (
-                      <span className="text-xs text-gray-400">{profile.member_count}名</span>
-                    )}
                   </div>
                 </Card>
               </Link>
-            );
-          })}
+          ))}
         </div>
       )}
     </div>
