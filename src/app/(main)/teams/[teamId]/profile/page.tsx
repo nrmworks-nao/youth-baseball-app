@@ -185,7 +185,7 @@ export default function TeamProfilePage() {
         </Card>
 
         {/* アクション */}
-        <div className="space-y-2">
+        <div className="flex flex-col gap-3">
           {isOwnTeam && isAdmin() && (
             <Button className="w-full" onClick={startEditing}>
               プロフィールを編集

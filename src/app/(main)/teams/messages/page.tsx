@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ function timeAgo(dateStr: string) {
 }
 
 export default function TeamMessagesPage() {
+  const router = useRouter();
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
   const { canManageInterTeam } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
@@ -202,7 +204,14 @@ export default function TeamMessagesPage() {
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
-        <h2 className="text-base font-bold text-gray-900">チーム間メッセージ</h2>
+        <div className="flex items-center gap-2">
+          <button onClick={() => router.back()} className="flex items-center text-gray-600 hover:text-gray-900">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
+          </button>
+          <h2 className="text-base font-bold text-gray-900">チーム間メッセージ</h2>
+        </div>
         {canManageInterTeam() && (
           <Button size="sm" onClick={() => setShowCompose(!showCompose)}>
             {showCompose ? "閉じる" : "+ 新規"}
