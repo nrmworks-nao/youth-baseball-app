@@ -21,7 +21,7 @@ export default function TeamProfilePage() {
   const router = useRouter();
   const teamId = params.teamId as string;
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
-  const { isAdmin, canSendInterTeamMessage, canRequestMatch } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
+  const { isAdmin, hasPermission, canSendInterTeamMessage, canRequestMatch } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [profile, setProfile] = useState<TeamProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,8 +36,10 @@ export default function TeamProfilePage() {
   const [editMemberCount, setEditMemberCount] = useState("");
   const [editFoundedYear, setEditFoundedYear] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editIsPublic, setEditIsPublic] = useState(true);
 
   const isOwnTeam = currentTeam?.id === teamId;
+  const canEditProfile = isOwnTeam && (isAdmin() || hasPermission(["director"]));
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -66,6 +68,7 @@ export default function TeamProfilePage() {
       setEditMemberCount(profile.member_count?.toString() ?? "");
       setEditFoundedYear(profile.founded_year?.toString() ?? "");
       setEditEmail(profile.contact_email ?? "");
+      setEditIsPublic(profile.is_public ?? true);
     }
     setIsEditing(true);
   };
@@ -81,6 +84,7 @@ export default function TeamProfilePage() {
         member_count: editMemberCount ? Number(editMemberCount) : undefined,
         founded_year: editFoundedYear ? Number(editFoundedYear) : undefined,
         contact_email: editEmail.trim() || undefined,
+        is_public: editIsPublic,
       });
       setIsEditing(false);
       await fetchData();
@@ -103,10 +107,9 @@ export default function TeamProfilePage() {
     return <ErrorDisplay title="プロフィールが見つかりません" />;
   }
 
-  const team = (profile as unknown as { teams?: { id: string; name: string; region?: string; league?: string } }).teams;
-  const teamName = team?.name ?? "チーム";
-  const region = team?.region;
-  const league = team?.league;
+  const teamName = profile.team?.name ?? "チーム";
+  const region = profile.team?.region;
+  const league = profile.team?.league;
 
   if (isEditing) {
     return (
@@ -120,12 +123,26 @@ export default function TeamProfilePage() {
           <h2 className="text-base font-bold text-gray-900">プロフィール編集</h2>
         </div>
         <div className="space-y-4 p-4">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <p className="text-xs text-blue-700">
+              チーム名・地域・リーグは設定画面で変更できます
+            </p>
+          </div>
           <Textarea label="チーム紹介" value={editIntro} onChange={(e) => setEditIntro(e.target.value)} />
           <Input label="ホームグラウンド" value={editGround} onChange={(e) => setEditGround(e.target.value)} />
           <Input label="活動日" value={editSchedule} onChange={(e) => setEditSchedule(e.target.value)} />
           <Input label="部員数" type="number" value={editMemberCount} onChange={(e) => setEditMemberCount(e.target.value)} />
           <Input label="設立年" type="number" value={editFoundedYear} onChange={(e) => setEditFoundedYear(e.target.value)} />
           <Input label="連絡先メール" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={editIsPublic}
+              onChange={(e) => setEditIsPublic(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+            />
+            <span className="text-sm text-gray-700">チーム検索で公開する</span>
+          </label>
           <Button className="w-full" onClick={handleSave} disabled={isSaving}>
             {isSaving ? "保存中..." : "保存"}
           </Button>
@@ -187,7 +204,7 @@ export default function TeamProfilePage() {
 
         {/* アクション */}
         <div className="flex flex-col gap-3">
-          {isOwnTeam && isAdmin() && (
+          {canEditProfile && (
             <Button className="w-full" onClick={startEditing}>
               プロフィールを編集
             </Button>
