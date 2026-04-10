@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,10 +16,11 @@ import {
   getMessageThread,
   sendInterTeamMessage,
   markMessageAsRead,
+  searchTeams,
 } from "@/lib/supabase/queries/inter-team";
 import { supabase } from "@/lib/supabase/client";
 import { getErrorMessage } from "@/lib/supabase/error-handler";
-import type { InterTeamMessage } from "@/types";
+import type { InterTeamMessage, TeamProfile } from "@/types";
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -30,7 +31,18 @@ function timeAgo(dateStr: string) {
 }
 
 export default function TeamMessagesPage() {
+  return (
+    <Suspense fallback={<Loading text="メッセージを読み込み中..." />}>
+      <TeamMessagesContent />
+    </Suspense>
+  );
+}
+
+function TeamMessagesContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const paramToTeamId = searchParams.get("toTeamId");
+  const paramToTeamName = searchParams.get("toTeamName");
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
   const { canManageInterTeam } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
@@ -41,12 +53,19 @@ export default function TeamMessagesPage() {
   const [error, setError] = useState<string | null>(null);
 
   // 新規作成フォーム
-  const [showCompose, setShowCompose] = useState(false);
-  const [toTeamId, setToTeamId] = useState("");
+  const [showCompose, setShowCompose] = useState(!!paramToTeamId);
+  const [toTeamId, setToTeamId] = useState(paramToTeamId ?? "");
+  const [toTeamName, setToTeamName] = useState(paramToTeamName ?? "");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [replyBody, setReplyBody] = useState("");
   const [isSending, setIsSending] = useState(false);
+
+  // チーム検索（クエリパラメータがない場合）
+  const [teamSearchQuery, setTeamSearchQuery] = useState("");
+  const [teamSearchResults, setTeamSearchResults] = useState<TeamProfile[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   const fetchThreads = useCallback(async () => {
     if (!currentTeam) return;
@@ -85,6 +104,40 @@ export default function TeamMessagesPage() {
     }
   };
 
+  const handleTeamSearch = useCallback(async (query: string) => {
+    setTeamSearchQuery(query);
+    if (query.trim().length < 1) {
+      setTeamSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const results = await searchTeams({ keyword: query.trim() });
+      setTeamSearchResults(
+        results.filter((t) => t.team_id !== currentTeam?.id)
+      );
+      setShowSearchResults(true);
+    } catch {
+      // 検索エラーは無視
+    } finally {
+      setIsSearching(false);
+    }
+  }, [currentTeam]);
+
+  const selectTeam = (teamProfile: TeamProfile) => {
+    const team = (teamProfile as unknown as { teams?: { name: string } }).teams;
+    setToTeamId(teamProfile.team_id);
+    setToTeamName(team?.name ?? teamProfile.team_id);
+    setTeamSearchQuery("");
+    setShowSearchResults(false);
+  };
+
+  const clearSelectedTeam = () => {
+    setToTeamId("");
+    setToTeamName("");
+  };
+
   const handleSend = async () => {
     if (!currentTeam || !toTeamId.trim() || !subject.trim() || !body.trim()) return;
     setIsSending(true);
@@ -100,6 +153,7 @@ export default function TeamMessagesPage() {
       });
       setShowCompose(false);
       setToTeamId("");
+      setToTeamName("");
       setSubject("");
       setBody("");
       await fetchThreads();
@@ -225,7 +279,57 @@ export default function TeamMessagesPage() {
           <Card className="p-4">
             <h3 className="mb-3 text-sm font-medium text-gray-900">新しいメッセージ</h3>
             <div className="space-y-3">
-              <Input label="宛先チームID" value={toTeamId} onChange={(e) => setToTeamId(e.target.value)} placeholder="チームIDを入力..." />
+              {/* 宛先チーム */}
+              {toTeamId ? (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">宛先チーム</label>
+                  <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                    <span className="flex-1 text-sm text-gray-900">{toTeamName || toTeamId}</span>
+                    {!paramToTeamId && (
+                      <button
+                        onClick={clearSelectedTeam}
+                        className="text-xs text-gray-400 hover:text-gray-600"
+                      >
+                        変更
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Input
+                    label="宛先チーム"
+                    value={teamSearchQuery}
+                    onChange={(e) => handleTeamSearch(e.target.value)}
+                    placeholder="チーム名で検索..."
+                  />
+                  {isSearching && (
+                    <p className="mt-1 text-xs text-gray-400">検索中...</p>
+                  )}
+                  {showSearchResults && teamSearchResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                      {teamSearchResults.map((tp) => {
+                        const team = (tp as unknown as { teams?: { name: string; region?: string } }).teams;
+                        return (
+                          <button
+                            key={tp.team_id}
+                            onClick={() => selectTeam(tp)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
+                          >
+                            <span className="font-medium text-gray-900">{team?.name ?? tp.team_id}</span>
+                            {team?.region && (
+                              <span className="ml-2 text-xs text-gray-500">{team.region}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {showSearchResults && teamSearchResults.length === 0 && teamSearchQuery.trim() && !isSearching && (
+                    <p className="mt-1 text-xs text-gray-400">該当するチームが見つかりません</p>
+                  )}
+                </div>
+              )}
               <Input label="件名" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="件名" />
               <Textarea label="本文" value={body} onChange={(e) => setBody(e.target.value)} placeholder="メッセージ本文..." />
               <Button className="w-full" onClick={handleSend} disabled={isSending || !toTeamId.trim() || !subject.trim() || !body.trim()}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import type { TeamProfile } from "@/types";
 
 export default function TeamProfilePage() {
   const params = useParams();
+  const router = useRouter();
   const teamId = params.teamId as string;
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
   const { isAdmin, canSendInterTeamMessage, canRequestMatch } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
@@ -192,18 +193,21 @@ export default function TeamProfilePage() {
             </Button>
           )}
           {!isOwnTeam && canSendInterTeamMessage() && (
-            <Link href="/teams/messages">
-              <Button className="w-full" variant="outline">
-                メッセージを送る
-              </Button>
-            </Link>
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={() => router.push(`/teams/messages?toTeamId=${teamId}&toTeamName=${encodeURIComponent(teamName)}`)}
+            >
+              メッセージを送る
+            </Button>
           )}
           {!isOwnTeam && canRequestMatch() && (
-            <Link href="/teams/matches/request">
-              <Button className="w-full">
-                練習試合を申し込む
-              </Button>
-            </Link>
+            <Button
+              className="w-full"
+              onClick={() => router.push(`/teams/matches/request?toTeamId=${teamId}&toTeamName=${encodeURIComponent(teamName)}`)}
+            >
+              練習試合を申し込む
+            </Button>
           )}
         </div>
       </div>

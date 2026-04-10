@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,12 +18,22 @@ import { getErrorMessage } from "@/lib/supabase/error-handler";
 import type { TeamProfile } from "@/types";
 
 export default function MatchRequestPage() {
+  return (
+    <Suspense fallback={<Loading text="読み込み中..." />}>
+      <MatchRequestContent />
+    </Suspense>
+  );
+}
+
+function MatchRequestContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const paramToTeamId = searchParams.get("toTeamId");
   const { currentTeam, currentMembership, isLoading: teamLoading } = useCurrentTeam();
   const { canManageInterTeam } = usePermission(currentMembership?.permission_group ?? null, currentMembership?.is_admin ?? false);
 
   const [teams, setTeams] = useState<TeamProfile[]>([]);
-  const [toTeam, setToTeam] = useState("");
+  const [toTeam, setToTeam] = useState(paramToTeamId ?? "");
   const [format, setFormat] = useState("practice_match");
   const [venue, setVenue] = useState("");
   const [message, setMessage] = useState("");
