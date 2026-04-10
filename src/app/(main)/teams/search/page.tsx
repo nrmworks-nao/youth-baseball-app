@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -145,12 +144,10 @@ export default function TeamSearchPage() {
       <Card className="p-4 transition-colors hover:bg-gray-50">
         <div className="flex items-start gap-3">
           {profile.team?.logo_url ? (
-            <Image
+            <img
               src={profile.team.logo_url}
               alt={profile.team?.name ?? "チームロゴ"}
-              width={48}
-              height={48}
-              className="shrink-0 rounded-lg object-cover"
+              className="h-12 w-12 shrink-0 rounded-lg object-cover"
             />
           ) : (
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-lg text-gray-400">

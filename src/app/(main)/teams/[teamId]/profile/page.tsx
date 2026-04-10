@@ -167,9 +167,17 @@ export default function TeamProfilePage() {
         <Card>
           <CardContent className="py-4">
             <div className="flex items-center justify-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-                <span className="text-3xl">⚾</span>
-              </div>
+              {profile.team?.logo_url ? (
+                <img
+                  src={profile.team.logo_url}
+                  alt={teamName}
+                  className="h-20 w-20 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+                  <span className="text-3xl">⚾</span>
+                </div>
+              )}
             </div>
             <h1 className="mt-3 text-center text-xl font-bold text-gray-900">{teamName}</h1>
             <div className="mt-2 flex justify-center gap-2">
