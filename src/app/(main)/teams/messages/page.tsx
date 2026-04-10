@@ -205,7 +205,7 @@ export default function TeamMessagesPage() {
     <div className="flex flex-col">
       <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
         <div className="flex items-center gap-2">
-          <button onClick={() => router.back()} className="flex items-center text-gray-600 hover:text-gray-900">
+          <button onClick={() => router.push('/teams/search')} className="flex items-center text-gray-600 hover:text-gray-900">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
             </svg>
