@@ -234,7 +234,7 @@ export default function LoginPage() {
           </h1>
           <h2 className="text-2xl font-bold text-gray-900">Team Hub</h2>
           <p className="mt-2 text-sm text-gray-500">
-            少年野球チームの管理をもっとスマートに
+            少年野球チーム管理をもっとスマートに
           </p>
         </div>
 
